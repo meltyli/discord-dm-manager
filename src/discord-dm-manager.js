@@ -17,7 +17,9 @@ const defaultConfig = {
     DATA_PACKAGE_FOLDER: '',
     EXPORT_PATH: '',
     DCE_PATH: '',
-    DRY_RUN: false
+    DRY_RUN: false,
+    SKIP_DELETED_USERS: true,
+    DELETED_USER_PATTERN: /^Deleted User/i  // Case insensitive match for "Deleted User"
 };
 
 // Set up logging
@@ -144,9 +146,9 @@ async function ensureEnvValues() {
     for (const [key, defaultValue] of Object.entries(envTemplate)) {
         if (!process.env[key]) {
             const value = await promptUser(`Enter value for ${key}: `);
-            envTemplate[key] = value;
+            envTemplate[key] = value.trim();
         } else {
-            envTemplate[key] = process.env[key];
+            envTemplate[key] = process.env[key].trim();
         }
     }
     updateEnvFile();
@@ -210,11 +212,48 @@ async function getCurrentOpenDMs(authToken) {
     }, 'Fetching current open DMs');
 }
 
+// valid user == (!deleted and anything with 400/404 response) and keep logs for skips/failures
+async function validateUser(authToken, userId) {
+    await rateLimiter.waitForSlot();
+    try {
+        const response = await axios.get(`https://discord.com/api/v9/users/${userId}`, {
+            headers: {
+                'Authorization': authToken,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (config.SKIP_DELETED_USERS && config.DELETED_USER_PATTERN.test(response.data.username)) {
+            logOutput(`Skipping deleted user: ${userId}`, 'info');
+            return false;
+        }
+        
+        return true;
+    } catch (error) {
+        if (error.response && error.response.status === 404) {
+            logOutput(`User ${userId} not found, skipping`, 'info');
+            return false;
+        }
+        if (error.response && error.response.status === 400) {
+            logOutput(`Invalid user ID ${userId}, skipping`, 'info');
+            return false;
+        }
+        throw error;
+    }
+}
+
 async function reopenDM(authToken, userId) {
     await rateLimiter.waitForSlot();
+    
     if (config.DRY_RUN) {
         logOutput(`[DRY RUN] Would reopen DM with user ${userId}`, 'info');
         return { id: 'dry-run-id' };
+    }
+
+    // Validate user before attempting to reopen DM
+    const isValid = await validateUser(authToken, userId);
+    if (!isValid) {
+        return null;
     }
     
     return withRetry(async () => {
@@ -367,6 +406,8 @@ async function processDMsInBatches() {
         logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${config.BATCH_SIZE}`, 'info');
         
         const batchProgress = createProgressBar();
+        let skippedUsers = 0;
+        let processedUsers = 0;
         
         for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
             const startIdx = batchNum * config.BATCH_SIZE;
@@ -377,8 +418,12 @@ async function processDMsInBatches() {
             batchProgress.start(currentBatch.length, 0);
 
             for (const [index, userId] of currentBatch.entries()) {
-                logOutput(`Opening DM with user: ${userId}`, 'debug');
-                await reopenDM(envTemplate.AUTHORIZATION_TOKEN, userId);
+                const result = await reopenDM(envTemplate.AUTHORIZATION_TOKEN, userId);
+                if (result === null) {
+                    skippedUsers++;
+                } else {
+                    processedUsers++;
+                }
                 await delay(config.API_DELAY_MS);
                 batchProgress.update(index + 1);
             }
@@ -398,7 +443,9 @@ async function processDMsInBatches() {
             }
         }
 
-        logOutput('All batches processed successfully!', 'info');
+        logOutput(`Processing complete!`, 'info');
+        logOutput(`Processed users: ${processedUsers}`, 'info');
+        logOutput(`Skipped users: ${skippedUsers}`, 'info');
     } catch (error) {
         logOutput(`Fatal error in main process: ${error.message}`, 'error');
         throw error;
