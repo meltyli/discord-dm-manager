@@ -3,6 +3,22 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const axios = require('axios');
+const cliProgress = require('cli-progress');
+
+// Default configurations
+const defaultConfig = {
+    BATCH_SIZE: 100,
+    API_DELAY_MS: 1000,
+    MAX_RETRIES: 3,
+    RETRY_DELAY_MS: 5000,
+    RATE_LIMIT_REQUESTS: 50,
+    RATE_LIMIT_INTERVAL_MS: 60000,
+    LOG_LEVEL: 'info',
+    DATA_PACKAGE_FOLDER: '',
+    EXPORT_PATH: '',
+    DCE_PATH: '',
+    DRY_RUN: false
+};
 
 // Set up logging
 const logDir = './logs';
@@ -12,20 +28,116 @@ if (!fs.existsSync(logDir)) {
 const logFile = path.join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
 const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
-function logOutput(message) {
-    console.log(message);
-    logStream.write(`${new Date().toISOString()} - ${message}\n`);
+const LogLevels = {
+    error: 0,
+    warn: 1,
+    info: 2,
+    debug: 3
+};
+
+function logOutput(message, level = 'info') {
+    if (LogLevels[level] <= LogLevels[config.LOG_LEVEL]) {
+        const timestamp = new Date().toISOString();
+        const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+        console.log(logMessage);
+        logStream.write(logMessage + '\n');
+    }
 }
 
-// Environment configuration
+// Rate limiting implementation
+class RateLimiter {
+    constructor(maxRequests, interval) {
+        this.maxRequests = maxRequests;
+        this.interval = interval;
+        this.requests = [];
+    }
+
+    async waitForSlot() {
+        const now = Date.now();
+        this.requests = this.requests.filter(time => time > now - this.interval);
+        
+        if (this.requests.length >= this.maxRequests) {
+            const oldestRequest = this.requests[0];
+            const waitTime = oldestRequest + this.interval - now;
+            await delay(waitTime);
+            return this.waitForSlot();
+        }
+        
+        this.requests.push(now);
+    }
+}
+
+// Environment and config setup
 const envTemplate = {
     AUTHORIZATION_TOKEN: '',
-    USER_DISCORD_ID: '',
-    DATA_PACKAGE_FOLDER: '',
-    EXPORT_PATH: '',
-    DCE_PATH: '',
-    LAST_SUCCESSFUL_DATE: ''
+    USER_DISCORD_ID: ''
 };
+
+let config = { ...defaultConfig };
+
+async function ensureConfigs() {
+    // Check for .env first
+    await ensureEnvValues();
+
+    // Then handle config.json
+    try {
+        if (fs.existsSync('config.json')) {
+            const fileConfig = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+            config = { ...defaultConfig, ...fileConfig };
+        } else {
+            logOutput('No config.json found, creating with default values...', 'warn');
+            await createConfigFile();
+        }
+    } catch (error) {
+        logOutput(`Error handling config.json: ${error.message}`, 'error');
+        throw error;
+    }
+
+    // Validate required paths exist
+    await validatePaths();
+}
+
+async function createConfigFile() {
+    for (const [key, value] of Object.entries(defaultConfig)) {
+        if (value === '' && !process.env[key]) {
+            config[key] = await promptUser(`Enter value for ${key}: `);
+        }
+    }
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+}
+
+async function validatePaths() {
+    const pathsToCheck = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
+    
+    for (const pathKey of pathsToCheck) {
+        const pathValue = config[pathKey];
+        if (!fs.existsSync(pathValue)) {
+            logOutput(`Path ${pathKey} (${pathValue}) does not exist`, 'warn');
+            const newPath = await promptUser(`Enter valid path for ${pathKey}: `);
+            config[pathKey] = newPath;
+            updateConfigFile();
+        }
+    }
+}
+
+function updateConfigFile() {
+    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
+}
+
+// Retry mechanism
+async function withRetry(operation, description) {
+    for (let attempt = 1; attempt <= config.MAX_RETRIES; attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (attempt === config.MAX_RETRIES) {
+                throw error;
+            }
+            logOutput(`${description} failed, attempt ${attempt}/${config.MAX_RETRIES}: ${error.message}`, 'warn');
+            await delay(config.RETRY_DELAY_MS);
+        }
+    }
+}
 
 // Environment setup functions
 async function ensureEnvValues() {
@@ -82,14 +194,12 @@ function updateEnvFile() {
     }
 }
 
-function updateLastSuccessfulDate() {
-    envTemplate.LAST_SUCCESSFUL_DATE = new Date().toISOString();
-    updateEnvFile();
-}
+// Discord API functions with rate limiting
+const rateLimiter = new RateLimiter(config.RATE_LIMIT_REQUESTS, config.RATE_LIMIT_INTERVAL_MS);
 
-// Discord API functions
 async function getCurrentOpenDMs(authToken) {
-    try {
+    await rateLimiter.waitForSlot();
+    return withRetry(async () => {
         const response = await axios.get('https://discord.com/api/v9/users/@me/channels', {
             headers: {
                 'Content-Type': 'application/json',
@@ -97,14 +207,17 @@ async function getCurrentOpenDMs(authToken) {
             }
         });
         return response.data;
-    } catch (error) {
-        logOutput(`Error fetching current open DMs: ${error.message}`);
-        throw error;
-    }
+    }, 'Fetching current open DMs');
 }
 
 async function reopenDM(authToken, userId) {
-    try {
+    await rateLimiter.waitForSlot();
+    if (config.DRY_RUN) {
+        logOutput(`[DRY RUN] Would reopen DM with user ${userId}`, 'info');
+        return { id: 'dry-run-id' };
+    }
+    
+    return withRetry(async () => {
         const response = await axios.post('https://discord.com/api/v9/users/@me/channels', 
             { recipients: [userId] }, 
             {
@@ -115,14 +228,17 @@ async function reopenDM(authToken, userId) {
             }
         );
         return response.data;
-    } catch (error) {
-        logOutput(`Error reopening DM with user ${userId}: ${error.message}`);
-        throw error;
-    }
+    }, `Reopening DM with user ${userId}`);
 }
 
 async function closeDM(authToken, channelId) {
-    try {
+    await rateLimiter.waitForSlot();
+    if (config.DRY_RUN) {
+        logOutput(`[DRY RUN] Would close DM channel ${channelId}`, 'info');
+        return;
+    }
+    
+    return withRetry(async () => {
         const response = await axios.delete(`https://discord.com/api/v9/channels/${channelId}`, {
             headers: {
                 'Authorization': authToken,
@@ -130,10 +246,7 @@ async function closeDM(authToken, channelId) {
             }
         });
         return response.data;
-    } catch (error) {
-        logOutput(`Error closing DM channel ${channelId}: ${error.message}`);
-        throw error;
-    }
+    }, `Closing DM channel ${channelId}`);
 }
 
 // Data processing functions
@@ -154,7 +267,7 @@ function traverseDataPackage(packagePath) {
                 }
             });
         } catch (error) {
-            logOutput(`Error accessing directory ${currentPath}: ${error.message}`);
+            logOutput(`Error accessing directory ${currentPath}: ${error.message}`, 'error');
             throw error;
         }
     }
@@ -179,7 +292,7 @@ function getRecipients(channelJsonPaths, myDiscordId) {
                 });
             }
         } catch (error) {
-            logOutput(`Error processing file ${filePath}: ${error.message}`);
+            logOutput(`Error processing file ${filePath}: ${error.message}`, 'error');
         }
     });
 
@@ -192,7 +305,7 @@ function delay(ms) {
 }
 
 async function waitForKeyPress() {
-    logOutput('Press any key to continue...');
+    logOutput('Press any key to continue...', 'info');
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
@@ -206,73 +319,94 @@ async function waitForKeyPress() {
     });
 }
 
+// Progress tracking
+function createProgressBar() {
+    return new cliProgress.SingleBar({
+        format: 'Progress |{bar}| {percentage}% || {value}/{total} DMs',
+        barCompleteChar: '\u2588',
+        barIncompleteChar: '\u2591'
+    });
+}
+
 // Main processing function
 async function processDMsInBatches() {
-    logOutput('Starting DM processing...');
+    logOutput('Starting DM processing...', 'info');
 
     try {
-        await ensureEnvValues();
+        await ensureConfigs();
 
-        const channelJsonPaths = traverseDataPackage(envTemplate.DATA_PACKAGE_FOLDER);
+        const channelJsonPaths = traverseDataPackage(config.DATA_PACKAGE_FOLDER);
         const allDmIds = getRecipients(channelJsonPaths, envTemplate.USER_DISCORD_ID);
 
         if (allDmIds.length === 0) {
-            logOutput('No DM recipients found. Please check your Discord ID and data package path.');
+            logOutput('No DM recipients found. Please check your Discord ID and data package path.', 'warn');
             return;
         }
 
-        const currentDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
-        logOutput(`Closing ${currentDMs.length} currently open DMs...`);
-        
-        for (const dm of currentDMs) {
-            if (dm.type === 1) {
-                logOutput(`Closing DM channel: ${dm.id}`);
-                await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
-                await delay(1000);
-            }
+        if (config.DRY_RUN) {
+            logOutput('Running in DRY RUN mode - no actual API calls will be made', 'info');
         }
 
-        const BATCH_SIZE = 100;
-        const totalBatches = Math.ceil(allDmIds.length / BATCH_SIZE);
+        const currentDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
+        logOutput(`Closing ${currentDMs.length} currently open DMs...`, 'info');
+        
+        const closeProgress = createProgressBar();
+        closeProgress.start(currentDMs.length, 0);
+        
+        for (const [index, dm] of currentDMs.entries()) {
+            if (dm.type === 1) {
+                logOutput(`Closing DM channel: ${dm.id}`, 'debug');
+                await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
+                await delay(config.API_DELAY_MS);
+            }
+            closeProgress.update(index + 1);
+        }
+        closeProgress.stop();
 
-        logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${BATCH_SIZE}`);
+        const totalBatches = Math.ceil(allDmIds.length / config.BATCH_SIZE);
+        logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${config.BATCH_SIZE}`, 'info');
+        
+        const batchProgress = createProgressBar();
         
         for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
-            const startIdx = batchNum * BATCH_SIZE;
-            const endIdx = Math.min((batchNum + 1) * BATCH_SIZE, allDmIds.length);
+            const startIdx = batchNum * config.BATCH_SIZE;
+            const endIdx = Math.min((batchNum + 1) * config.BATCH_SIZE, allDmIds.length);
             const currentBatch = allDmIds.slice(startIdx, endIdx);
 
-            logOutput(`Processing batch ${batchNum + 1}/${totalBatches}`);
-            logOutput(`Opening DMs ${startIdx + 1} to ${endIdx}`);
+            logOutput(`Processing batch ${batchNum + 1}/${totalBatches}`, 'info');
+            batchProgress.start(currentBatch.length, 0);
 
-            for (const userId of currentBatch) {
-                logOutput(`Opening DM with user: ${userId}`);
+            for (const [index, userId] of currentBatch.entries()) {
+                logOutput(`Opening DM with user: ${userId}`, 'debug');
                 await reopenDM(envTemplate.AUTHORIZATION_TOKEN, userId);
-                await delay(1000);
+                await delay(config.API_DELAY_MS);
+                batchProgress.update(index + 1);
             }
+            batchProgress.stop();
 
-            logOutput('Batch complete. Please review these DMs.');
-            await waitForKeyPress();
+            if (!config.DRY_RUN) {
+                logOutput('Batch complete. Please review these DMs.', 'info');
+                await waitForKeyPress();
 
-            const batchDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
-            for (const dm of batchDMs) {
-                if (dm.type === 1) {
-                    await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
-                    await delay(1000);
+                const batchDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
+                for (const dm of batchDMs) {
+                    if (dm.type === 1) {
+                        await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
+                        await delay(config.API_DELAY_MS);
+                    }
                 }
             }
         }
 
-        logOutput('All batches processed successfully!');
-        updateLastSuccessfulDate();
+        logOutput('All batches processed successfully!', 'info');
     } catch (error) {
-        logOutput(`Fatal error in main process: ${error.message}`);
+        logOutput(`Fatal error in main process: ${error.message}`, 'error');
         throw error;
     }
 }
 
 // Start processing
 processDMsInBatches().catch(error => {
-    logOutput(`Error in main process: ${error.stack}`);
+    logOutput(`Error in main process: ${error.stack}`, 'error');
     process.exit(1);
 });
