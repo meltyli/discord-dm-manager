@@ -1,49 +1,43 @@
 #!/bin/bash
 
-# Function to retrieve or prompt for the Discord token
-get_token() {
-    if [ -f "token.txt" ]; then
-        echo "Reading token from token.txt..."
-        TOKEN=$(<token.txt)
-    else
-        read -p "Enter your Discord token: " TOKEN
-        echo "$TOKEN" > token.txt
+# Function to check and prompt for environment variables
+check_and_prompt_env_var() {
+    local var_name=$1
+    local var_value=${!var_name}
+
+    if [ -z "$var_value" ]; then
+        read -p "Enter your $var_name: " var_value
+        echo "$var_name=$var_value" >> .env
     fi
 }
 
-# Function to retrieve or prompt for the output path
-get_output_path() {
-    if [ -f "outputPath.txt" ]; then
-        echo "Reading output path from outputPath.txt..."
-        OUTPUT_PATH=$(<outputPath.txt)
-    else
-        read -p "Enter the desired output path: " OUTPUT_PATH
-        echo "$OUTPUT_PATH" > outputPath.txt
-    fi
-}
+# Check if .env file exists, create if it doesn't
+if [ ! -f .env ]; then
+    echo ".env file not found. Creating .env file..."
+    touch .env
+fi
 
-# Function to retrieve or prompt for the DCE path
-get_dce_path() {
-    if [ -f "DCEPath.txt" ]; then
-        echo "Reading DCE path from DCEPath.txt..."
-        DCE_PATH=$(<DCEPath.txt)
-    else
-        read -p "Enter the DiscordChatExporter path: " DCE_PATH
-        echo "$DCE_PATH" > DCEPath.txt
-    fi
-}
+# Load existing environment variables from .env
+export $(grep -v '^#' .env | xargs)
+
+# Check and prompt for each required variable
+check_and_prompt_env_var "AUTHORIZATION_TOKEN"
+check_and_prompt_env_var "USER_DISCORD_ID"
+check_and_prompt_env_var "DATA_PACKAGE_FOLDER"
+check_and_prompt_env_var "EXPORT_PATH"
+check_and_prompt_env_var "DCE_PATH"
+
+# Reload environment variables after potentially adding new ones
+export $(grep -v '^#' .env | xargs)
 
 # Function to export the channel in the specified format
 export_channel() {
     local FORMAT=$1
     echo "Exporting direct messages in ${FORMAT} format..."
-    "$DCE_PATH"/DiscordChatExporter.Cli exportdm -t "$TOKEN" -o "${OUTPUT_PATH}/%G/%c/%C - %d/" \
-    --partition 10MB --format "$FORMAT" --media-dir "media" --media --reuse-media --parallel 4
+    "$DCE_PATH"/DiscordChatExporter.Cli exportdm -t "$AUTHORIZATION_TOKEN" -o "${EXPORT_PATH}/%G/%c/%C - %d/" \
+    --partition 10MB --format "$FORMAT" --media-dir "${EXPORT_PATH}/media" --media --reuse-media --parallel 4
 }
 
 # Main script execution
-get_token
-get_output_path
-get_dce_path
 export_channel Json
 export_channel HtmlDark
