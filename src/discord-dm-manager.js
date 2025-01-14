@@ -1,145 +1,278 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 const axios = require('axios');
 
-const authorizationToken = process.env.AUTHORIZATION_TOKEN;
-const dataPackageMessageFolder = process.env.DATA_PACKAGE_FOLDER;
-const myDiscordId = process.env.MY_DISCORD_ID;
-const BATCH_SIZE = 100;
+// Set up logging
+const logDir = './logs';
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir);
+}
+const logFile = path.join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
+const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
-let channelJsonPaths = [];
+function logOutput(message) {
+    console.log(message);
+    logStream.write(`${new Date().toISOString()} - ${message}\n`);
+}
 
-// Traverse through the data package to find all channel.json files
-function traverseDataPackage(packagePath) {
-    try {
-        const files = fs.readdirSync(packagePath);
-        files.forEach(file => {
-            const currentPath = path.join(packagePath, file);
-            const fileStat = fs.statSync(currentPath);
-            if (fileStat.isFile() && currentPath.includes('channel.json')) {
-                channelJsonPaths.push(currentPath);
-            } else if (fileStat.isDirectory()) {
-                traverseDataPackage(currentPath);
+// Environment configuration
+const envTemplate = {
+    AUTHORIZATION_TOKEN: '',
+    USER_DISCORD_ID: '',
+    DATA_PACKAGE_FOLDER: '',
+    EXPORT_PATH: '',
+    DCE_PATH: '',
+    LAST_SUCCESSFUL_DATE: ''
+};
+
+// Environment setup functions
+async function ensureEnvValues() {
+    for (const [key, defaultValue] of Object.entries(envTemplate)) {
+        if (!process.env[key]) {
+            const value = await promptUser(`Enter value for ${key}: `);
+            envTemplate[key] = value;
+        } else {
+            envTemplate[key] = process.env[key];
+        }
+    }
+    updateEnvFile();
+}
+
+function promptUser(query) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    return new Promise(resolve => rl.question(query, answer => {
+        rl.close();
+        resolve(answer);
+    }));
+}
+
+function updateEnvFile() {
+    const envLines = Object.entries(envTemplate)
+        .filter(([key, value]) => value !== undefined)
+        .map(([key, value]) => `${key}=${value}`);
+
+    if (!fs.existsSync('.env')) {
+        fs.writeFileSync('.env', envLines.join('\n'));
+    } else {
+        const existingEnv = fs.readFileSync('.env', 'utf-8')
+            .split('\n')
+            .reduce((acc, line) => {
+                if (line.trim()) {
+                    const [key, value] = line.split('=');
+                    acc[key] = value;
+                }
+                return acc;
+            }, {});
+
+        for (const [key, value] of Object.entries(envTemplate)) {
+            if (value !== undefined) {
+                existingEnv[key] = value;
             }
-        });
-    } catch (error) {
-        console.error('Error accessing directory:', error);
-        throw error;
+        }
+
+        const updatedEnvLines = Object.entries(existingEnv)
+            .map(([key, value]) => `${key}=${value}`);
+        fs.writeFileSync('.env', updatedEnvLines.join('\n'));
     }
 }
 
-// Get all recipient IDs from the channel.json files
-function getRecipients(channelJsonPaths, myDiscordID) {
-    let recipientIds = [];
-    channelJsonPaths.forEach(filePath => {
-        try {
-            const data = fs.readFileSync(filePath, 'utf8');
-            const channelJson = JSON.parse(data.trim());
-            if (channelJson.type === "DM") {
-                channelJson.recipients.forEach(value => {
-                    if (value !== myDiscordID) {
-                        recipientIds.push(value);
-                    }
-                });
-            }
-        } catch (error) {
-            console.error(`Error processing file ${filePath}:`, error);
-        }
-    });
-    return recipientIds;
+function updateLastSuccessfulDate() {
+    envTemplate.LAST_SUCCESSFUL_DATE = new Date().toISOString();
+    updateEnvFile();
 }
 
-// Get currently open DMs
-async function getCurrentOpenDMs() {
+// Discord API functions
+async function getCurrentOpenDMs(authToken) {
     try {
         const response = await axios.get('https://discord.com/api/v9/users/@me/channels', {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': authorizationToken
+                'Authorization': authToken
             }
         });
         return response.data;
     } catch (error) {
-        console.error('Error fetching current open DMs:', error);
+        logOutput(`Error fetching current open DMs: ${error.message}`);
+        throw error;
     }
 }
 
-// Reopen a DM with a user
-async function reopenDM(userId) {
+async function reopenDM(authToken, userId) {
     try {
         const response = await axios.post('https://discord.com/api/v9/users/@me/channels', 
-        { recipients: [userId] }, 
-        {
-            headers: {
-                'Authorization': authorizationToken,
-                'Content-Type': 'application/json'
+            { recipients: [userId] }, 
+            {
+                headers: {
+                    'Authorization': authToken,
+                    'Content-Type': 'application/json'
+                }
             }
-        });
+        );
         return response.data;
     } catch (error) {
-        console.error('Error reopening DM:', error);
+        logOutput(`Error reopening DM with user ${userId}: ${error.message}`);
+        throw error;
     }
 }
 
-// Close a DM channel
-async function closeDM(channelId) {
+async function closeDM(authToken, channelId) {
     try {
         const response = await axios.delete(`https://discord.com/api/v9/channels/${channelId}`, {
             headers: {
-                'Authorization': authorizationToken,
+                'Authorization': authToken,
                 'Content-Type': 'application/json'
             }
         });
         return response.data;
     } catch (error) {
-        console.error('Error closing DM:', error);
+        logOutput(`Error closing DM channel ${channelId}: ${error.message}`);
+        throw error;
     }
 }
 
+// Data processing functions
+function traverseDataPackage(packagePath) {
+    const channelJsonPaths = [];
+    
+    function traverse(currentPath) {
+        try {
+            const files = fs.readdirSync(currentPath);
+            files.forEach(file => {
+                const fullPath = path.join(currentPath, file);
+                const fileStat = fs.statSync(fullPath);
+                
+                if (fileStat.isFile() && fullPath.includes('channel.json')) {
+                    channelJsonPaths.push(fullPath);
+                } else if (fileStat.isDirectory()) {
+                    traverse(fullPath);
+                }
+            });
+        } catch (error) {
+            logOutput(`Error accessing directory ${currentPath}: ${error.message}`);
+            throw error;
+        }
+    }
+
+    traverse(packagePath);
+    return channelJsonPaths;
+}
+
+function getRecipients(channelJsonPaths, myDiscordId) {
+    const recipientIds = new Set();
+    
+    channelJsonPaths.forEach(filePath => {
+        try {
+            const data = fs.readFileSync(filePath, 'utf8');
+            const channelJson = JSON.parse(data.trim());
+            
+            if (channelJson.type === "DM") {
+                channelJson.recipients.forEach(recipientId => {
+                    if (recipientId !== myDiscordId) {
+                        recipientIds.add(recipientId);
+                    }
+                });
+            }
+        } catch (error) {
+            logOutput(`Error processing file ${filePath}: ${error.message}`);
+        }
+    });
+
+    return Array.from(recipientIds);
+}
+
+// Utility functions
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForKeyPress() {
+    logOutput('Press any key to continue...');
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+    
+    return new Promise(resolve => {
+        rl.question('', () => {
+            rl.close();
+            resolve();
+        });
+    });
+}
+
+// Main processing function
 async function processDMsInBatches() {
-    console.log('Starting DM processing...');
+    logOutput('Starting DM processing...');
 
-    traverseDataPackage(dataPackageMessageFolder);
-    const allDmIds = getRecipients(channelJsonPaths, myDiscordId);
+    try {
+        await ensureEnvValues();
 
-    if (allDmIds.length === 0) {
-        console.log('No DM recipients found.');
-        return;
-    }
+        const channelJsonPaths = traverseDataPackage(envTemplate.DATA_PACKAGE_FOLDER);
+        const allDmIds = getRecipients(channelJsonPaths, envTemplate.USER_DISCORD_ID);
 
-    const currentDMs = await getCurrentOpenDMs();
-    console.log(`Closing ${currentDMs.length} currently open DMs...`);
-    for (const dm of currentDMs) {
-        if (dm.type === 1) {
-            await closeDM(dm.id);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-    }
-
-    const totalBatches = Math.ceil(allDmIds.length / BATCH_SIZE);
-    console.log(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${BATCH_SIZE}`);
-
-    for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
-        const startIdx = batchNum * BATCH_SIZE;
-        const endIdx = Math.min((batchNum + 1) * BATCH_SIZE, allDmIds.length);
-        const currentBatch = allDmIds.slice(startIdx, endIdx);
-
-        console.log(`Processing batch ${batchNum + 1}/${totalBatches}`);
-        for (const userId of currentBatch) {
-            await reopenDM(userId);
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        if (allDmIds.length === 0) {
+            logOutput('No DM recipients found. Please check your Discord ID and data package path.');
+            return;
         }
 
-        console.log('Batch complete. Please review these DMs.');
-        console.log('Press any key to continue to the next batch...');
-        await new Promise(resolve => process.stdin.once('data', resolve));
-    }
+        const currentDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
+        logOutput(`Closing ${currentDMs.length} currently open DMs...`);
+        
+        for (const dm of currentDMs) {
+            if (dm.type === 1) {
+                logOutput(`Closing DM channel: ${dm.id}`);
+                await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
+                await delay(1000);
+            }
+        }
 
-    console.log('All batches processed!');
+        const BATCH_SIZE = 100;
+        const totalBatches = Math.ceil(allDmIds.length / BATCH_SIZE);
+
+        logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${BATCH_SIZE}`);
+        
+        for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+            const startIdx = batchNum * BATCH_SIZE;
+            const endIdx = Math.min((batchNum + 1) * BATCH_SIZE, allDmIds.length);
+            const currentBatch = allDmIds.slice(startIdx, endIdx);
+
+            logOutput(`Processing batch ${batchNum + 1}/${totalBatches}`);
+            logOutput(`Opening DMs ${startIdx + 1} to ${endIdx}`);
+
+            for (const userId of currentBatch) {
+                logOutput(`Opening DM with user: ${userId}`);
+                await reopenDM(envTemplate.AUTHORIZATION_TOKEN, userId);
+                await delay(1000);
+            }
+
+            logOutput('Batch complete. Please review these DMs.');
+            await waitForKeyPress();
+
+            const batchDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
+            for (const dm of batchDMs) {
+                if (dm.type === 1) {
+                    await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
+                    await delay(1000);
+                }
+            }
+        }
+
+        logOutput('All batches processed successfully!');
+        updateLastSuccessfulDate();
+    } catch (error) {
+        logOutput(`Fatal error in main process: ${error.message}`);
+        throw error;
+    }
 }
 
+// Start processing
 processDMsInBatches().catch(error => {
-    console.error('Error in main process:', error);
+    logOutput(`Error in main process: ${error.stack}`);
     process.exit(1);
 });
