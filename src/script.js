@@ -38,24 +38,13 @@ function getrecipients(channeljsonpaths, mydiscordID) {
         try {
             console.log(`Processing file: ${channeljsonpaths[i]}`);
             var data = fs.readFileSync(channeljsonpaths[i], 'utf8');
+            let channeljson = JSON.parse(data.trim());
             
-            // Log the first few characters of the file content
-            console.log('File content preview:', data.substring(0, 100));
-            
-            // Try to parse JSON
-            let channeljson;
-            try {
-                channeljson = JSON.parse(data.trim());
-            } catch (parseError) {
-                console.error(`Error parsing JSON in file ${channeljsonpaths[i]}:`, parseError);
-                console.log('Full file content:', data);
-                continue;
-            }
-
-            if (channeljson.type == 1) {
+            if (channeljson.type === "DM") {
                 channeljson.recipients.forEach(function(value) {
                     if (value != mydiscordID) {
                         recipientsids.push(value);
+                        console.log(`Found recipient: ${value}`);
                     }
                 });
             }
@@ -64,6 +53,7 @@ function getrecipients(channeljsonpaths, mydiscordID) {
             continue;
         }
     }
+    console.log(`Total recipients found: ${recipientsids.length}`);
     return recipientsids;
 }
 
