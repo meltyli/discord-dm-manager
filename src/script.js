@@ -3,9 +3,9 @@ const path = require('path');
 const request = require('request');
 
 // --- CONFIG ---
-const authorizationtoken = 'mfa.longrandomstring';
-const datapackagemessagefolder = 'D:\\discordDataPackage\\messages';
-const myDiscordid = '000000000000000000';
+const authorizationtoken = 'mfa.longrandomstring'; // Replace with your token
+const datapackagemessagefolder = '/path/to/your/discord/package/messages'; // Replace with your path
+const myDiscordid = '000000000000000000'; // Replace with your Discord ID
 const BATCH_SIZE = 100;
 let channeljsonpaths = [];
 
@@ -66,6 +66,7 @@ async function processDMsInBatches() {
     console.log('All batches processed!');
 }
 
+// Close a DM channel
 function closeDM(authorizationtoken, channelId) {
     return new Promise((resolve, reject) => {
         const options = {
@@ -97,40 +98,32 @@ function waitForKeyPress() {
     });
 }
 
-// ex usage: traverseDataPackage('D:\\discord-data-package\\messages')
-function traverseDataPackage(packagepath)
-{
+// Traverse through the data package to find all channel.json files
+function traverseDataPackage(packagepath) {
     let files = fs.readdirSync(packagepath);
     files.forEach(function (file, index) {
         var currpath = path.join(packagepath, file);
         let filestat = fs.statSync(currpath);
-        if (filestat.isFile())
-        {
-            if (currpath.includes("channel.json"))
-            {
+        if (filestat.isFile()) {
+            if (currpath.includes("channel.json")) {
                 channeljsonpaths.push(currpath);
             }
         }
-        else if (filestat.isDirectory())
-        {
+        else if (filestat.isDirectory()) {
             traverseDataPackage(currpath);
         } 
     });
 }
 
-// ex usage:  getrecipients(channeljsonpaths, '000000000000000000')
-function getrecipients(channeljsonpaths, mydiscordID)
-{
+// Get all recipient IDs from the channel.json files
+function getrecipients(channeljsonpaths, mydiscordID) {
     let recipientsids = [];
-    for (var i = 0; i < channeljsonpaths.length; i++){
+    for (var i = 0; i < channeljsonpaths.length; i++) {
         var data = fs.readFileSync(channeljsonpaths[i]);
         let channeljson = JSON.parse(data);
-        // when channeljson.type == 1 then its a DM, since we don't want groupchats, etc
-        if (channeljson.type == 1)
-        {
-            channeljson.recipients.forEach(function(value){
-                if (value != mydiscordID) // remove your own id from the recipients (since DM's include both recipients ID's)
-                {
+        if (channeljson.type == 1) {
+            channeljson.recipients.forEach(function(value) {
+                if (value != mydiscordID) {
                     recipientsids.push(value);
                 }
             });
@@ -139,12 +132,9 @@ function getrecipients(channeljsonpaths, mydiscordID)
     return recipientsids;
 }
 
-// this isnt necessary, since opening a DM with an already opened user isn't an issue, but in this case, we will do this so we don't send requests for DM's already opened
-// ex usage: getcurrentopendms('authtoken here')    where the authtoken starts with mfa.longstringhere. You can get this by opening devtools and looking for the request header "Authorization" when making discord requests
-async function getcurrentopendms(authorizationtoken)
-{
+// Get currently open DMs
+function getcurrentopendms(authorizationtoken) {
     return new Promise(function (resolve, reject) {
-        const request = require('request');
         request({
             method: 'get',
             url: 'https://discordapp.com/api/users/@me/channels',
@@ -153,52 +143,42 @@ async function getcurrentopendms(authorizationtoken)
                 'Authorization': authorizationtoken
             }
         }, (err, resp, body) => {
-            if (err)
-            {
-                console.log(err);
+            if (err) {
+                reject(err);
             }
-            return resolve(body);
-        })
-        .on('error', function (e) {
-            console.log(e);
-        })
-        .on('timeout', function(e) {
-            console.log(e);
-        })
-        .on('uncaughtException', function(e) {
-            console.log(e);
+            resolve(body);
         });
     });
 }
 
-// ex uage: opendm("mfa.longstringherethatyougetfromdevtoolsetc", "000000000000000000");
-function reopendm(authorizationtoken, userid)
-{
-    const request = require('request');
+// Reopen a DM with a user
+function reopendm(authorizationtoken, userid) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            method: 'POST',
+            url: 'https://discordapp.com/api/users/@me/channels',
+            headers: {
+                'cache-control': 'no-cache',
+                'Authorization': authorizationtoken,
+                'Content-Type': 'application/json'
+            },
+            body: { recipients: [userid] },
+            json: true
+        };
 
-    var options = { method: 'POST',
-    url: 'https://discordapp.com/api/users/@me/channels',
-    headers: 
-     { 'cache-control': 'no-cache',
-       Host: 'discordapp.com',
-       'Cache-Control': 'no-cache',
-       Accept: '*/*',
-       Authorization: authorizationtoken,
-       'Content-Type': 'application/json' },
-    body: { recipients: [ userid ] },
-    json: true };
-  
-  request(options, function (error, response, body) {
-    if (error) throw new Error(error);
-    console.log(body);
-  });
+        request(options, (error, response, body) => {
+            if (error) reject(error);
+            resolve(body);
+        });
+    });
 }
 
+// Delay function for rate limiting
 function delay(time) {
     return new Promise(function (resolve) {
         setTimeout(resolve, time)
     });
 }
 
-// run the script
+// Run the script
 processDMsInBatches().catch(console.error);
