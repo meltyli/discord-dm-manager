@@ -17,9 +17,7 @@ const defaultConfig = {
     DATA_PACKAGE_FOLDER: '',
     EXPORT_PATH: '',
     DCE_PATH: '',
-    DRY_RUN: false,
-    SKIP_DELETED_USERS: true,
-    DELETED_USER_PATTERN: /^Deleted User/i  // Case insensitive match for "Deleted User"
+    DRY_RUN: false
 };
 
 // Set up logging
@@ -216,17 +214,12 @@ async function getCurrentOpenDMs(authToken) {
 async function validateUser(authToken, userId) {
     await rateLimiter.waitForSlot();
     try {
-        const response = await axios.get(`https://discord.com/api/v9/users/${userId}`, {
+        const response = await axios.get(`https://discord.com/api/v9/users/@me/channels`, {
             headers: {
                 'Authorization': authToken,
                 'Content-Type': 'application/json'
             }
         });
-        
-        if (config.SKIP_DELETED_USERS && config.DELETED_USER_PATTERN.test(response.data.username)) {
-            logOutput(`Skipping deleted user: ${userId}`, 'info');
-            return false;
-        }
         
         return true;
     } catch (error) {
@@ -236,6 +229,10 @@ async function validateUser(authToken, userId) {
         }
         if (error.response && error.response.status === 400) {
             logOutput(`Invalid user ID ${userId}, skipping`, 'info');
+            return false;
+        }
+        if (error.response && error.response.status === 403) {
+            logOutput(`403 Status on user ID ${userId}, skipping. Likely a deleted user.`, 'info');
             return false;
         }
         throw error;
