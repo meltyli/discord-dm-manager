@@ -4,21 +4,7 @@ const path = require('path');
 const readline = require('readline');
 const axios = require('axios');
 const cliProgress = require('cli-progress');
-
-// Default configurations
-const defaultConfig = {
-    BATCH_SIZE: 100,
-    API_DELAY_MS: 1000,
-    MAX_RETRIES: 3,
-    RETRY_DELAY_MS: 5000,
-    RATE_LIMIT_REQUESTS: 50,
-    RATE_LIMIT_INTERVAL_MS: 60000,
-    LOG_LEVEL: 'info',
-    DATA_PACKAGE_FOLDER: '',
-    EXPORT_PATH: '',
-    DCE_PATH: '',
-    DRY_RUN: false
-};
+const { configManager } = require('./config');
 
 // Set up logging
 const logDir = './logs';
@@ -36,7 +22,7 @@ const LogLevels = {
 };
 
 function logOutput(message, level = 'info') {
-    if (LogLevels[level] <= LogLevels[config.LOG_LEVEL]) {
+    if (LogLevels[level] <= LogLevels[configManager.get('LOG_LEVEL')]) {
         const timestamp = new Date().toISOString();
         const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
         console.log(logMessage);
@@ -67,135 +53,8 @@ class RateLimiter {
     }
 }
 
-// Environment and config setup
-const envTemplate = {
-    AUTHORIZATION_TOKEN: '',
-    USER_DISCORD_ID: ''
-};
-
-let config = { ...defaultConfig };
-
-async function ensureConfigs() {
-    // Check for .env first
-    await ensureEnvValues();
-
-    // Then handle config.json
-    try {
-        if (fs.existsSync('config.json')) {
-            const fileConfig = JSON.parse(fs.readFileSync('config.json', 'utf8'));
-            config = { ...defaultConfig, ...fileConfig };
-        } else {
-            logOutput('No config.json found, creating with default values...', 'warn');
-            await createConfigFile();
-        }
-    } catch (error) {
-        logOutput(`Error handling config.json: ${error.message}`, 'error');
-        throw error;
-    }
-
-    // Validate required paths exist
-    await validatePaths();
-}
-
-async function createConfigFile() {
-    for (const [key, value] of Object.entries(defaultConfig)) {
-        if (value === '' && !process.env[key]) {
-            config[key] = await promptUser(`Enter value for ${key}: `);
-        }
-    }
-    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-}
-
-async function validatePaths() {
-    const pathsToCheck = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
-    
-    for (const pathKey of pathsToCheck) {
-        const pathValue = config[pathKey];
-        if (!fs.existsSync(pathValue)) {
-            logOutput(`Path ${pathKey} (${pathValue}) does not exist`, 'warn');
-            const newPath = await promptUser(`Enter valid path for ${pathKey}: `);
-            config[pathKey] = newPath;
-            updateConfigFile();
-        }
-    }
-}
-
-function updateConfigFile() {
-    fs.writeFileSync('config.json', JSON.stringify(config, null, 2));
-}
-
-// Retry mechanism
-async function withRetry(operation, description) {
-    for (let attempt = 1; attempt <= config.MAX_RETRIES; attempt++) {
-        try {
-            return await operation();
-        } catch (error) {
-            if (attempt === config.MAX_RETRIES) {
-                throw error;
-            }
-            logOutput(`${description} failed, attempt ${attempt}/${config.MAX_RETRIES}: ${error.message}`, 'warn');
-            await delay(config.RETRY_DELAY_MS);
-        }
-    }
-}
-
-// Environment setup functions
-async function ensureEnvValues() {
-    for (const [key, defaultValue] of Object.entries(envTemplate)) {
-        if (!process.env[key]) {
-            const value = await promptUser(`Enter value for ${key}: `);
-            envTemplate[key] = value.trim();
-        } else {
-            envTemplate[key] = process.env[key].trim();
-        }
-    }
-    updateEnvFile();
-}
-
-function promptUser(query) {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
-
-    return new Promise(resolve => rl.question(query, answer => {
-        rl.close();
-        resolve(answer);
-    }));
-}
-
-function updateEnvFile() {
-    const envLines = Object.entries(envTemplate)
-        .filter(([key, value]) => value !== undefined)
-        .map(([key, value]) => `${key}=${value}`);
-
-    if (!fs.existsSync('.env')) {
-        fs.writeFileSync('.env', envLines.join('\n'));
-    } else {
-        const existingEnv = fs.readFileSync('.env', 'utf-8')
-            .split('\n')
-            .reduce((acc, line) => {
-                if (line.trim()) {
-                    const [key, value] = line.split('=');
-                    acc[key] = value;
-                }
-                return acc;
-            }, {});
-
-        for (const [key, value] of Object.entries(envTemplate)) {
-            if (value !== undefined) {
-                existingEnv[key] = value;
-            }
-        }
-
-        const updatedEnvLines = Object.entries(existingEnv)
-            .map(([key, value]) => `${key}=${value}`);
-        fs.writeFileSync('.env', updatedEnvLines.join('\n'));
-    }
-}
-
 // Discord API functions with rate limiting
-const rateLimiter = new RateLimiter(config.RATE_LIMIT_REQUESTS, config.RATE_LIMIT_INTERVAL_MS);
+const rateLimiter = new RateLimiter(configManager.get('RATE_LIMIT_REQUESTS'), configManager.get('RATE_LIMIT_INTERVAL_MS'));
 
 async function getCurrentOpenDMs(authToken) {
     await rateLimiter.waitForSlot();
@@ -242,7 +101,7 @@ async function validateUser(authToken, userId) {
 async function reopenDM(authToken, userId) {
     await rateLimiter.waitForSlot();
     
-    if (config.DRY_RUN) {
+    if (configManager.get('DRY_RUN')) {
         logOutput(`[DRY RUN] Would reopen DM with user ${userId}`, 'info');
         return { id: 'dry-run-id' };
     }
@@ -269,7 +128,7 @@ async function reopenDM(authToken, userId) {
 
 async function closeDM(authToken, channelId) {
     await rateLimiter.waitForSlot();
-    if (config.DRY_RUN) {
+    if (configManager.get('DRY_RUN')) {
         logOutput(`[DRY RUN] Would close DM channel ${channelId}`, 'info');
         return;
     }
@@ -369,21 +228,21 @@ async function processDMsInBatches() {
     logOutput('Starting DM processing...', 'info');
 
     try {
-        await ensureConfigs();
+        await configManager.init();
 
-        const channelJsonPaths = traverseDataPackage(config.DATA_PACKAGE_FOLDER);
-        const allDmIds = getRecipients(channelJsonPaths, envTemplate.USER_DISCORD_ID);
+        const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
+        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
 
         if (allDmIds.length === 0) {
             logOutput('No DM recipients found. Please check your Discord ID and data package path.', 'warn');
             return;
         }
 
-        if (config.DRY_RUN) {
+        if (configManager.get('DRY_RUN')) {
             logOutput('Running in DRY RUN mode - no actual API calls will be made', 'info');
         }
 
-        const currentDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
+        const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
         logOutput(`Closing ${currentDMs.length} currently open DMs...`, 'info');
         
         const closeProgress = createProgressBar();
@@ -392,49 +251,49 @@ async function processDMsInBatches() {
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1) {
                 logOutput(`Closing DM channel: ${dm.id}`, 'debug');
-                await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
-                await delay(config.API_DELAY_MS);
+                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
+                await delay(configManager.get('API_DELAY_MS'));
             }
             closeProgress.update(index + 1);
         }
         closeProgress.stop();
 
-        const totalBatches = Math.ceil(allDmIds.length / config.BATCH_SIZE);
-        logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${config.BATCH_SIZE}`, 'info');
+        const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
+        logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`, 'info');
         
         const batchProgress = createProgressBar();
         let skippedUsers = 0;
         let processedUsers = 0;
         
         for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
-            const startIdx = batchNum * config.BATCH_SIZE;
-            const endIdx = Math.min((batchNum + 1) * config.BATCH_SIZE, allDmIds.length);
+            const startIdx = batchNum * configManager.get('BATCH_SIZE');
+            const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
             const currentBatch = allDmIds.slice(startIdx, endIdx);
 
             logOutput(`Processing batch ${batchNum + 1}/${totalBatches}`, 'info');
             batchProgress.start(currentBatch.length, 0);
 
             for (const [index, userId] of currentBatch.entries()) {
-                const result = await reopenDM(envTemplate.AUTHORIZATION_TOKEN, userId);
+                const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId);
                 if (result === null) {
                     skippedUsers++;
                 } else {
                     processedUsers++;
                 }
-                await delay(config.API_DELAY_MS);
+                await delay(configManager.get('API_DELAY_MS'));
                 batchProgress.update(index + 1);
             }
             batchProgress.stop();
 
-            if (!config.DRY_RUN) {
+            if (!configManager.get('DRY_RUN')) {
                 logOutput('Batch complete. Please review these DMs.', 'info');
                 await waitForKeyPress();
 
-                const batchDMs = await getCurrentOpenDMs(envTemplate.AUTHORIZATION_TOKEN);
+                const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
                 for (const dm of batchDMs) {
                     if (dm.type === 1) {
-                        await closeDM(envTemplate.AUTHORIZATION_TOKEN, dm.id);
-                        await delay(config.API_DELAY_MS);
+                        await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
+                        await delay(configManager.get('API_DELAY_MS'));
                     }
                 }
             }
