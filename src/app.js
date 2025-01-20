@@ -174,6 +174,13 @@ class DiscordDMApp {
     }
 }
 
-// Start the application
-const app = new DiscordDMApp();
-app.showMenu().catch(console.error);
+(async () => {
+    const app = new DiscordDMApp();
+    try {
+        await configManager.init();
+        await app.showMenu();
+    } catch (error) {
+        console.error('Initialization error:', error.message);
+        process.exit(1);
+    }
+})();
