@@ -4,7 +4,8 @@ const path = require('path');
 const readline = require('readline');
 const axios = require('axios');
 const cliProgress = require('cli-progress');
-const { configManager } = require('./config');
+const { getConfigManager } = require('./config');
+const configManager = getConfigManager();
 
 // Set up logging
 const logDir = './logs';
@@ -27,6 +28,21 @@ function logOutput(message, level = 'info') {
         const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
         console.log(logMessage);
         logStream.write(logMessage + '\n');
+    }
+}
+
+// Retry mechanism
+async function withRetry(operation, description) {
+    for (let attempt = 1; attempt <= configManager.get('MAX_RETRIES'); attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (attempt === configManager.get('MAX_RETRIES')) {
+                throw error;
+            }
+            logOutput(`${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`, 'warn');
+            await delay(configManager.get('RETRY_DELAY_MS'));
+        }
     }
 }
 

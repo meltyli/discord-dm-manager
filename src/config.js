@@ -152,11 +152,18 @@ class ConfigManager {
     }
 }
 
-// Create and export a singleton instance
-const configManager = new ConfigManager();
+// only create the instance if not testing
+let configManagerInstance = null;
+
+function getConfigManager() {
+    if (!configManagerInstance) {
+        configManagerInstance = new ConfigManager();
+    }
+    return configManagerInstance;
+}
 
 module.exports = {
-    configManager,
+    getConfigManager,
     defaultConfig,
     envTemplate
 };
