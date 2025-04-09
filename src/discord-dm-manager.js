@@ -2,9 +2,9 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const axios = require('axios');
 const cliProgress = require('cli-progress');
 const { getConfigManager } = require('./config');
+const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('./discord-api');
 const configManager = getConfigManager();
 
 // Set up logging
@@ -29,135 +29,6 @@ function logOutput(message, level = 'info') {
         console.log(logMessage);
         logStream.write(logMessage + '\n');
     }
-}
-
-// Retry mechanism
-async function withRetry(operation, description) {
-    for (let attempt = 1; attempt <= configManager.get('MAX_RETRIES'); attempt++) {
-        try {
-            return await operation();
-        } catch (error) {
-            if (attempt === configManager.get('MAX_RETRIES')) {
-                throw error;
-            }
-            logOutput(`${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`, 'warn');
-            await delay(configManager.get('RETRY_DELAY_MS'));
-        }
-    }
-}
-
-// Rate limiting implementation
-class RateLimiter {
-    constructor(maxRequests, interval) {
-        this.maxRequests = maxRequests;
-        this.interval = interval;
-        this.requests = [];
-    }
-
-    async waitForSlot() {
-        const now = Date.now();
-        this.requests = this.requests.filter(time => time > now - this.interval);
-        
-        if (this.requests.length >= this.maxRequests) {
-            const oldestRequest = this.requests[0];
-            const waitTime = oldestRequest + this.interval - now;
-            await delay(waitTime);
-            return this.waitForSlot();
-        }
-        
-        this.requests.push(now);
-    }
-}
-
-// Discord API functions with rate limiting
-const rateLimiter = new RateLimiter(configManager.get('RATE_LIMIT_REQUESTS'), configManager.get('RATE_LIMIT_INTERVAL_MS'));
-
-async function getCurrentOpenDMs(authToken) {
-    await rateLimiter.waitForSlot();
-    return withRetry(async () => {
-        const response = await axios.get('https://discord.com/api/v9/users/@me/channels', {
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': authToken
-            }
-        });
-        return response.data;
-    }, 'Fetching current open DMs');
-}
-
-// valid user == (!deleted and anything with 400/404 response) and keep logs for skips/failures
-async function validateUser(authToken, userId) {
-    await rateLimiter.waitForSlot();
-    try {
-        const response = await axios.get(`https://discord.com/api/v9/users/@me/channels`, {
-            headers: {
-                'Authorization': authToken,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        return true;
-    } catch (error) {
-        if (error.response && error.response.status === 404) {
-            logOutput(`User ${userId} not found, skipping`, 'info');
-            return false;
-        }
-        if (error.response && error.response.status === 400) {
-            logOutput(`Invalid user ID ${userId}, skipping`, 'info');
-            return false;
-        }
-        if (error.response && error.response.status === 403) {
-            logOutput(`403 Status on user ID ${userId}, skipping. Likely a deleted user.`, 'info');
-            return false;
-        }
-        throw error;
-    }
-}
-
-async function reopenDM(authToken, userId) {
-    await rateLimiter.waitForSlot();
-    
-    if (configManager.get('DRY_RUN')) {
-        logOutput(`[DRY RUN] Would reopen DM with user ${userId}`, 'info');
-        return { id: 'dry-run-id' };
-    }
-
-    // Validate user before attempting to reopen DM
-    const isValid = await validateUser(authToken, userId);
-    if (!isValid) {
-        return null;
-    }
-    
-    return withRetry(async () => {
-        const response = await axios.post('https://discord.com/api/v9/users/@me/channels', 
-            { recipients: [userId] }, 
-            {
-                headers: {
-                    'Authorization': authToken,
-                    'Content-Type': 'application/json'
-                }
-            }
-        );
-        return response.data;
-    }, `Reopening DM with user ${userId}`);
-}
-
-async function closeDM(authToken, channelId) {
-    await rateLimiter.waitForSlot();
-    if (configManager.get('DRY_RUN')) {
-        logOutput(`[DRY RUN] Would close DM channel ${channelId}`, 'info');
-        return;
-    }
-    
-    return withRetry(async () => {
-        const response = await axios.delete(`https://discord.com/api/v9/channels/${channelId}`, {
-            headers: {
-                'Authorization': authToken,
-                'Content-Type': 'application/json'
-            }
-        });
-        return response.data;
-    }, `Closing DM channel ${channelId}`);
 }
 
 // Data processing functions
@@ -208,11 +79,6 @@ function getRecipients(channelJsonPaths, myDiscordId) {
     });
 
     return Array.from(recipientIds);
-}
-
-// Utility functions
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function waitForKeyPress() {
@@ -267,7 +133,7 @@ async function processDMsInBatches() {
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1) {
                 logOutput(`Closing DM channel: ${dm.id}`, 'debug');
-                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
+                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
                 await delay(configManager.get('API_DELAY_MS'));
             }
             closeProgress.update(index + 1);
@@ -290,7 +156,7 @@ async function processDMsInBatches() {
             batchProgress.start(currentBatch.length, 0);
 
             for (const [index, userId] of currentBatch.entries()) {
-                const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId);
+                const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId, logOutput);
                 if (result === null) {
                     skippedUsers++;
                 } else {
@@ -308,7 +174,7 @@ async function processDMsInBatches() {
                 const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
                 for (const dm of batchDMs) {
                     if (dm.type === 1) {
-                        await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
+                        await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
                         await delay(configManager.get('API_DELAY_MS'));
                     }
                 }

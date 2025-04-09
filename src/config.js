@@ -6,7 +6,7 @@ const readline = require('readline');
 // Default configurations
 const defaultConfig = {
     BATCH_SIZE: 100,
-    API_DELAY_MS: 1000,
+    API_DELAY_MS: 100,
     MAX_RETRIES: 3,
     RETRY_DELAY_MS: 5000,
     RATE_LIMIT_REQUESTS: 50,
