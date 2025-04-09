@@ -9,3 +9,4 @@ Discord Direct Message Manager revamped by melty. This script is intended to be 
 - ✅~~update wiki to be in line with current features~~
 - ✅~~add error checking when .env file does not exist or broken~~
 - add deleted user checker to skip if user is deleted
+- only open a safe number of messages each batch `{max limit(~150)} - {some buffer(10)} - {count of open group chats}`
