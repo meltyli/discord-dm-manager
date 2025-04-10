@@ -1,6 +1,6 @@
-# ⚠️⚠️⚠️ Please [visit the wiki](https://github.com/meltyli/discord-dm-manager/wiki) to learn how to use this tool. ⚠️⚠️⚠️
+# ⚠️⚠️ Please [visit the wiki](https://github.com/meltyli/discord-dm-manager/wiki) to learn how to use this tool. ⚠️⚠️
 
-Discord Direct Message Manager revamped by melty. This script is intended to be used in tandem with [Discord Chat Exporter](https://github.com/Tyrrrz/DiscordChatExporter/).
+Dscord Direct Message Manager revamped by melty. This script is intended to be used in tandem with [Discord Chat Exporter](https://github.com/Tyrrrz/DiscordChatExporter/).
 
 ### Roadmap/Future features:
 - ✅~~add env file for better security~~
