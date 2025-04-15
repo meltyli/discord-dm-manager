@@ -5,8 +5,9 @@ const {
     getCurrentOpenDMs,
     closeDM,
     reopenDM
-} = require('./discord-dm-manager');
-const { configManager } = require('./config');
+} = require('./discord-api');
+const { saveOpenDMsToFile } = require('./discord-dm-manager');
+const { getConfigManager } = require('./config');
 
 class DiscordDMApp {
     constructor() {
@@ -14,7 +15,8 @@ class DiscordDMApp {
             input: process.stdin,
             output: process.stdout
         });
-        this.options = configManager.config;
+        this.configManager = getConfigManager();
+        this.options = this.configManager.config;
     }
 
     async question(query) {
@@ -80,7 +82,7 @@ class DiscordDMApp {
     async processRecentMessages() {
         console.log('\nProcessing recent messages...');
         
-        await configManager.init();
+        await this.configManager.init();
         const parser = new MessageParser(this.options.DATA_PACKAGE_FOLDER);
         const messages = await parser.processAllChannels();
         
@@ -164,20 +166,30 @@ class DiscordDMApp {
             }
         }
 
-        configManager.saveConfig();
+        this.configManager.saveConfig();
     }
 
     toggleDryRun() {
         this.options.DRY_RUN = !this.options.DRY_RUN;
-        configManager.saveConfig();
+        this.configManager.saveConfig();
         console.log(`Dry Run Mode ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+    }
+
+    async initialize() {
+        try {
+            await this.configManager.init();
+            console.log('Saving list of currently open DMs...');
+            await saveOpenDMsToFile(); // Updated to use the function from discord-dm-manager
+        } catch (error) {
+            console.error('Error during initialization:', error.message);
+        }
     }
 }
 
 (async () => {
     const app = new DiscordDMApp();
     try {
-        await configManager.init();
+        await app.initialize();
         await app.showMenu();
     } catch (error) {
         console.error('Initialization error:', error.message);

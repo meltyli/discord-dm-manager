@@ -105,6 +105,35 @@ function createProgressBar() {
     });
 }
 
+// Add this new function to save open DMs to a file
+async function saveOpenDMsToFile() {
+    try {
+        const openDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+        
+        // Extract IDs of recipients (users) from DM channels
+        const userIds = openDMs
+            .filter(dm => dm.type === 1) // Filter for DM channels only
+            .map(dm => dm.recipients && dm.recipients.length > 0 ? dm.recipients[0].id : null)
+            .filter(id => id !== null);
+        
+        // Create config directory if it doesn't exist
+        const configDir = path.join(process.cwd(), 'config');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        
+        // Save to JSON file
+        const filePath = path.join(configDir, 'lastopened.json');
+        fs.writeFileSync(filePath, JSON.stringify(userIds, null, 2));
+        
+        logOutput(`Saved ${userIds.length} open DM user IDs to ${filePath}`, 'info');
+        return userIds;
+    } catch (error) {
+        logOutput(`Failed to save open DMs: ${error.message}`, 'error');
+        throw error;
+    }
+}
+
 // Main processing function
 async function processDMsInBatches() {
     logOutput('Starting DM processing...', 'info');
@@ -195,3 +224,10 @@ processDMsInBatches().catch(error => {
     logOutput(`Error in main process: ${error.stack}`, 'error');
     process.exit(1);
 });
+
+module.exports = {
+    processDMsInBatches,
+    traverseDataPackage,
+    getRecipients,
+    saveOpenDMsToFile  // Export the new function
+};
