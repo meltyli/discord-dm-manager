@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { initializeLogger } = require('./logger');
-const { reopenDM } = require('./discord-dm-manager');
+const { reopenDM } = require('./discord-api');
 
 class MessageParser {
     constructor(dataPackagePath, maxMessages = 100) {
