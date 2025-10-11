@@ -51,15 +51,19 @@ class DiscordDMApp {
                 switch (choice.trim().toLowerCase()) {
                     case '1':
                         await this.processRecentMessages();
+                        await this.question('\nPress Enter to continue...');
                         break;
                     case '2':
                         await this.viewOpenDMs();
+                        await this.question('\nPress Enter to continue...');
                         break;
                     case '3':
                         await this.closeAllDMs();
+                        await this.question('\nPress Enter to continue...');
                         break;
                     case '4':
                         await this.reopenSpecificDM();
+                        await this.question('\nPress Enter to continue...');
                         break;
                     case '5':
                         await this.configurationMenu();
@@ -70,15 +74,15 @@ class DiscordDMApp {
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
+                        await this.question('\nPress Enter to continue...');
                 }
             } catch (error) {
                 // Don't show error if it's just config completion
                 if (error.message !== 'CONFIG_COMPLETE') {
                     console.error('Error:', error.message);
+                    await this.question('\nPress Enter to continue...');
                 }
             }
-
-            await this.question('\nPress Enter to continue...');
         }
     }
 
@@ -261,7 +265,6 @@ class DiscordDMApp {
             console.log('\n✓ Configuration reset successfully!');
             console.log('You will need to reconfigure before using the application.');
             await this.question('\nPress Enter to continue...');
-            return; // Exit config menu to force reconfiguration
         } else {
             console.log('Reset cancelled.');
         }
@@ -305,12 +308,12 @@ class DiscordDMApp {
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
+                        await this.question('\nPress Enter to continue...');
                 }
             } catch (error) {
                 console.error('Error:', error.message);
+                await this.question('\nPress Enter to continue...');
             }
-
-            await this.question('\nPress Enter to continue...');
         }
     }
 
