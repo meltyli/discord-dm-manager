@@ -40,18 +40,15 @@ class DiscordDMApp {
             console.log('2. View Current Open DMs');
             console.log('3. Close All Open DMs');
             console.log('4. Reopen DM with Specific User');
-            console.log('5. Edit Configuration');
-            console.log('6. Toggle Dry Run Mode');
-            console.log('7. Exit');
+            console.log('5. Configuration');
+            console.log('q. Exit');
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
-            console.log(`- Batch Size: ${this.options.BATCH_SIZE}`);
-            console.log(`- API Delay: ${this.options.API_DELAY_MS}ms`);
 
-            const choice = await this.question('\nSelect an option (1-7): ');
+            const choice = await this.question('\nSelect an option: ');
 
             try {
-                switch (choice.trim()) {
+                switch (choice.trim().toLowerCase()) {
                     case '1':
                         await this.processRecentMessages();
                         break;
@@ -65,12 +62,9 @@ class DiscordDMApp {
                         await this.reopenSpecificDM();
                         break;
                     case '5':
-                        await this.editConfiguration();
+                        await this.configurationMenu();
                         break;
-                    case '6':
-                        this.toggleDryRun();
-                        break;
-                    case '7':
+                    case 'q':
                         console.log('Goodbye!');
                         this.rl.close();
                         return;
@@ -78,7 +72,10 @@ class DiscordDMApp {
                         console.log('Invalid option. Please try again.');
                 }
             } catch (error) {
-                console.error('Error:', error.message);
+                // Don't show error if it's just config completion
+                if (error.message !== 'CONFIG_COMPLETE') {
+                    console.error('Error:', error.message);
+                }
             }
 
             await this.question('\nPress Enter to continue...');
@@ -158,39 +155,197 @@ class DiscordDMApp {
         }
     }
 
-    async editConfiguration() {
-        console.log('\nConfiguration Setup');
-        console.log('===================');
-        
+    async configurationMenu() {
         if (!this.configManager.initialized) {
-            console.log('Starting initial configuration...\n');
+            console.log('\nStarting initial configuration...\n');
             await this.configManager.init();
             this.options = this.configManager.config;
             console.log('\nConfiguration complete!');
-        } else {
-            console.log('\nCurrent Configuration:');
-            for (const [key, value] of Object.entries(this.options)) {
-                console.log(`${key}: ${value}`);
-            }
-
-            console.log('\nEnter new values (or press Enter to keep current value):');
-            
-            for (const [key, value] of Object.entries(this.options)) {
-                const newValue = await this.question(`${key} (current: ${value}): `);
-                if (newValue.trim()) {
-                    if (typeof value === 'boolean') {
-                        this.options[key] = newValue.toLowerCase() === 'true';
-                    } else if (typeof value === 'number') {
-                        this.options[key] = Number(newValue);
-                    } else {
-                        this.options[key] = newValue;
-                    }
-                }
-            }
-
-            this.configManager.saveConfig();
-            console.log('\nConfiguration updated!');
+            await this.question('\nPress Enter to continue...');
+            return;
         }
+
+        while (true) {
+            console.clear();
+            console.log('\nConfiguration');
+            console.log('=============');
+            console.log('\nPath Settings:');
+            console.log(`  DATA_PACKAGE_FOLDER: ${this.options.DATA_PACKAGE_FOLDER || 'Not set'}`);
+            console.log(`  EXPORT_PATH: ${this.options.EXPORT_PATH || 'Not set'}`);
+            console.log(`  DCE_PATH: ${this.options.DCE_PATH || 'Not set'}`);
+            console.log('\nAdvanced Settings:');
+            console.log(`  DRY_RUN: ${this.options.DRY_RUN}`);
+            console.log(`  BATCH_SIZE: ${this.options.BATCH_SIZE}`);
+            console.log(`  API_DELAY_MS: ${this.options.API_DELAY_MS}`);
+            console.log(`  RATE_LIMIT: ${this.options.RATE_LIMIT_REQUESTS} req/${this.options.RATE_LIMIT_INTERVAL_MS}ms`);
+            console.log('\nEnvironment Variables:');
+            console.log(`  AUTHORIZATION_TOKEN: ${process.env.AUTHORIZATION_TOKEN ? '***set***' : 'Not set'}`);
+            console.log(`  USER_DISCORD_ID: ${process.env.USER_DISCORD_ID || 'Not set'}`);
+            console.log('\n1. Edit Data Package Folder');
+            console.log('2. Edit Export Path');
+            console.log('3. Edit Discord Chat Exporter Path');
+            console.log('4. Advanced Settings');
+            console.log('5. Reset to Default');
+            console.log('q. Back to Main Menu');
+
+            const choice = await this.question('\nSelect an option: ');
+
+            try {
+                switch (choice.trim().toLowerCase()) {
+                    case '1':
+                        await this.editDataPackageFolder();
+                        break;
+                    case '2':
+                        await this.editExportPath();
+                        break;
+                    case '3':
+                        await this.editDCEPath();
+                        break;
+                    case '4':
+                        await this.advancedSettings();
+                        break;
+                    case '5':
+                        await this.resetToDefault();
+                        break;
+                    case 'q':
+                        return;
+                    default:
+                        console.log('Invalid option. Please try again.');
+                        await this.question('\nPress Enter to continue...');
+                }
+            } catch (error) {
+                console.error('Error:', error.message);
+                await this.question('\nPress Enter to continue...');
+            }
+        }
+    }
+
+    async editDataPackageFolder() {
+        const newValue = await this.question(`\nData Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `);
+        if (newValue.trim()) {
+            this.options.DATA_PACKAGE_FOLDER = newValue;
+            this.configManager.saveConfig();
+            console.log('Data package folder updated!');
+        }
+    }
+
+    async editExportPath() {
+        const newValue = await this.question(`\nExport Path (current: ${this.options.EXPORT_PATH}): `);
+        if (newValue.trim()) {
+            this.options.EXPORT_PATH = newValue;
+            this.configManager.saveConfig();
+            console.log('Export path updated!');
+        }
+    }
+
+    async editDCEPath() {
+        const newValue = await this.question(`\nDiscord Chat Exporter Path (current: ${this.options.DCE_PATH}): `);
+        if (newValue.trim()) {
+            this.options.DCE_PATH = newValue;
+            this.configManager.saveConfig();
+            console.log('Discord Chat Exporter path updated!');
+        }
+    }
+
+    async resetToDefault() {
+        console.log('\nWARNING: This will delete all configuration and reset to defaults.');
+        console.log('This includes:');
+        console.log('  - All path settings');
+        console.log('  - Advanced settings (will reset to defaults)');
+        console.log('  - Environment variables (AUTHORIZATION_TOKEN, USER_DISCORD_ID)');
+        const confirm = await this.question('\nAre you sure you want to continue? (yes/no): ');
+        
+        if (confirm.trim().toLowerCase() === 'yes' || confirm.trim().toLowerCase() === 'y') {
+            this.configManager.resetToDefault();
+            this.options = this.configManager.config;
+            console.log('\n✓ Configuration reset successfully!');
+            console.log('You will need to reconfigure before using the application.');
+            await this.question('\nPress Enter to continue...');
+            return; // Exit config menu to force reconfiguration
+        } else {
+            console.log('Reset cancelled.');
+        }
+    }
+
+    async advancedSettings() {
+        while (true) {
+            console.clear();
+            console.log('\nAdvanced Settings');
+            console.log('=================');
+            console.log('Caution: These settings affect API behavior. Modify carefully.');
+            console.log('http://discord.com/developers/docs/topics/rate-limits#global-rate-limit');
+            console.log('\nCurrent Values:');
+            console.log(`  Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+            console.log(`  Batch Size: ${this.options.BATCH_SIZE}`);
+            console.log(`  API Delay: ${this.options.API_DELAY_MS}ms`);
+            console.log(`  Rate Limit: ${this.options.RATE_LIMIT_REQUESTS} requests per ${this.options.RATE_LIMIT_INTERVAL_MS}ms`);
+            console.log('\n1. Toggle Dry Run Mode');
+            console.log('2. Set Batch Size');
+            console.log('3. Set API Delay');
+            console.log('4. Set Rate Limit');
+            console.log('q. Back to Configuration Menu');
+
+            const choice = await this.question('\nSelect an option: ');
+
+            try {
+                switch (choice.trim().toLowerCase()) {
+                    case '1':
+                        this.toggleDryRun();
+                        break;
+                    case '2':
+                        await this.setBatchSize();
+                        break;
+                    case '3':
+                        await this.setApiDelay();
+                        break;
+                    case '4':
+                        await this.setRateLimit();
+                        break;
+                    case 'q':
+                        return;
+                    default:
+                        console.log('Invalid option. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error.message);
+            }
+
+            await this.question('\nPress Enter to continue...');
+        }
+    }
+
+    async setBatchSize() {
+        const newValue = await this.question(`Enter new batch size (current: ${this.options.BATCH_SIZE}): `);
+        if (newValue.trim()) {
+            this.options.BATCH_SIZE = Number(newValue);
+            this.configManager.saveConfig();
+            console.log(`Batch size updated to ${this.options.BATCH_SIZE}`);
+        }
+    }
+
+    async setApiDelay() {
+        const newValue = await this.question(`Enter new API delay in ms (current: ${this.options.API_DELAY_MS}): `);
+        if (newValue.trim()) {
+            this.options.API_DELAY_MS = Number(newValue);
+            this.configManager.saveConfig();
+            console.log(`API delay updated to ${this.options.API_DELAY_MS}ms`);
+        }
+    }
+
+    async setRateLimit() {
+        console.log('\nRate Limit Configuration');
+        const requests = await this.question(`Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `);
+        const interval = await this.question(`Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `);
+        
+        if (requests.trim()) {
+            this.options.RATE_LIMIT_REQUESTS = Number(requests);
+        }
+        if (interval.trim()) {
+            this.options.RATE_LIMIT_INTERVAL_MS = Number(interval);
+        }
+        
+        this.configManager.saveConfig();
+        console.log(`Rate limit updated to ${this.options.RATE_LIMIT_REQUESTS} requests per ${this.options.RATE_LIMIT_INTERVAL_MS}ms`);
     }
 
     toggleDryRun() {
@@ -223,6 +378,22 @@ class DiscordDMApp {
             if (configure.toLowerCase() === 'yes' || configure.toLowerCase() === 'y') {
                 await this.configManager.init();
                 this.options = this.configManager.config;
+                
+                // Show the configuration after setup
+                console.log('\nConfiguration Complete!');
+                console.log('======================');
+                console.log('\nPath Settings:');
+                console.log(`  DATA_PACKAGE_FOLDER: ${this.options.DATA_PACKAGE_FOLDER || 'Not set'}`);
+                console.log(`  EXPORT_PATH: ${this.options.EXPORT_PATH || 'Not set'}`);
+                console.log(`  DCE_PATH: ${this.options.DCE_PATH || 'Not set'}`);
+                console.log('\nAdvanced Settings:');
+                console.log(`  DRY_RUN: ${this.options.DRY_RUN}`);
+                console.log(`  BATCH_SIZE: ${this.options.BATCH_SIZE}`);
+                console.log(`  API_DELAY_MS: ${this.options.API_DELAY_MS}`);
+                console.log('\nReturning to main menu...');
+                
+                // Throw error to prevent operation and return to main menu
+                throw new Error('CONFIG_COMPLETE');
             } else {
                 throw new Error('Configuration required. Please use option 5 to configure.');
             }

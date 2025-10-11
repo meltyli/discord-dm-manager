@@ -172,7 +172,7 @@ class ConfigManager {
             
             // Compare IDs
             if (providedUserId !== packageUserId) {
-                console.warn(`\n⚠️  WARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
+                console.warn(`\nWARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
                 const proceed = (await this.promptUser('Are you sure you want to proceed? (yes/no): ')).trim().toLowerCase();
                 
                 if (proceed !== 'yes' && proceed !== 'y') {
@@ -309,6 +309,30 @@ class ConfigManager {
     set(key, value) {
         this.config[key] = value;
         this.saveConfig();
+    }
+
+    /**
+     * Resets configuration to default values and clears environment variables
+     */
+    resetToDefault() {
+        // Reset config to defaults
+        this.config = { ...defaultConfig };
+        this.saveConfig();
+
+        // Clear environment variables
+        this.env = { ...envTemplate };
+        if (fs.existsSync(ENV_FILE_PATH)) {
+            fs.unlinkSync(ENV_FILE_PATH);
+        }
+        
+        // Clear process.env
+        delete process.env.AUTHORIZATION_TOKEN;
+        delete process.env.USER_DISCORD_ID;
+
+        // Mark as not initialized so user must reconfigure
+        this.initialized = false;
+        
+        console.log('Configuration reset to default values.');
     }
 }
 
