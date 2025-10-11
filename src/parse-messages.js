@@ -85,9 +85,29 @@ class MessageParser {
             const otherUserId = this.getOtherUserId(channelData.recipients);
 
             // Read first message from messages.json
-            const messageContent = fs.readFileSync(messagesJsonPath, 'utf8');
-            const firstMessageLine = messageContent.split('\n')[0];
-            const firstMessage = JSON.parse(firstMessageLine);
+            const messageContent = fs.readFileSync(messagesJsonPath, 'utf8').trim();
+            
+            if (!messageContent) {
+                return; // Skip empty files
+            }
+
+            let firstMessage;
+            
+            // Try NDJSON format first (one JSON object per line)
+            if (messageContent.startsWith('{')) {
+                const firstMessageLine = messageContent.split('\n')[0];
+                firstMessage = JSON.parse(firstMessageLine);
+            } 
+            // Try JSON array format
+            else if (messageContent.startsWith('[')) {
+                const messages = JSON.parse(messageContent);
+                if (messages.length === 0) {
+                    return; // Skip empty arrays
+                }
+                firstMessage = messages[0];
+            } else {
+                throw new Error('Unsupported messages.json format');
+            }
 
             this.insertMessage(firstMessage.Timestamp, otherUserId);
 

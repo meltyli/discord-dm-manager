@@ -165,6 +165,7 @@ class DiscordDMApp {
         if (!this.configManager.initialized) {
             console.log('Starting initial configuration...\n');
             await this.configManager.init();
+            this.options = this.configManager.config;
             console.log('\nConfiguration complete!');
         } else {
             console.log('\nCurrent Configuration:');
@@ -203,6 +204,7 @@ class DiscordDMApp {
             // Only initialize config if files exist, otherwise let menu handle it
             if (fs.existsSync('config.json') && fs.existsSync('.env')) {
                 await this.configManager.init();
+                this.options = this.configManager.config;
                 console.log('Configuration loaded successfully.');
             } else {
                 console.log('No configuration found. Please configure via menu option 5.');
@@ -218,6 +220,7 @@ class DiscordDMApp {
             const configure = await this.question('Would you like to configure now? (yes/no): ');
             if (configure.toLowerCase() === 'yes' || configure.toLowerCase() === 'y') {
                 await this.configManager.init();
+                this.options = this.configManager.config;
             } else {
                 throw new Error('Configuration required. Please use option 5 to configure.');
             }
