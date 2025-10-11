@@ -54,7 +54,7 @@ function createProgressBar() {
 // Add this new function to save open DMs to a file
 async function saveOpenDMsToFile() {
     try {
-        const openDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+        const openDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
         
         // Extract IDs of recipients (users) from DM channels
         const userIds = openDMs
@@ -97,9 +97,11 @@ async function processDMsInBatches() {
 
         if (configManager.get('DRY_RUN')) {
             logOutput('Running in DRY RUN mode - no actual API calls will be made', 'info');
+            logOutput(`Would process ${allDmIds.length} DM recipients`, 'info');
+            return;
         }
 
-        const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+        const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
         logOutput(`Closing ${currentDMs.length} currently open DMs...`, 'info');
         
         const closeProgress = createProgressBar();
@@ -146,7 +148,7 @@ async function processDMsInBatches() {
                 logOutput('Batch complete. Please review these DMs.', 'info');
                 await waitForKeyPress();
 
-                const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+                const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
                 for (const dm of batchDMs) {
                     if (dm.type === 1) {
                         await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);

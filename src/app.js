@@ -140,8 +140,13 @@ class DiscordDMApp {
     async viewOpenDMs() {
         await this.ensureConfigured();
         
+        if (this.options.DRY_RUN) {
+            console.log('\n[DRY RUN] Skipping fetch of open DMs - no API call will be made');
+            return;
+        }
+
         console.log('\nFetching open DMs...');
-        const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
+        const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN, console.log);
         console.log(`\nCurrently open DMs: ${dms.length}`);
         dms.forEach(dm => {
             if (dm.recipients && dm.recipients[0]) {
@@ -153,18 +158,18 @@ class DiscordDMApp {
     async closeAllDMs() {
         await this.ensureConfigured();
         
-        console.log('\nClosing all open DMs...');
-        const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
-        
         if (this.options.DRY_RUN) {
-            console.log(`[DRY RUN] Would close ${dms.length} DMs`);
+            console.log('\n[DRY RUN] Would fetch and close all open DMs - no API calls will be made');
             return;
         }
 
+        console.log('\nClosing all open DMs...');
+        const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN, console.log);
+        
         for (const dm of dms) {
             if (dm.type === 1) {
                 console.log(`Closing DM channel: ${dm.id}`);
-                await closeDM(process.env.AUTHORIZATION_TOKEN, dm.id);
+                await closeDM(process.env.AUTHORIZATION_TOKEN, dm.id, console.log);
                 await new Promise(resolve => setTimeout(resolve, this.options.API_DELAY_MS));
             }
         }
@@ -177,12 +182,12 @@ class DiscordDMApp {
         const userId = await this.question('\nEnter Discord User ID: ');
         
         if (this.options.DRY_RUN) {
-            console.log(`[DRY RUN] Would reopen DM with user ${userId}`);
+            console.log(`[DRY RUN] Would reopen DM with user ${userId} - no API call will be made`);
             return;
         }
 
         try {
-            await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
+            await reopenDM(process.env.AUTHORIZATION_TOKEN, userId, console.log);
             console.log('DM reopened successfully!');
         } catch (error) {
             console.error('Failed to reopen DM:', error.message);
@@ -430,6 +435,14 @@ class DiscordDMApp {
             } else {
                 throw new Error('Configuration required. Please use option 1 to configure.');
             }
+        }
+        
+        // Check for AUTHORIZATION_TOKEN if not in DRY_RUN mode
+        if (!this.options.DRY_RUN && !process.env.AUTHORIZATION_TOKEN) {
+            console.log('\nAUTHORIZATION_TOKEN is not set!');
+            console.log('You need to set your Discord authorization token before making API calls.');
+            console.log('Please configure it in the Configuration menu (option 1) or enable DRY_RUN mode.');
+            throw new Error('AUTHORIZATION_TOKEN required for API operations. Enable DRY_RUN mode or set token in configuration.');
         }
     }
 }

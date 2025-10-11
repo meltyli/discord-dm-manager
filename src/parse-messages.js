@@ -138,7 +138,7 @@ class MessageParser {
         for (const message of this.messageStack) {
             if (!processedUsers.has(message.recipientId)) {
                 try {
-                    await reopenDM(authToken, message.recipientId);
+                    await reopenDM(authToken, message.recipientId, console.log);
                     processedUsers.add(message.recipientId);
                 } catch (error) {
                     console.error(`Error reopening DM with user ${message.recipientId}: ${error.message}`);

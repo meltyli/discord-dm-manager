@@ -35,9 +35,16 @@ const rateLimiter = new RateLimiter(configManager.get('RATE_LIMIT_REQUESTS'), co
 /**
  * Fetches currently open DM channels
  * @param {string} authToken - Discord authorization token
+ * @param {Function} [logger] - Optional logger function
  * @returns {Promise<Array>} Array of open DM channel objects
  */
-async function getCurrentOpenDMs(authToken) {
+async function getCurrentOpenDMs(authToken, logger) {
+    // In DRY_RUN mode, return mock data instead of making API call
+    if (configManager.get('DRY_RUN')) {
+        if (logger) logger('[DRY RUN] Skipping API call to fetch open DMs', 'info');
+        return [];
+    }
+
     await rateLimiter.waitForSlot();
     return withRetry(async () => {
         const response = await axios.get('https://discord.com/api/v9/users/@me/channels', {
@@ -47,7 +54,7 @@ async function getCurrentOpenDMs(authToken) {
             }
         });
         return response.data;
-    }, 'Fetching current open DMs');
+    }, 'Fetching current open DMs', logger);
 }
 
 /**
