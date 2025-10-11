@@ -7,7 +7,7 @@ const {
     closeDM,
     reopenDM
 } = require('./discord-api');
-const { saveOpenDMsToFile } = require('./discord-dm-manager');
+const { saveOpenDMsToFile, processDMsInBatches } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
 
 // Initialize logger to capture all console output
@@ -79,6 +79,7 @@ class DiscordDMApp {
             console.log('2. View Current Open DMs');
             console.log('3. Close All Open DMs');
             console.log('4. Reopen DM with Specific User');
+            console.log('5. Run Batch DM Processing');
             console.log('q. Back to Main Menu');
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
@@ -101,6 +102,10 @@ class DiscordDMApp {
                         break;
                     case '4':
                         await this.reopenSpecificDM();
+                        await this.question('\nPress Enter to continue...');
+                        break;
+                    case '5':
+                        await this.runBatchProcessing();
                         await this.question('\nPress Enter to continue...');
                         break;
                     case 'q':
@@ -191,6 +196,19 @@ class DiscordDMApp {
             console.log('DM reopened successfully!');
         } catch (error) {
             console.error('Failed to reopen DM:', error.message);
+        }
+    }
+
+    async runBatchProcessing() {
+        await this.ensureConfigured();
+        
+        console.log('\nStarting batch DM processing...');
+        console.log('This will close all open DMs, then reopen them in batches for review.');
+        
+        try {
+            await processDMsInBatches();
+        } catch (error) {
+            console.error('Batch processing failed:', error.message);
         }
     }
 

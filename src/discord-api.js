@@ -58,7 +58,7 @@ async function getCurrentOpenDMs(authToken, logger) {
 }
 
 /**
- * Validates if a Discord user exists and is accessible
+ * Validates if a Discord user exists and is accessible by attempting to open DM
  * @param {string} authToken - Discord authorization token
  * @param {string} userId - Discord user ID to validate
  * @param {Function} [logger] - Optional logger function
@@ -67,26 +67,31 @@ async function getCurrentOpenDMs(authToken, logger) {
 async function validateUser(authToken, userId, logger) {
     await rateLimiter.waitForSlot();
     try {
-        const response = await axios.get(`https://discord.com/api/v9/users/@me/channels`, {
-            headers: {
-                'Authorization': authToken,
-                'Content-Type': 'application/json'
+        await axios.post('https://discord.com/api/v9/users/@me/channels', 
+            { recipients: [userId] },
+            {
+                headers: {
+                    'Authorization': authToken,
+                    'Content-Type': 'application/json'
+                }
             }
-        });
-        
+        );
         return true;
     } catch (error) {
-        if (error.response && error.response.status === 404) {
-            if (logger) logger(`User ${userId} not found, skipping`, 'info');
-            return false;
-        }
-        if (error.response && error.response.status === 400) {
-            if (logger) logger(`Invalid user ID ${userId}, skipping`, 'info');
-            return false;
-        }
-        if (error.response && error.response.status === 403) {
-            if (logger) logger(`403 Status on user ID ${userId}, skipping. Likely a deleted user.`, 'info');
-            return false;
+        if (error.response) {
+            const status = error.response.status;
+            if (status === 404) {
+                if (logger) logger(`User ${userId} not found, skipping`, 'debug');
+                return false;
+            }
+            if (status === 400) {
+                if (logger) logger(`Invalid user ID ${userId}, skipping`, 'debug');
+                return false;
+            }
+            if (status === 403) {
+                if (logger) logger(`User ${userId} access forbidden (likely deleted), skipping`, 'debug');
+                return false;
+            }
         }
         throw error;
     }
@@ -106,26 +111,35 @@ async function reopenDM(authToken, userId, logger) {
         return { id: 'dry-run-id' };
     }
 
-    await rateLimiter.waitForSlot();
-
     // Validate user before attempting to reopen DM
     const isValid = await validateUser(authToken, userId, logger);
     if (!isValid) {
         return null;
     }
     
-    return withRetry(async () => {
-        const response = await axios.post('https://discord.com/api/v9/users/@me/channels', 
-            { recipients: [userId] }, 
-            {
-                headers: {
-                    'Authorization': authToken,
-                    'Content-Type': 'application/json'
+    // User already validated, so this call should succeed
+    // But still use retry logic in case of network issues
+    try {
+        return await withRetry(async () => {
+            const response = await axios.post('https://discord.com/api/v9/users/@me/channels', 
+                { recipients: [userId] }, 
+                {
+                    headers: {
+                        'Authorization': authToken,
+                        'Content-Type': 'application/json'
+                    }
                 }
-            }
-        );
-        return response.data;
-    }, `Reopening DM with user ${userId}`, logger);
+            );
+            return response.data;
+        }, `Reopening DM with user ${userId}`, logger);
+    } catch (error) {
+        // If we still get 400/403/404 after validation, treat as skipped user
+        if (error.response && [400, 403, 404].includes(error.response.status)) {
+            if (logger) logger(`Failed to reopen DM with user ${userId}: ${error.message}`, 'debug');
+            return null;
+        }
+        throw error;
+    }
 }
 
 /**

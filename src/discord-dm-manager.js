@@ -129,7 +129,7 @@ async function processDMsInBatches() {
             const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
             const currentBatch = allDmIds.slice(startIdx, endIdx);
 
-            logOutput(`Processing batch ${batchNum + 1}/${totalBatches}`, 'info');
+            logOutput(`\nProcessing batch ${batchNum + 1}/${totalBatches}`, 'info');
             batchProgress.start(currentBatch.length, 0);
 
             for (const [index, userId] of currentBatch.entries()) {
@@ -145,9 +145,10 @@ async function processDMsInBatches() {
             batchProgress.stop();
 
             if (!configManager.get('DRY_RUN')) {
-                logOutput('Batch complete. Please review these DMs.', 'info');
+                logOutput('\nBatch complete. Please review these DMs.', 'info');
                 await waitForKeyPress();
 
+                logOutput('Closing batch DMs...', 'info');
                 const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
                 for (const dm of batchDMs) {
                     if (dm.type === 1) {
@@ -158,7 +159,7 @@ async function processDMsInBatches() {
             }
         }
 
-        logOutput(`Processing complete!`, 'info');
+        logOutput(`\nProcessing complete!`, 'info');
         logOutput(`Processed users: ${processedUsers}`, 'info');
         logOutput(`Skipped users: ${skippedUsers}`, 'info');
     } catch (error) {
