@@ -1,6 +1,6 @@
 # custom
-.env
-config.json
+config/.env
+config/config.json
 .github
 tests
 config/lastopened.json

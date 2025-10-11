@@ -202,7 +202,9 @@ class DiscordDMApp {
     async initialize() {
         try {
             // Only initialize config if files exist, otherwise let menu handle it
-            if (fs.existsSync('config.json') && fs.existsSync('.env')) {
+            const configPath = require('path').join(__dirname, '..', 'config', 'config.json');
+            const envPath = require('path').join(__dirname, '..', 'config', '.env');
+            if (fs.existsSync(configPath) && fs.existsSync(envPath)) {
                 await this.configManager.init();
                 this.options = this.configManager.config;
                 console.log('Configuration loaded successfully.');

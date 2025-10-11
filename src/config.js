@@ -1,11 +1,16 @@
-require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+require('dotenv').config({ path: path.join(__dirname, '..', 'config', '.env') });
 const { initializeLogger } = require('./logger');
 
 // Initialize logger early to capture all output
 initializeLogger('./logs', 10);
+
+// Config directory path
+const CONFIG_DIR = path.join(__dirname, '..', 'config');
+const CONFIG_FILE_PATH = path.join(CONFIG_DIR, 'config.json');
+const ENV_FILE_PATH = path.join(CONFIG_DIR, '.env');
 
 // Default configurations
 const defaultConfig = {
@@ -78,8 +83,13 @@ class ConfigManager {
 
     async loadConfig() {
         try {
-            if (fs.existsSync('config.json')) {
-                const fileConfig = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+            // Ensure config directory exists
+            if (!fs.existsSync(CONFIG_DIR)) {
+                fs.mkdirSync(CONFIG_DIR, { recursive: true });
+            }
+
+            if (fs.existsSync(CONFIG_FILE_PATH)) {
+                const fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE_PATH, 'utf8'));
                 this.config = { ...defaultConfig, ...fileConfig };
             } else {
                 console.warn('No config.json found, creating with default values...');
@@ -198,18 +208,27 @@ class ConfigManager {
     }
 
     saveConfig() {
-        fs.writeFileSync('config.json', JSON.stringify(this.config, null, 2));
+        // Ensure config directory exists
+        if (!fs.existsSync(CONFIG_DIR)) {
+            fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        }
+        fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(this.config, null, 2));
     }
 
     updateEnvFile() {
+        // Ensure config directory exists
+        if (!fs.existsSync(CONFIG_DIR)) {
+            fs.mkdirSync(CONFIG_DIR, { recursive: true });
+        }
+
         const envLines = Object.entries(this.env)
             .filter(([key, value]) => value !== undefined)
             .map(([key, value]) => `${key}=${value}`);
 
-        if (!fs.existsSync('.env')) {
-            fs.writeFileSync('.env', envLines.join('\n'));
+        if (!fs.existsSync(ENV_FILE_PATH)) {
+            fs.writeFileSync(ENV_FILE_PATH, envLines.join('\n'));
         } else {
-            const existingEnv = fs.readFileSync('.env', 'utf-8')
+            const existingEnv = fs.readFileSync(ENV_FILE_PATH, 'utf-8')
                 .split('\n')
                 .reduce((acc, line) => {
                     if (line.trim()) {
@@ -227,7 +246,7 @@ class ConfigManager {
 
             const updatedEnvLines = Object.entries(existingEnv)
                 .map(([key, value]) => `${key}=${value}`);
-            fs.writeFileSync('.env', updatedEnvLines.join('\n'));
+            fs.writeFileSync(ENV_FILE_PATH, updatedEnvLines.join('\n'));
         }
     }
 
