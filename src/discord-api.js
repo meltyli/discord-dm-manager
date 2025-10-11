@@ -5,7 +5,14 @@ const { getConfigManager } = require('./config');
 const { RateLimiter, delay } = require('./lib/rate-limiter');
 const configManager = getConfigManager();
 
-// Retry mechanism
+/**
+ * Retries an operation with exponential backoff
+ * @param {Function} operation - Async function to retry
+ * @param {string} description - Description for logging
+ * @param {Function} [logger] - Optional logger function
+ * @returns {Promise<any>} Result of operation
+ * @throws {Error} If all retries fail
+ */
 async function withRetry(operation, description, logger) {
     for (let attempt = 1; attempt <= configManager.get('MAX_RETRIES'); attempt++) {
         try {
@@ -25,6 +32,11 @@ async function withRetry(operation, description, logger) {
 // Discord API functions with rate limiting
 const rateLimiter = new RateLimiter(configManager.get('RATE_LIMIT_REQUESTS'), configManager.get('RATE_LIMIT_INTERVAL_MS'));
 
+/**
+ * Fetches currently open DM channels
+ * @param {string} authToken - Discord authorization token
+ * @returns {Promise<Array>} Array of open DM channel objects
+ */
 async function getCurrentOpenDMs(authToken) {
     await rateLimiter.waitForSlot();
     return withRetry(async () => {
@@ -38,7 +50,13 @@ async function getCurrentOpenDMs(authToken) {
     }, 'Fetching current open DMs');
 }
 
-// Return true if the user is valid, false if not found (ie. deleted or non-existent)
+/**
+ * Validates if a Discord user exists and is accessible
+ * @param {string} authToken - Discord authorization token
+ * @param {string} userId - Discord user ID to validate
+ * @param {Function} [logger] - Optional logger function
+ * @returns {Promise<boolean>} True if valid, false if not found/deleted/invalid
+ */
 async function validateUser(authToken, userId, logger) {
     await rateLimiter.waitForSlot();
     try {
@@ -67,6 +85,13 @@ async function validateUser(authToken, userId, logger) {
     }
 }
 
+/**
+ * Opens a DM with specified user (validates user first, respects DRY_RUN mode)
+ * @param {string} authToken - Discord authorization token
+ * @param {string} userId - Discord user ID to open DM with
+ * @param {Function} [logger] - Optional logger function
+ * @returns {Promise<Object|null>} Channel object or null if user invalid
+ */
 async function reopenDM(authToken, userId, logger) {
     // In DRY_RUN mode, skip rate limiting and API calls entirely
     if (configManager.get('DRY_RUN')) {
@@ -96,6 +121,13 @@ async function reopenDM(authToken, userId, logger) {
     }, `Reopening DM with user ${userId}`, logger);
 }
 
+/**
+ * Closes a DM channel (respects DRY_RUN mode)
+ * @param {string} authToken - Discord authorization token
+ * @param {string} channelId - Discord channel ID to close
+ * @param {Function} [logger] - Optional logger function
+ * @returns {Promise<void>}
+ */
 async function closeDM(authToken, channelId, logger) {
     // In DRY_RUN mode, skip rate limiting and API calls entirely
     if (configManager.get('DRY_RUN')) {

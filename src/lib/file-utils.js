@@ -1,6 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Recursively traverses Discord data package to find all channel.json files
+ * @param {string} packagePath - Path to Discord data package root
+ * @returns {string[]} Array of absolute paths to channel.json files
+ * @throws {Error} If directory cannot be accessed
+ */
 function traverseDataPackage(packagePath) {
     const channelJsonPaths = [];
     
@@ -26,6 +32,12 @@ function traverseDataPackage(packagePath) {
     return channelJsonPaths;
 }
 
+/**
+ * Extracts unique recipient IDs from channel.json files (DM and GROUP_DM only)
+ * @param {string[]} channelJsonPaths - Array of paths to channel.json files
+ * @param {string} myDiscordId - Current user's Discord ID to exclude
+ * @returns {string[]} Array of unique recipient Discord IDs
+ */
 function getRecipients(channelJsonPaths, myDiscordId) {
     const recipientIds = new Set();
     

@@ -33,6 +33,9 @@ const envTemplate = {
     USER_DISCORD_ID: ''
 };
 
+/**
+ * Manages configuration from config.json and .env files
+ */
 class ConfigManager {
     constructor() {
         this.config = { ...defaultConfig };
@@ -42,11 +45,19 @@ class ConfigManager {
         this.ownsReadline = false; // Track if we created it
     }
 
+    /**
+     * Sets an external readline interface (from app.js)
+     * @param {readline.Interface} readlineInterface - Readline interface to use
+     */
     setReadline(readlineInterface) {
         this.rl = readlineInterface;
         this.ownsReadline = false;
     }
 
+    /**
+     * Initializes readline interface if not already set
+     * @returns {readline.Interface} Readline interface
+     */
     initReadline() {
         if (!this.rl) {
             this.rl = readline.createInterface({
@@ -58,6 +69,9 @@ class ConfigManager {
         return this.rl;
     }
 
+    /**
+     * Closes readline interface only if created by ConfigManager
+     */
     closeReadline() {
         // Only close if we created it
         if (this.rl && this.ownsReadline) {
@@ -67,6 +81,10 @@ class ConfigManager {
         }
     }
 
+    /**
+     * Initializes configuration by loading files and prompting for missing values
+     * @returns {Promise<void>}
+     */
     async init() {
         if (this.initialized) return;
 
@@ -260,14 +278,29 @@ class ConfigManager {
         });
     }
 
+    /**
+     * Gets a configuration value from config.json
+     * @param {string} key - Configuration key
+     * @returns {any} Configuration value
+     */
     get(key) {
         return this.config[key];
     }
 
+    /**
+     * Gets an environment variable value from .env
+     * @param {string} key - Environment variable key
+     * @returns {string} Environment variable value
+     */
     getEnv(key) {
         return this.env[key];
     }
 
+    /**
+     * Sets a configuration value and saves to config.json
+     * @param {string} key - Configuration key
+     * @param {any} value - Value to set
+     */
     set(key, value) {
         this.config[key] = value;
         this.saveConfig();
@@ -277,6 +310,10 @@ class ConfigManager {
 // only create the instance if not testing
 let configManagerInstance = null;
 
+/**
+ * Gets singleton instance of ConfigManager
+ * @returns {ConfigManager} ConfigManager instance
+ */
 function getConfigManager() {
     if (!configManagerInstance) {
         configManagerInstance = new ConfigManager();
