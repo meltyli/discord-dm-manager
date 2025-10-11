@@ -1,5 +1,6 @@
 const fs = require('fs');
 const readline = require('readline');
+const { initializeLogger } = require('./logger');
 const { MessageParser } = require('./parse-messages');
 const {
     getCurrentOpenDMs,
@@ -9,6 +10,9 @@ const {
 const { saveOpenDMsToFile } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
 
+// Initialize logger to capture all console output
+initializeLogger('./logs', 10);
+
 class DiscordDMApp {
     constructor() {
         this.rl = readline.createInterface({
@@ -16,6 +20,8 @@ class DiscordDMApp {
             output: process.stdout
         });
         this.configManager = getConfigManager();
+        // Share our readline interface with config manager
+        this.configManager.setReadline(this.rl);
         this.options = this.configManager.config;
     }
 
@@ -80,9 +86,10 @@ class DiscordDMApp {
     }
 
     async processRecentMessages() {
+        await this.ensureConfigured();
+        
         console.log('\nProcessing recent messages...');
         
-        await this.configManager.init();
         const parser = new MessageParser(this.options.DATA_PACKAGE_FOLDER);
         const messages = await parser.processAllChannels();
         
@@ -100,6 +107,8 @@ class DiscordDMApp {
     }
 
     async viewOpenDMs() {
+        await this.ensureConfigured();
+        
         console.log('\nFetching open DMs...');
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
         console.log(`\nCurrently open DMs: ${dms.length}`);
@@ -111,6 +120,8 @@ class DiscordDMApp {
     }
 
     async closeAllDMs() {
+        await this.ensureConfigured();
+        
         console.log('\nClosing all open DMs...');
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
         
@@ -130,6 +141,8 @@ class DiscordDMApp {
     }
 
     async reopenSpecificDM() {
+        await this.ensureConfigured();
+        
         const userId = await this.question('\nEnter Discord User ID: ');
         
         if (this.options.DRY_RUN) {
@@ -146,27 +159,37 @@ class DiscordDMApp {
     }
 
     async editConfiguration() {
-        console.log('\nCurrent Configuration:');
-        for (const [key, value] of Object.entries(this.options)) {
-            console.log(`${key}: ${value}`);
-        }
-
-        console.log('\nEnter new values (or press Enter to keep current value):');
+        console.log('\nConfiguration Setup');
+        console.log('===================');
         
-        for (const [key, value] of Object.entries(this.options)) {
-            const newValue = await this.question(`${key} (current: ${value}): `);
-            if (newValue.trim()) {
-                if (typeof value === 'boolean') {
-                    this.options[key] = newValue.toLowerCase() === 'true';
-                } else if (typeof value === 'number') {
-                    this.options[key] = Number(newValue);
-                } else {
-                    this.options[key] = newValue;
+        if (!this.configManager.initialized) {
+            console.log('Starting initial configuration...\n');
+            await this.configManager.init();
+            console.log('\nConfiguration complete!');
+        } else {
+            console.log('\nCurrent Configuration:');
+            for (const [key, value] of Object.entries(this.options)) {
+                console.log(`${key}: ${value}`);
+            }
+
+            console.log('\nEnter new values (or press Enter to keep current value):');
+            
+            for (const [key, value] of Object.entries(this.options)) {
+                const newValue = await this.question(`${key} (current: ${value}): `);
+                if (newValue.trim()) {
+                    if (typeof value === 'boolean') {
+                        this.options[key] = newValue.toLowerCase() === 'true';
+                    } else if (typeof value === 'number') {
+                        this.options[key] = Number(newValue);
+                    } else {
+                        this.options[key] = newValue;
+                    }
                 }
             }
-        }
 
-        this.configManager.saveConfig();
+            this.configManager.saveConfig();
+            console.log('\nConfiguration updated!');
+        }
     }
 
     toggleDryRun() {
@@ -177,11 +200,27 @@ class DiscordDMApp {
 
     async initialize() {
         try {
-            await this.configManager.init();
-            console.log('Saving list of currently open DMs...');
-            await saveOpenDMsToFile(); // Updated to use the function from discord-dm-manager
+            // Only initialize config if files exist, otherwise let menu handle it
+            if (fs.existsSync('config.json') && fs.existsSync('.env')) {
+                await this.configManager.init();
+                console.log('Configuration loaded successfully.');
+            } else {
+                console.log('No configuration found. Please configure via menu option 5.');
+            }
         } catch (error) {
             console.error('Error during initialization:', error.message);
+        }
+    }
+
+    async ensureConfigured() {
+        if (!this.configManager.initialized) {
+            console.log('\nConfiguration required before this operation.');
+            const configure = await this.question('Would you like to configure now? (yes/no): ');
+            if (configure.toLowerCase() === 'yes' || configure.toLowerCase() === 'y') {
+                await this.configManager.init();
+            } else {
+                throw new Error('Configuration required. Please use option 5 to configure.');
+            }
         }
     }
 }

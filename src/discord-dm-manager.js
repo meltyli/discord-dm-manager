@@ -3,17 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const cliProgress = require('cli-progress');
+const { initializeLogger } = require('./logger');
 const { getConfigManager } = require('./config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('./discord-api');
 const configManager = getConfigManager();
 
-// Set up logging
-const logDir = './logs';
-if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir);
-}
-const logFile = path.join(logDir, `${new Date().toISOString().split('T')[0]}.log`);
-const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+// Initialize logger to capture all console output
+initializeLogger('./logs', 10);
 
 const LogLevels = {
     error: 0,
@@ -24,10 +20,9 @@ const LogLevels = {
 
 function logOutput(message, level = 'info') {
     if (LogLevels[level] <= LogLevels[configManager.get('LOG_LEVEL')]) {
-        const timestamp = new Date().toISOString();
-        const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
-        console.log(logMessage);
-        logStream.write(logMessage + '\n');
+        // Use console directly - it will be intercepted by logger
+        const levelMethod = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
+        console[levelMethod](message);
     }
 }
 
@@ -219,15 +214,17 @@ async function processDMsInBatches() {
     }
 }
 
-// Start processing
-processDMsInBatches().catch(error => {
-    logOutput(`Error in main process: ${error.stack}`, 'error');
-    process.exit(1);
-});
-
 module.exports = {
     processDMsInBatches,
     traverseDataPackage,
     getRecipients,
-    saveOpenDMsToFile  // Export the new function
+    saveOpenDMsToFile
 };
+
+// Only run if this file is executed directly (not imported)
+if (require.main === module) {
+    processDMsInBatches().catch(error => {
+        logOutput(`Error in main process: ${error.stack}`, 'error');
+        process.exit(1);
+    });
+}

@@ -95,12 +95,13 @@ async function validateUser(authToken, userId, logger) {
 }
 
 async function reopenDM(authToken, userId, logger) {
-    await rateLimiter.waitForSlot();
-    
+    // In DRY_RUN mode, skip rate limiting and API calls entirely
     if (configManager.get('DRY_RUN')) {
         if (logger) logger(`[DRY RUN] Would reopen DM with user ${userId}`, 'info');
         return { id: 'dry-run-id' };
     }
+
+    await rateLimiter.waitForSlot();
 
     // Validate user before attempting to reopen DM
     const isValid = await validateUser(authToken, userId, logger);
@@ -123,11 +124,13 @@ async function reopenDM(authToken, userId, logger) {
 }
 
 async function closeDM(authToken, channelId, logger) {
-    await rateLimiter.waitForSlot();
+    // In DRY_RUN mode, skip rate limiting and API calls entirely
     if (configManager.get('DRY_RUN')) {
         if (logger) logger(`[DRY RUN] Would close DM channel ${channelId}`, 'info');
         return;
     }
+    
+    await rateLimiter.waitForSlot();
     
     return withRetry(async () => {
         const response = await axios.delete(`https://discord.com/api/v9/channels/${channelId}`, {

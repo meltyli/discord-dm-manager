@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { initializeLogger } = require('./logger');
 const { reopenDM } = require('./discord-dm-manager');
 
 class MessageParser {
@@ -71,13 +72,13 @@ class MessageParser {
             // Read channel.json
             const channelData = JSON.parse(fs.readFileSync(channelJsonPath, 'utf8'));
             
-            // Skip if not a DM
-            if (channelData.type !== 'DM') {
+            // Only process DM and GROUP_DM types
+            if (channelData.type !== 'DM' && channelData.type !== 'GROUP_DM') {
                 return;
             }
 
-            // Verify this is a valid DM with the user
-            if (!channelData.recipients.includes(this.myDiscordId)) {
+            // Verify this is a valid DM/GROUP_DM with the user
+            if (!channelData.recipients || !channelData.recipients.includes(this.myDiscordId)) {
                 return;
             }
 
@@ -140,5 +141,6 @@ module.exports = {
 };
 
 if (require.main === module) {
+    initializeLogger('./logs', 10);
     main().catch(console.error);
 }
