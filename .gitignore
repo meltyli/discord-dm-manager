@@ -1,5 +1,8 @@
+# custom
 .env
 config.json
+.github
+tests
 
 ## Node 
 # Logs
