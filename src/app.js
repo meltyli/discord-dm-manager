@@ -36,12 +36,50 @@ class DiscordDMApp {
             console.clear();
             console.log('\nDiscord DM Manager');
             console.log('=================');
+            console.log('1. Configuration');
+            console.log('2. Discord API');
+            console.log('q. Exit');
+            console.log('\nCurrent Settings:');
+            console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+
+            const choice = await this.question('\nSelect an option: ');
+
+            try {
+                switch (choice.trim().toLowerCase()) {
+                    case '1':
+                        await this.configurationMenu();
+                        break;
+                    case '2':
+                        await this.discordApiMenu();
+                        break;
+                    case 'q':
+                        console.log('Goodbye!');
+                        this.rl.close();
+                        return;
+                    default:
+                        console.log('Invalid option. Please try again.');
+                        await this.question('\nPress Enter to continue...');
+                }
+            } catch (error) {
+                // Don't show error if it's just config completion
+                if (error.message !== 'CONFIG_COMPLETE') {
+                    console.error('Error:', error.message);
+                    await this.question('\nPress Enter to continue...');
+                }
+            }
+        }
+    }
+
+    async discordApiMenu() {
+        while (true) {
+            console.clear();
+            console.log('\nDiscord API');
+            console.log('===========');
             console.log('1. Process Recent Messages and Reopen DMs');
             console.log('2. View Current Open DMs');
             console.log('3. Close All Open DMs');
             console.log('4. Reopen DM with Specific User');
-            console.log('5. Configuration');
-            console.log('q. Exit');
+            console.log('q. Back to Main Menu');
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
 
@@ -65,23 +103,15 @@ class DiscordDMApp {
                         await this.reopenSpecificDM();
                         await this.question('\nPress Enter to continue...');
                         break;
-                    case '5':
-                        await this.configurationMenu();
-                        break;
                     case 'q':
-                        console.log('Goodbye!');
-                        this.rl.close();
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
                         await this.question('\nPress Enter to continue...');
                 }
             } catch (error) {
-                // Don't show error if it's just config completion
-                if (error.message !== 'CONFIG_COMPLETE') {
-                    console.error('Error:', error.message);
-                    await this.question('\nPress Enter to continue...');
-                }
+                console.error('Error:', error.message);
+                await this.question('\nPress Enter to continue...');
             }
         }
     }
@@ -367,7 +397,7 @@ class DiscordDMApp {
                 this.options = this.configManager.config;
                 console.log('Configuration loaded successfully.');
             } else {
-                console.log('No configuration found. Please configure via menu option 5.');
+                console.log('No configuration found. Please configure via menu option 1.');
             }
         } catch (error) {
             console.error('Error during initialization:', error.message);
@@ -398,7 +428,7 @@ class DiscordDMApp {
                 // Throw error to prevent operation and return to main menu
                 throw new Error('CONFIG_COMPLETE');
             } else {
-                throw new Error('Configuration required. Please use option 5 to configure.');
+                throw new Error('Configuration required. Please use option 1 to configure.');
             }
         }
     }
