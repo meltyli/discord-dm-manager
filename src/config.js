@@ -144,7 +144,9 @@ class ConfigManager {
         // Step 3: Fill in remaining config values
         for (const [key, value] of Object.entries(this.config)) {
             if (value === '' && !process.env[key] && key !== 'DATA_PACKAGE_FOLDER') {
-                this.config[key] = await this.promptUser(`Enter value for ${key}: `);
+                const answer = await this.promptUser(`Enter value for ${key}: `);
+                // Remove quotes and trim
+                this.config[key] = answer.trim().replace(/^['"]|['"]$/g, '');
             }
         }
         this.saveConfig();
@@ -166,14 +168,14 @@ class ConfigManager {
             console.log(`\nFound user in data package: ${packageUsername} (ID: ${packageUserId})`);
             
             // Prompt for user ID
-            const providedUserId = await this.promptUser(`Provide user ID for user ${packageUsername}: `);
+            const providedUserId = (await this.promptUser(`Provide user ID for user ${packageUsername}: `)).trim().replace(/^['"]|['"]$/g, '');
             
             // Compare IDs
-            if (providedUserId.trim() !== packageUserId) {
+            if (providedUserId !== packageUserId) {
                 console.warn(`\n⚠️  WARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
-                const proceed = await this.promptUser('Are you sure you want to proceed? (yes/no): ');
+                const proceed = (await this.promptUser('Are you sure you want to proceed? (yes/no): ')).trim().toLowerCase();
                 
-                if (proceed.toLowerCase() !== 'yes' && proceed.toLowerCase() !== 'y') {
+                if (proceed !== 'yes' && proceed !== 'y') {
                     throw new Error('User ID verification failed. Setup cancelled.');
                 }
             } else {
@@ -181,8 +183,8 @@ class ConfigManager {
             }
             
             // Store the verified ID
-            this.env.USER_DISCORD_ID = providedUserId.trim();
-            process.env.USER_DISCORD_ID = providedUserId.trim();
+            this.env.USER_DISCORD_ID = providedUserId;
+            process.env.USER_DISCORD_ID = providedUserId;
             
         } catch (error) {
             if (error.message.includes('Setup cancelled')) {
@@ -200,7 +202,8 @@ class ConfigManager {
             if (!fs.existsSync(pathValue)) {
                 console.warn(`Path ${pathKey} (${pathValue}) does not exist`);
                 const newPath = await this.promptUser(`Enter valid path for ${pathKey}: `);
-                this.config[pathKey] = newPath;
+                // Remove quotes and trim
+                this.config[pathKey] = newPath.trim().replace(/^['"]|['"]$/g, '');
                 this.saveConfig();
             }
         }
@@ -216,8 +219,10 @@ class ConfigManager {
             
             if (!process.env[key]) {
                 const value = await this.promptUser(`Enter value for ${key}: `);
-                this.env[key] = value.trim();
-                process.env[key] = value.trim();
+                // Remove quotes and trim
+                const cleanValue = value.trim().replace(/^['"]|['"]$/g, '');
+                this.env[key] = cleanValue;
+                process.env[key] = cleanValue;
             } else {
                 this.env[key] = process.env[key].trim();
             }
