@@ -9,8 +9,11 @@ class ApiMenu {
     constructor(rl, configManager, ensureConfiguredFn) {
         this.rl = rl;
         this.configManager = configManager;
-        this.options = configManager.config;
         this.ensureConfigured = ensureConfiguredFn;
+    }
+
+    get options() {
+        return this.configManager.config;
     }
 
     async show() {

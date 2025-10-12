@@ -20,11 +20,14 @@ class DiscordDMApp {
         this.configManager = getConfigManager();
         // Share our readline interface with config manager
         this.configManager.setReadline(this.rl);
-        this.options = this.configManager.config;
         
         // Create menu instances
         this.configMenu = new ConfigurationMenu(this.rl, this.configManager);
         this.apiMenu = new ApiMenu(this.rl, this.configManager, this.ensureConfigured.bind(this));
+    }
+
+    get options() {
+        return this.configManager.config;
     }
 
     async showMenu() {
@@ -43,12 +46,8 @@ class DiscordDMApp {
                 switch (choice) {
                     case '1':
                         await this.configMenu.show();
-                        // Refresh options after config changes
-                        this.options = this.configManager.config;
                         break;
                     case '2':
-                        // Ensure API menu has latest options
-                        this.apiMenu.options = this.configManager.config;
                         await this.apiMenu.show();
                         break;
                     case 'q':
@@ -76,7 +75,6 @@ class DiscordDMApp {
             const envPath = resolveConfigPath('.env');
             if (fs.existsSync(configPath) && fs.existsSync(envPath)) {
                 await this.configManager.init();
-                this.options = this.configManager.config;
                 console.log('Configuration loaded successfully.');
             } else {
                 console.log('No configuration found. Please configure via menu option 1.');
@@ -91,7 +89,6 @@ class DiscordDMApp {
             console.log('\nConfiguration required before this operation.');
             if (await promptConfirmation('Would you like to configure now? (yes/no): ', this.rl)) {
                 await this.configManager.init();
-                this.options = this.configManager.config;
                 
                 // Show the configuration after setup
                 console.log('\nConfiguration Complete!');

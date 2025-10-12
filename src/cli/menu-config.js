@@ -6,14 +6,16 @@ class ConfigurationMenu {
     constructor(rl, configManager) {
         this.rl = rl;
         this.configManager = configManager;
-        this.options = configManager.config;
+    }
+
+    get options() {
+        return this.configManager.config;
     }
 
     async show() {
         if (!this.configManager.initialized) {
             console.log('\nStarting initial configuration...\n');
             await this.configManager.init();
-            this.options = this.configManager.config;
             console.log('\nConfiguration complete!');
             await waitForKeyPress(this.rl);
             return;
