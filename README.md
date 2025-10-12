@@ -14,3 +14,4 @@ Dscord Direct Message Manager revamped by melty. This script is intended to be u
 - ✅~~optimise the menu layout~~
 - Automatic archival workflow (export → close → mark as archived)
 - Multi-user support (manage multiple Discord accounts)
+- move config defaults from config.js to config-defaults.js
