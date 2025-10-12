@@ -2,6 +2,7 @@
 /config/
 .github
 /tests/fixtures
+/export/
 
 ## Node 
 # Logs
