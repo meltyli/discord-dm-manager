@@ -15,7 +15,7 @@ const {
 
 describe('traverseDataPackage', () => {
     test('should find all channel.json files in test package', () => {
-        const testPackagePath = path.join(__dirname, '..', 'fixtures', 'package', 'messages');
+        const testPackagePath = path.join(__dirname, '..', 'fixtures', 'fluffy_october', 'Messages');
         const channelPaths = traverseDataPackage(testPackagePath);
         
         expect(channelPaths.length).toBeGreaterThan(0);
@@ -34,7 +34,7 @@ describe('traverseDataPackage', () => {
 
 describe('getRecipients', () => {
     test('should extract unique recipients from DM channels', () => {
-        const testPackagePath = path.join(__dirname, '..', 'fixtures', 'package', 'messages');
+        const testPackagePath = path.join(__dirname, '..', 'fixtures', 'fluffy_october', 'Messages');
         const channelPaths = traverseDataPackage(testPackagePath);
         const myDiscordId = '123456789';
         

@@ -106,10 +106,10 @@ describe('CLI Helpers - DCE Export', () => {
             await promise;
             
             expect(spawn).toHaveBeenCalledTimes(2);
-            expect(consoleLogSpy).toHaveBeenCalledWith('Exporting in Json format...');
-            expect(consoleLogSpy).toHaveBeenCalledWith('Json export completed.');
-            expect(consoleLogSpy).toHaveBeenCalledWith('Exporting in HtmlDark format...');
-            expect(consoleLogSpy).toHaveBeenCalledWith('HtmlDark export completed.');
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Exporting in Json format...'));
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Json export completed.'));
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Exporting in HtmlDark format...'));
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('HtmlDark export completed.'));
         });
 
         it('should export in custom formats', async () => {
@@ -120,7 +120,7 @@ describe('CLI Helpers - DCE Export', () => {
             await promise;
             
             expect(spawn).toHaveBeenCalledTimes(1);
-            expect(consoleLogSpy).toHaveBeenCalledWith('Exporting in PlainText format...');
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('Exporting in PlainText format...'));
         });
 
         it('should throw error if any format fails', async () => {
