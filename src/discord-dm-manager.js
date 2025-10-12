@@ -196,13 +196,13 @@ function loadBatchState() {
 function clearBatchState() {
     try {
         const filePath = resolveConfigPath('batch-state.json');
-        
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-            logOutput('Cleared batch state', 'debug');
-        }
+        fs.unlinkSync(filePath);
+        logOutput('Cleared batch state', 'debug');
     } catch (error) {
-        logOutput(`Failed to clear batch state: ${error.message}`, 'error');
+        // File may not exist, which is fine
+        if (error.code !== 'ENOENT') {
+            logOutput(`Failed to clear batch state: ${error.message}`, 'error');
+        }
     }
 }
 

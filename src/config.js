@@ -4,7 +4,7 @@ const readline = require('readline');
 require('dotenv').config({ path: path.join(__dirname, '..', 'config', '.env') });
 const { initializeLogger } = require('./logger');
 const { ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile, ensureExportPath, validatePathExists } = require('./lib/file-utils');
-const { promptUser, cleanInput } = require('./lib/cli-helpers');
+const { promptUser, cleanInput, promptConfirmation } = require('./lib/cli-helpers');
 
 // Initialize logger early to capture all output
 initializeLogger('./logs', 10);
@@ -156,7 +156,7 @@ class ConfigManager {
     async verifyUserId() {
         const userJsonPath = path.join(this.config.DATA_PACKAGE_FOLDER, 'account', 'user.json');
         
-        if (!fs.existsSync(userJsonPath)) {
+        if (!validatePathExists(userJsonPath, 'user.json')) {
             console.warn(`Warning: user.json not found at ${userJsonPath}`);
             return;
         }
@@ -179,9 +179,8 @@ class ConfigManager {
             // Compare IDs
             if (providedUserId !== packageUserId) {
                 console.warn(`\nWARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
-                const proceed = (await promptUser('Are you sure you want to proceed? (yes/no): ', this.rl)).trim().toLowerCase();
                 
-                if (proceed !== 'yes' && proceed !== 'y') {
+                if (!await promptConfirmation('Are you sure you want to proceed? (yes/no): ', this.rl)) {
                     throw new Error('User ID verification failed. Setup cancelled.');
                 }
             } else {
@@ -253,10 +252,10 @@ class ConfigManager {
             .filter(([key, value]) => value !== undefined)
             .map(([key, value]) => `${key}=${value}`);
 
-        if (!fs.existsSync(ENV_FILE_PATH)) {
-            fs.writeFileSync(ENV_FILE_PATH, envLines.join('\n'));
-        } else {
-            const existingEnv = fs.readFileSync(ENV_FILE_PATH, 'utf-8')
+        let existingEnv = {};
+        
+        if (validatePathExists(ENV_FILE_PATH)) {
+            existingEnv = fs.readFileSync(ENV_FILE_PATH, 'utf-8')
                 .split('\n')
                 .reduce((acc, line) => {
                     if (line.trim()) {
@@ -265,17 +264,17 @@ class ConfigManager {
                     }
                     return acc;
                 }, {});
-
-            for (const [key, value] of Object.entries(this.env)) {
-                if (value !== undefined) {
-                    existingEnv[key] = value;
-                }
-            }
-
-            const updatedEnvLines = Object.entries(existingEnv)
-                .map(([key, value]) => `${key}=${value}`);
-            fs.writeFileSync(ENV_FILE_PATH, updatedEnvLines.join('\n'));
         }
+
+        for (const [key, value] of Object.entries(this.env)) {
+            if (value !== undefined) {
+                existingEnv[key] = value;
+            }
+        }
+
+        const updatedEnvLines = Object.entries(existingEnv)
+            .map(([key, value]) => `${key}=${value}`);
+        fs.writeFileSync(ENV_FILE_PATH, updatedEnvLines.join('\n'));
     }
 
     /**
@@ -316,8 +315,13 @@ class ConfigManager {
 
         // Clear environment variables
         this.env = { ...envTemplate };
-        if (fs.existsSync(ENV_FILE_PATH)) {
+        try {
             fs.unlinkSync(ENV_FILE_PATH);
+        } catch (error) {
+            // File may not exist, which is fine
+            if (error.code !== 'ENOENT') {
+                console.error(`Error deleting .env file: ${error.message}`);
+            }
         }
         
         // Clear process.env
