@@ -1,9 +1,7 @@
 # custom
-config/.env
-config/config.json
+/config/
 .github
-tests/fixtures
-config/lastopened.json
+/tests/fixtures
 
 ## Node 
 # Logs
