@@ -107,14 +107,22 @@ describe('getRecipients', () => {
         }
         fs.writeFileSync(tempFile, 'invalid json');
         
-        const recipients = getRecipients([tempFile], '123456789');
-        
-        // Should return empty array and not throw
-        expect(recipients).toEqual([]);
-        
-        // Cleanup
-        fs.unlinkSync(tempFile);
-        fs.rmdirSync(tempDir);
+        // suppress noisy console.error output produced while parsing invalid JSON
+        const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            const recipients = getRecipients([tempFile], '123456789');
+            // Should return empty array and not throw
+            expect(recipients).toEqual([]);
+        } finally {
+            // Cleanup
+            if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+            }
+            if (fs.existsSync(tempDir)) {
+                fs.rmdirSync(tempDir);
+            }
+            errorSpy.mockRestore();
+        }
     });
 });
 
