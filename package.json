@@ -1,6 +1,6 @@
 {
   "name": "discord-dm-manager",
-  "version": "1.3.3",
+  "version": "1.3.5",
   "description": "Bulk Discord DM manager with DiscordChatExporter integration",
   "main": "src/cli/menu-main.js",
   "scripts": {

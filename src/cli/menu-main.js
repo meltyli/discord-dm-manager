@@ -1,6 +1,6 @@
 const fs = require('fs');
 const readline = require('readline');
-const { initializeLogger } = require('../logger');
+const { initializeLogger, getLogger } = require('../logger');
 const { getConfigManager } = require('../config');
 const { resolveConfigPath } = require('../lib/file-utils');
 const { waitForKeyPress, getMenuChoice, clearScreen, promptConfirmation } = require('../lib/cli-helpers');
@@ -33,6 +33,7 @@ class DiscordDMApp {
     async showMenu() {
         while (true) {
             clearScreen();
+            getLogger().logOnly('[MENU] Main Menu');
             console.log('\nDiscord DM Manager');
             console.log('=================');
             console.log('1. Configuration');
@@ -45,9 +46,11 @@ class DiscordDMApp {
             try {
                 switch (choice) {
                     case '1':
+                        getLogger().logOnly('[ACTION] Configuration Menu Selected');
                         await this.configMenu.show();
                         break;
                     case '2':
+                        getLogger().logOnly('[ACTION] Discord API Menu Selected');
                         await this.apiMenu.show();
                         break;
                     case 'q':

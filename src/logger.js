@@ -137,6 +137,17 @@ class Logger {
         });
     }
     
+    /**
+     * Write to log file only (without console output)
+     * @param {string} message - Message to log
+     * @param {string} level - Log level (info, error, warn, debug)
+     */
+    logOnly(message, level = 'info') {
+        const timestamp = new Date().toISOString();
+        const formattedMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+        this.writeToLog(formattedMessage);
+    }
+
     close() {
         if (this.logStream && !this.logStream.destroyed) {
             this.logStream.end();

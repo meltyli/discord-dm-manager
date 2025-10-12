@@ -4,6 +4,7 @@ const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('
 const { resolveConfigPath, readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
 const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
+const { getLogger } = require('../logger');
 
 class ApiMenu {
     constructor(rl, configManager, ensureConfiguredFn) {
@@ -19,6 +20,7 @@ class ApiMenu {
     async show() {
         while (true) {
             clearScreen();
+            getLogger().logOnly('[MENU] Discord API Menu');
             console.log('\nDiscord API');
             console.log('===========');
             console.log('1. Export All Direct Messages');
@@ -34,22 +36,27 @@ class ApiMenu {
             try {
                 switch (choice) {
                     case '1':
+                        getLogger().logOnly('[ACTION] Export All Direct Messages');
                         await this.processAndExportAllDMs();
                         await waitForKeyPress(this.rl);
                         break;
                     case '2':
+                        getLogger().logOnly('[ACTION] List Current Open Direct Messages');
                         await this.viewOpenDMs();
                         await waitForKeyPress(this.rl);
                         break;
                     case '3':
+                        getLogger().logOnly('[ACTION] Close All Open Direct Messages');
                         await this.closeAllDMs();
                         await waitForKeyPress(this.rl);
                         break;
                     case '4':
+                        getLogger().logOnly('[ACTION] Reopen Direct Message (Specific User ID)');
                         await this.reopenSpecificDM();
                         await waitForKeyPress(this.rl);
                         break;
                     case '5':
+                        getLogger().logOnly('[ACTION] Reset DM State (Reopen Closed Direct Messages)');
                         await this.resetDMState();
                         await waitForKeyPress(this.rl);
                         break;

@@ -1,6 +1,7 @@
 const { resolveConfigPath, ensureExportPath } = require('../lib/file-utils');
 const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
 const { displayDetailedConfig, displayAdvancedSettings } = require('./menu-helpers');
+const { getLogger } = require('../logger');
 
 class ConfigurationMenu {
     constructor(rl, configManager) {
@@ -23,6 +24,7 @@ class ConfigurationMenu {
 
         while (true) {
             clearScreen();
+            getLogger().logOnly('[MENU] Configuration Menu');
             console.log('\nConfiguration');
             console.log('=============');
             displayDetailedConfig(this.options);
@@ -38,18 +40,23 @@ class ConfigurationMenu {
             try {
                 switch (choice) {
                     case '1':
+                        getLogger().logOnly('[ACTION] Edit Data Package Folder');
                         await this.editDataPackageFolder();
                         break;
                     case '2':
+                        getLogger().logOnly('[ACTION] Edit Export Path');
                         await this.editExportPath();
                         break;
                     case '3':
+                        getLogger().logOnly('[ACTION] Edit Discord Chat Exporter Path');
                         await this.editDCEPath();
                         break;
                     case '4':
+                        getLogger().logOnly('[ACTION] Advanced Settings');
                         await this.advancedSettings();
                         break;
                     case '5':
+                        getLogger().logOnly('[ACTION] Reset to Default');
                         await this.resetToDefault();
                         break;
                     case 'q':
@@ -109,6 +116,7 @@ class ConfigurationMenu {
     async advancedSettings() {
         while (true) {
             clearScreen();
+            getLogger().logOnly('[MENU] Advanced Settings');
             displayAdvancedSettings(this.options);
             console.log('\n1. Toggle Dry Run Mode');
             console.log('2. Set Batch Size');
@@ -121,15 +129,19 @@ class ConfigurationMenu {
             try {
                 switch (choice) {
                     case '1':
+                        getLogger().logOnly('[ACTION] Toggle Dry Run Mode');
                         this.toggleDryRun();
                         break;
                     case '2':
+                        getLogger().logOnly('[ACTION] Set Batch Size');
                         await this.setBatchSize();
                         break;
                     case '3':
+                        getLogger().logOnly('[ACTION] Set API Delay');
                         await this.setApiDelay();
                         break;
                     case '4':
+                        getLogger().logOnly('[ACTION] Set Rate Limit');
                         await this.setRateLimit();
                         break;
                     case 'q':
