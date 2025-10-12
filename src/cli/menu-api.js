@@ -1,7 +1,7 @@
 const { getCurrentOpenDMs, closeDM, reopenDM } = require('../discord-api');
 const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('../discord-dm-manager');
 const { resolveConfigPath, readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
-const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
+const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
 
 class ApiMenu {
@@ -159,7 +159,7 @@ class ApiMenu {
     async reopenSpecificDM() {
         await this.ensureConfigured();
         
-        const userId = cleanInput(await waitForKeyPress(this.rl, '\nEnter Discord User ID: '));
+        const userId = cleanInput(await promptUser('\nEnter Discord User ID: ', this.rl));
         
         if (this.options.DRY_RUN) {
             console.log(`[DRY RUN] Would reopen DM with user ${userId} - no API call will be made`);

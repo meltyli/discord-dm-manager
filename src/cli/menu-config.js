@@ -1,5 +1,5 @@
 const { resolveConfigPath, ensureExportPath } = require('../lib/file-utils');
-const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
+const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
 const { displayDetailedConfig, displayAdvancedSettings } = require('./menu-helpers');
 
 class ConfigurationMenu {
@@ -62,7 +62,7 @@ class ConfigurationMenu {
     }
 
     async editDataPackageFolder() {
-        const newValue = cleanInput(await waitForKeyPress(this.rl, `\nData Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `));
+        const newValue = cleanInput(await promptUser(`\nData Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `, this.rl));
         if (newValue) {
             this.options.DATA_PACKAGE_FOLDER = newValue;
             this.configManager.saveConfig();
@@ -71,14 +71,14 @@ class ConfigurationMenu {
     }
 
     async editExportPath() {
-        const newValue = await waitForKeyPress(this.rl, `\nExport Path (current: ${this.options.EXPORT_PATH}): `);
+        const newValue = cleanInput(await promptUser(`\nExport Path (current: ${this.options.EXPORT_PATH}): `, this.rl));
         this.options.EXPORT_PATH = ensureExportPath(newValue);
         this.configManager.saveConfig();
         console.log(`Export path set to ${this.options.EXPORT_PATH}`);
     }
 
     async editDCEPath() {
-        const newValue = cleanInput(await waitForKeyPress(this.rl, `\nDiscord Chat Exporter Path (current: ${this.options.DCE_PATH}): `));
+        const newValue = cleanInput(await promptUser(`\nDiscord Chat Exporter Path (current: ${this.options.DCE_PATH}): `, this.rl));
         if (newValue) {
             this.options.DCE_PATH = newValue;
             this.configManager.saveConfig();
@@ -142,7 +142,7 @@ class ConfigurationMenu {
     }
 
     async setBatchSize() {
-        const newValue = cleanInput(await waitForKeyPress(this.rl, `Enter new batch size (current: ${this.options.BATCH_SIZE}): `));
+        const newValue = cleanInput(await promptUser(`Enter new batch size (current: ${this.options.BATCH_SIZE}): `, this.rl));
         if (newValue) {
             this.options.BATCH_SIZE = Number(newValue);
             this.configManager.saveConfig();
@@ -151,7 +151,7 @@ class ConfigurationMenu {
     }
 
     async setApiDelay() {
-        const newValue = cleanInput(await waitForKeyPress(this.rl, `Enter new API delay in ms (current: ${this.options.API_DELAY_MS}): `));
+        const newValue = cleanInput(await promptUser(`Enter new API delay in ms (current: ${this.options.API_DELAY_MS}): `, this.rl));
         if (newValue) {
             this.options.API_DELAY_MS = Number(newValue);
             this.configManager.saveConfig();
@@ -161,8 +161,8 @@ class ConfigurationMenu {
 
     async setRateLimit() {
         console.log('\nRate Limit Configuration');
-        const requests = cleanInput(await waitForKeyPress(this.rl, `Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `));
-        const interval = cleanInput(await waitForKeyPress(this.rl, `Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `));
+        const requests = cleanInput(await promptUser(`Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `, this.rl));
+        const interval = cleanInput(await promptUser(`Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `, this.rl));
         
         if (requests) {
             this.options.RATE_LIMIT_REQUESTS = Number(requests);
