@@ -133,7 +133,18 @@ class DiscordDMApp {
             return;
         }
         
-        const closedIds = JSON.parse(fs.readFileSync(closedIdsPath, 'utf8'));
+        const closedIdsData = JSON.parse(fs.readFileSync(closedIdsPath, 'utf8'));
+        
+        // Handle both new structure { current: [], all: [] } and legacy array format
+        let closedIds;
+        if (Array.isArray(closedIdsData)) {
+            closedIds = closedIdsData;
+        } else if (closedIdsData.current && Array.isArray(closedIdsData.current)) {
+            closedIds = closedIdsData.current;
+        } else {
+            console.log('\nInvalid closedIDs.json format. Nothing to reopen.');
+            return;
+        }
         
         if (closedIds.length === 0) {
             console.log('\nNo closed DMs to reopen.');

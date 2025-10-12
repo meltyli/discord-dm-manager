@@ -87,33 +87,60 @@ async function closeAllOpenDMs() {
         }
         const filePath = path.join(configDir, 'closedIDs.json');
         
-        // Initialize with empty array
-        fs.writeFileSync(filePath, JSON.stringify([], null, 2));
+        // Load existing data structure or initialize
+        let data = { current: [], all: [] };
+        if (fs.existsSync(filePath)) {
+            try {
+                const existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                // Handle legacy format (plain array)
+                if (Array.isArray(existing)) {
+                    data.all = existing;
+                } else {
+                    data = existing;
+                }
+            } catch (error) {
+                logOutput(`Could not parse existing closedIDs.json, starting fresh: ${error.message}`, 'warn');
+            }
+        }
+        
+        // Reset current array for this operation
+        data.current = [];
         
         const closeProgress = createProgressBar();
         closeProgress.start(currentDMs.length, 0);
         
-        const closedIds = [];
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
                 const recipient = dm.recipients[0];
                 const username = recipient.username || 'Unknown';
                 const discriminator = recipient.discriminator || '0000';
-                logOutput(`Closing DM with ${username}#${discriminator} (ID: ${recipient.id})`, 'info');
+                
+                closeProgress.stop();
+                logOutput(`Closing DM with ${username}#${discriminator} (ID: ${recipient.id})`, 'debug');
+                closeProgress.start(currentDMs.length, index);
+                
                 await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
                 await delay(configManager.get('API_DELAY_MS'));
                 
-                // Append to closedIDs.json immediately after each close
-                closedIds.push(recipient.id);
-                fs.writeFileSync(filePath, JSON.stringify(closedIds, null, 2));
+                // Add to current array
+                data.current.push(recipient.id);
+                
+                // Add to all array only if not already present (maintain order)
+                if (!data.all.includes(recipient.id)) {
+                    data.all.push(recipient.id);
+                }
+                
+                // Save after each close
+                fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
             }
             closeProgress.update(index + 1);
         }
         closeProgress.stop();
         
-        logOutput(`Successfully closed ${closedIds.length} DMs. User IDs saved to ${filePath}`, 'info');
+        logOutput(`\nSuccessfully closed ${data.current.length} DMs. User IDs saved to ${filePath}`, 'info');
+        logOutput(`Total unique IDs in history: ${data.all.length}`, 'info');
         
-        return closedIds;
+        return data.current;
     } catch (error) {
         logOutput(`Failed to close all open DMs: ${error.message}`, 'error');
         throw error;
