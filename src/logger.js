@@ -20,7 +20,13 @@ class Logger {
     }
     
     initializeLogFile() {
-        const today = new Date().toISOString().split('T')[0];
+        // Use local date for filename to match user's timezone
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const today = `${year}-${month}-${day}`;
+        
         this.currentLogFile = path.join(this.logDir, `${today}.log`);
         
         // Create/touch the file to ensure it exists with current timestamp
@@ -28,7 +34,6 @@ class Logger {
             fs.writeFileSync(this.currentLogFile, '');
         } else {
             // Update mtime to ensure it's the newest
-            const now = new Date();
             fs.utimesSync(this.currentLogFile, now, now);
         }
         
