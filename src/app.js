@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { spawn } = require('child_process');
+const cliProgress = require('cli-progress');
 const { initializeLogger } = require('./logger');
 const { MessageParser } = require('./parse-messages');
 const {
@@ -160,10 +161,17 @@ class DiscordDMApp {
             return;
         }
         
+        const reopenProgress = new cliProgress.SingleBar({
+            format: 'Progress |{bar}| {percentage}% || {value}/{total} DMs',
+            barCompleteChar: '\u2588',
+            barIncompleteChar: '\u2591'
+        });
+        reopenProgress.start(closedIds.length, 0);
+        
         let skipped = 0;
         let reopened = 0;
         
-        for (const userId of closedIds) {
+        for (const [index, userId] of closedIds.entries()) {
             const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId, console.log);
             if (result === null) {
                 skipped++;
@@ -171,7 +179,9 @@ class DiscordDMApp {
                 reopened++;
             }
             await new Promise(resolve => setTimeout(resolve, this.options.API_DELAY_MS));
+            reopenProgress.update(index + 1);
         }
+        reopenProgress.stop();
         
         console.log(`\nReopened: ${reopened}, Skipped: ${skipped}`);
         console.log('DM state reset complete. closedIDs.json NOT cleared (preserves default state).');
