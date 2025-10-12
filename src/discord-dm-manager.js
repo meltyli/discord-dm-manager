@@ -27,19 +27,30 @@ function logOutput(message, level = 'info') {
     }
 }
 
-async function waitForKeyPress() {
+async function waitForKeyPress(rlInterface = null) {
     logOutput('Press any key to continue...', 'info');
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout
-    });
     
-    return new Promise(resolve => {
-        rl.question('', () => {
-            rl.close();
-            resolve();
+    if (rlInterface) {
+        // Use provided readline interface
+        return new Promise(resolve => {
+            rlInterface.question('', () => {
+                resolve();
+            });
         });
-    });
+    } else {
+        // Create temporary interface (for standalone execution)
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+        
+        return new Promise(resolve => {
+            rl.question('', () => {
+                rl.close();
+                resolve();
+            });
+        });
+    }
 }
 
 // Progress tracking
@@ -142,7 +153,7 @@ function hasIncompleteBatchSession() {
 }
 
 // Main processing function
-async function processDMsInBatches(startBatch = 0) {
+async function processDMsInBatches(startBatch = 0, rlInterface = null) {
     logOutput('Starting DM processing...', 'info');
 
     try {
@@ -230,7 +241,7 @@ async function processDMsInBatches(startBatch = 0) {
 
             if (!configManager.get('DRY_RUN')) {
                 logOutput('\nBatch complete. Please review these DMs.', 'info');
-                await waitForKeyPress();
+                await waitForKeyPress(rlInterface);
 
                 logOutput('Closing batch DMs...', 'info');
                 const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);

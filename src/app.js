@@ -248,7 +248,7 @@ class DiscordDMApp {
         }
         
         try {
-            await processDMsInBatches(startBatch);
+            await processDMsInBatches(startBatch, this.rl);
         } catch (error) {
             console.error('Batch processing failed:', error.message);
         }
@@ -277,7 +277,7 @@ class DiscordDMApp {
         }
         
         try {
-            await processDMsInBatches(state.currentBatch);
+            await processDMsInBatches(state.currentBatch, this.rl);
         } catch (error) {
             console.error('Batch processing failed:', error.message);
         }
