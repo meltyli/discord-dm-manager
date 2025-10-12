@@ -27,14 +27,14 @@ describe('CLI Helpers - DCE Export', () => {
 
     describe('runDCEExport', () => {
         it('should spawn DCE with correct arguments', async () => {
-            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json');
+            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json', '123456789');
             
             expect(spawn).toHaveBeenCalledWith(
                 '/dce/path/DiscordChatExporter.Cli',
                 expect.arrayContaining([
                     'exportdm',
                     '-t', 'token123',
-                    '-o', '/export/%G/%c/%C - %d/',
+                    '-o', '/export/123456789/%G/%c/%C - %d/',
                     '--format', 'Json'
                 ])
             );
@@ -44,7 +44,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should resolve on successful export', async () => {
-            const promise = runDCEExport('token123', '/export', '/dce/path', 'HtmlDark');
+            const promise = runDCEExport('token123', '/export', '/dce/path', 'HtmlDark', '123456789');
             
             mockProcess.emit('close', 0);
             
@@ -52,7 +52,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should reject on non-zero exit code', async () => {
-            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json');
+            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json', '123456789');
             
             mockProcess.emit('close', 1);
             
@@ -60,7 +60,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should reject on process error', async () => {
-            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json');
+            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json', '123456789');
             
             mockProcess.emit('error', new Error('spawn failed'));
             
@@ -68,7 +68,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should log stdout data', async () => {
-            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json');
+            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json', '123456789');
             
             mockProcess.stdout.emit('data', Buffer.from('Export progress...\n'));
             
@@ -79,7 +79,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should log stderr data', async () => {
-            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json');
+            const promise = runDCEExport('token123', '/export', '/dce/path', 'Json', '123456789');
             
             mockProcess.stderr.emit('data', Buffer.from('Warning message\n'));
             
@@ -92,7 +92,7 @@ describe('CLI Helpers - DCE Export', () => {
 
     describe('exportDMs', () => {
         it('should export in default formats (Json, HtmlDark)', async () => {
-            const promise = exportDMs('token123', '/export', '/dce/path');
+            const promise = exportDMs('token123', '/export', '/dce/path', '123456789');
             
             // First format (Json)
             mockProcess.emit('close', 0);
@@ -113,7 +113,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should export in custom formats', async () => {
-            const promise = exportDMs('token123', '/export', '/dce/path', ['PlainText']);
+            const promise = exportDMs('token123', '/export', '/dce/path', '123456789', ['PlainText']);
             
             mockProcess.emit('close', 0);
             
@@ -124,7 +124,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should throw error if any format fails', async () => {
-            const promise = exportDMs('token123', '/export', '/dce/path', ['Json', 'HtmlDark']);
+            const promise = exportDMs('token123', '/export', '/dce/path', '123456789', ['Json', 'HtmlDark']);
             
             // First format succeeds
             mockProcess.emit('close', 0);
@@ -140,7 +140,7 @@ describe('CLI Helpers - DCE Export', () => {
         });
 
         it('should stop on first failure', async () => {
-            const promise = exportDMs('token123', '/export', '/dce/path', ['Json', 'HtmlDark', 'PlainText']);
+            const promise = exportDMs('token123', '/export', '/dce/path', '123456789', ['Json', 'HtmlDark', 'PlainText']);
             
             // First format fails
             mockProcess.emit('close', 1);

@@ -197,7 +197,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
         await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-        console.log(`Processing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
         
         if (startBatch > 0) {
             console.log(`Resuming from batch ${startBatch + 1}/${totalBatches}`);
@@ -285,7 +285,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null) {
         await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-        console.log(`Processing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
         console.log('Each batch will be automatically exported before moving to the next.');
         
         let skippedUsers = 0;
@@ -361,11 +361,125 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null) {
     }
 }
 
+/**
+ * Process all DMs with automatic export using channel IDs
+ * @param {Function} exportCallback - Callback function to export DMs by channel IDs
+ * @param {readline.Interface} rlInterface - Readline interface for user input
+ * @returns {Promise<void>}
+ */
+async function processAndExportByChannelIds(exportCallback, rlInterface = null) {
+    try {
+        await configManager.init();
+
+        const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
+        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
+
+        if (allDmIds.length === 0) {
+            console.warn('No direct message recipients found. Please check your Discord ID and data package path.');
+            return;
+        }
+
+        if (configManager.get('DRY_RUN')) {
+            console.log('Running in DRY RUN mode - no actual API calls will be made');
+            console.log(`Would process ${allDmIds.length} direct message recipients`);
+            return;
+        }
+
+        // Step 1: Close all currently open direct messages
+        await closeAllOpenDMs();
+
+        const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
+        console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        console.log('Each batch will be automatically exported before moving to the next.');
+        
+        let skippedUsers = 0;
+        let processedUsers = 0;
+        
+        // Initialize batch state
+        const batchState = {
+            allDmIds: allDmIds,
+            totalBatches: totalBatches,
+            currentBatch: 0,
+            processedUsers: 0,
+            skippedUsers: 0,
+            timestamp: new Date().toISOString(),
+            inProgress: true
+        };
+        saveBatchState(batchState);
+        
+        for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+            const startIdx = batchNum * configManager.get('BATCH_SIZE');
+            const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
+            const currentBatch = allDmIds.slice(startIdx, endIdx);
+
+            // Step 2: Open batch
+            const stats = await openBatchDMs(currentBatch, batchNum, totalBatches);
+            processedUsers += stats.processed;
+            skippedUsers += stats.skipped;
+
+            // Update state after completing batch
+            batchState.currentBatch = batchNum + 1;
+            batchState.processedUsers = processedUsers;
+            batchState.skippedUsers = skippedUsers;
+            batchState.timestamp = new Date().toISOString();
+            saveBatchState(batchState);
+
+            // Step 3: Get channel IDs for opened DMs
+            console.log('\nFetching channel IDs for export...');
+            const openDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+            const channelIds = openDMs
+                .filter(dm => dm.type === 1 || dm.type === 3)
+                .map(dm => dm.id);
+            
+            console.log(`Found ${channelIds.length} channels to export.`);
+
+            // Step 4: Export the batch by channel IDs
+            console.log('\nExporting current batch...');
+            try {
+                await exportCallback(channelIds);
+                console.log('Export completed successfully.');
+            } catch (error) {
+                console.error(`Export failed: ${error.message}`);
+                const continueAnyway = rlInterface 
+                    ? await promptConfirmation('Continue with next batch anyway? (y/n): ', rlInterface)
+                    : false;
+                
+                if (!continueAnyway) {
+                    console.log('Processing stopped by user.');
+                    return;
+                }
+            }
+
+            // Step 5: Close batch DMs
+            await closeBatchDMs();
+            
+            // Small delay before next batch
+            if (batchNum < totalBatches - 1) {
+                console.log(`Batch ${batchNum + 1}/${totalBatches} complete. Moving to next batch...`);
+                await delay(configManager.get('API_DELAY_MS') * 2);
+            }
+        }
+
+        console.log('\nAll batches processed and exported!');
+        console.log(`Total processed users: ${processedUsers}`);
+        console.log(`Total skipped users: ${skippedUsers}`);
+        
+        // Mark as complete and clear state
+        batchState.inProgress = false;
+        saveBatchState(batchState);
+        clearBatchState();
+    } catch (error) {
+        console.error(`Fatal error in main process: ${error.message}`);
+        throw error;
+    }
+}
+
 module.exports = {
     closeAllOpenDMs,
     openBatchDMs,
     closeBatchDMs,
     saveOpenDMsToFile,
     processDMsInBatches,
-    processAndExportAllDMs
+    processAndExportAllDMs,
+    processAndExportByChannelIds
 };
