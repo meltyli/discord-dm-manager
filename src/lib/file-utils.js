@@ -187,6 +187,35 @@ function validateDCEPath(dcePath) {
     return dceExecutable;
 }
 
+/**
+ * Updates id-history.json with current recipient IDs
+ * Preserves original-state from first run, updates latest and uniqueIds
+ * @param {string} idHistoryPath - Path to id-history.json
+ * @param {string[]} currentIds - Current recipient IDs
+ */
+function updateIdHistory(idHistoryPath, currentIds) {
+    const existing = readJsonFile(idHistoryPath, null);
+    
+    if (!existing || !existing['original-state']) {
+        // First run - set original-state
+        const data = {
+            'original-state': currentIds,
+            'latest': currentIds,
+            'uniqueIds': currentIds
+        };
+        writeJsonFile(idHistoryPath, data);
+    } else {
+        // Subsequent runs - preserve original-state, update others
+        const allIds = new Set([...existing.uniqueIds, ...currentIds]);
+        const data = {
+            'original-state': existing['original-state'],
+            'latest': currentIds,
+            'uniqueIds': Array.from(allIds)
+        };
+        writeJsonFile(idHistoryPath, data);
+    }
+}
+
 module.exports = {
     traverseDataPackage,
     getRecipients,
@@ -197,5 +226,6 @@ module.exports = {
     readJsonFile,
     writeJsonFile,
     validateRequiredConfig,
-    validateDCEPath
+    validateDCEPath,
+    updateIdHistory
 };
