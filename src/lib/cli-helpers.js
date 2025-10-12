@@ -1,6 +1,7 @@
 const readline = require('readline');
 const { spawn } = require('child_process');
 const path = require('path');
+const cliProgress = require('cli-progress');
 
 /**
  * Unified readline prompting wrapper
@@ -151,6 +152,19 @@ async function exportDMs(token, exportPath, dcePath, formats = ['Json', 'HtmlDar
     }
 }
 
+/**
+ * Create a standardized progress bar for DM operations
+ * @param {string} label - Label for the items being tracked (default: 'DMs')
+ * @returns {cliProgress.SingleBar} Configured progress bar instance
+ */
+function createDMProgressBar(label = 'DMs') {
+    return new cliProgress.SingleBar({
+        format: `Progress |{bar}| {percentage}% || {value}/{total} ${label}`,
+        barCompleteChar: '\u2588',
+        barIncompleteChar: '\u2591'
+    });
+}
+
 module.exports = {
     promptUser,
     promptConfirmation,
@@ -160,5 +174,6 @@ module.exports = {
     cleanInput,
     formatPath,
     runDCEExport,
-    exportDMs
+    exportDMs,
+    createDMProgressBar
 };

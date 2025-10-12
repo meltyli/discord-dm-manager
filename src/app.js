@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const cliProgress = require('cli-progress');
 const { initializeLogger } = require('./logger');
 const { MessageParser } = require('./parse-messages');
 const {
@@ -12,7 +11,7 @@ const {
 const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
 const { resolveConfigPath, readJsonFile, writeJsonFile, ensureExportPath, validatePathExists } = require('./lib/file-utils');
-const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs } = require('./lib/cli-helpers');
+const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('./lib/cli-helpers');
 
 // Initialize logger to capture all console output
 initializeLogger('./logs', 10);
@@ -160,11 +159,7 @@ class DiscordDMApp {
             return;
         }
         
-        const reopenProgress = new cliProgress.SingleBar({
-            format: 'Progress |{bar}| {percentage}% || {value}/{total} DMs',
-            barCompleteChar: '\u2588',
-            barIncompleteChar: '\u2591'
-        });
+        const reopenProgress = createDMProgressBar();
         reopenProgress.start(closedIds.length, 0);
         
         let skipped = 0;

@@ -1,7 +1,8 @@
 const { 
     cleanInput, 
     formatPath, 
-    clearScreen 
+    clearScreen,
+    createDMProgressBar
 } = require('../../src/lib/cli-helpers');
 
 describe('cli-helpers', () => {
@@ -50,6 +51,32 @@ describe('cli-helpers', () => {
             
             expect(console.clear).toHaveBeenCalled();
             console.clear = originalClear;
+        });
+    });
+
+    describe('createDMProgressBar', () => {
+        test('creates a progress bar with default DMs label', () => {
+            const progressBar = createDMProgressBar();
+            
+            expect(progressBar).toBeDefined();
+            expect(progressBar.start).toBeDefined();
+            expect(progressBar.update).toBeDefined();
+            expect(progressBar.stop).toBeDefined();
+        });
+
+        test('creates a progress bar with custom label', () => {
+            const progressBar = createDMProgressBar('Users');
+            
+            expect(progressBar).toBeDefined();
+            // Progress bar configuration is internal, just verify it's created
+        });
+
+        test('progress bar has correct format string', () => {
+            const progressBar = createDMProgressBar();
+            
+            // Verify the progress bar uses unicode characters
+            expect(progressBar.options.barCompleteChar).toBe('\u2588');
+            expect(progressBar.options.barIncompleteChar).toBe('\u2591');
         });
     });
 });

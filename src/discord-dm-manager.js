@@ -2,12 +2,11 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const cliProgress = require('cli-progress');
 const { initializeLogger } = require('./logger');
 const { getConfigManager } = require('./config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('./discord-api');
 const { traverseDataPackage, getRecipients, ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile } = require('./lib/file-utils');
-const { waitForKeyPress, promptConfirmation } = require('./lib/cli-helpers');
+const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('./lib/cli-helpers');
 const configManager = getConfigManager();
 
 // Initialize logger to capture all console output
@@ -26,15 +25,6 @@ function logOutput(message, level = 'info') {
         const levelMethod = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
         console[levelMethod](message);
     }
-}
-
-// Progress tracking
-function createProgressBar() {
-    return new cliProgress.SingleBar({
-        format: 'Progress |{bar}| {percentage}% || {value}/{total} DMs',
-        barCompleteChar: '\u2588',
-        barIncompleteChar: '\u2591'
-    });
 }
 
 // Close all currently open DMs and save their IDs
@@ -73,7 +63,7 @@ async function closeAllOpenDMs() {
         // Reset current array for this operation
         data.current = [];
         
-        const closeProgress = createProgressBar();
+        const closeProgress = createDMProgressBar();
         closeProgress.start(currentDMs.length, 0);
         
         for (const [index, dm] of currentDMs.entries()) {
@@ -117,7 +107,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
 
     logOutput(`Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} DMs)...`, 'info');
     
-    const batchProgress = createProgressBar();
+    const batchProgress = createDMProgressBar();
     batchProgress.start(userIds.length, 0);
     
     let skippedUsers = 0;
