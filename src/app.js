@@ -129,7 +129,7 @@ class DiscordDMApp {
         const closedIdsPath = path.join(process.cwd(), 'config', 'closedIDs.json');
         
         if (!fs.existsSync(closedIdsPath)) {
-            console.log('\nNo closed DM state found. Use option 5 first to process and close DMs.');
+            console.log('\nNo closedIDs.json file found. Nothing to reopen.');
             return;
         }
         
@@ -145,7 +145,7 @@ class DiscordDMApp {
         if (this.options.DRY_RUN) {
             console.log('[DRY RUN] Would reopen these user IDs:');
             console.log(closedIds);
-            console.log('[DRY RUN] Would clear closedIDs.json');
+            console.log('[DRY RUN] Would NOT clear closedIDs.json (preserves default state)');
             return;
         }
         
@@ -163,10 +163,7 @@ class DiscordDMApp {
         }
         
         console.log(`\nReopened: ${reopened}, Skipped: ${skipped}`);
-        
-        // Clear the closedIDs file
-        fs.writeFileSync(closedIdsPath, JSON.stringify([], null, 2));
-        console.log('DM state reset complete. closedIDs.json cleared.');
+        console.log('DM state reset complete. closedIDs.json NOT cleared (preserves default state).');
     }
 
     async viewOpenDMs() {
@@ -197,7 +194,7 @@ class DiscordDMApp {
 
         console.log('\nClosing all open DMs...');
         await closeAllOpenDMs();
-        console.log('All DMs closed successfully!');
+        console.log('All DMs closed successfully! User IDs saved to closedIDs.json');
     }
 
     async reopenSpecificDM() {

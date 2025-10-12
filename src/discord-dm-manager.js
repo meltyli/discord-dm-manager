@@ -66,40 +66,52 @@ function createProgressBar() {
 async function closeAllOpenDMs() {
     try {
         if (configManager.get('DRY_RUN')) {
-            logOutput('[DRY RUN] Would close all open DMs', 'info');
+            logOutput('[DRY RUN] Would close all open DMs and save IDs to closedIDs.json', 'info');
             return [];
         }
 
+        logOutput('Fetching all currently open DMs...', 'info');
         const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
-        logOutput(`Closing ${currentDMs.length} currently open DMs...`, 'info');
+        
+        if (currentDMs.length === 0) {
+            logOutput('No open DMs to close.', 'info');
+            return [];
+        }
+
+        logOutput(`Found ${currentDMs.length} open DMs. Closing...`, 'info');
+        
+        // Prepare config directory and file path
+        const configDir = path.join(process.cwd(), 'config');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        const filePath = path.join(configDir, 'closedIDs.json');
+        
+        // Initialize with empty array
+        fs.writeFileSync(filePath, JSON.stringify([], null, 2));
         
         const closeProgress = createProgressBar();
         closeProgress.start(currentDMs.length, 0);
         
         const closedIds = [];
         for (const [index, dm] of currentDMs.entries()) {
-            if (dm.type === 1) {
-                logOutput(`Closing DM channel: ${dm.id}`, 'debug');
+            if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
+                const recipient = dm.recipients[0];
+                const username = recipient.username || 'Unknown';
+                const discriminator = recipient.discriminator || '0000';
+                logOutput(`Closing DM with ${username}#${discriminator} (ID: ${recipient.id})`, 'info');
                 await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
                 await delay(configManager.get('API_DELAY_MS'));
                 
-                // Save the user ID of the closed DM
-                if (dm.recipients && dm.recipients.length > 0) {
-                    closedIds.push(dm.recipients[0].id);
-                }
+                // Append to closedIDs.json immediately after each close
+                closedIds.push(recipient.id);
+                fs.writeFileSync(filePath, JSON.stringify(closedIds, null, 2));
             }
             closeProgress.update(index + 1);
         }
         closeProgress.stop();
         
-        // Save closed IDs to file
-        const configDir = path.join(process.cwd(), 'config');
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        const filePath = path.join(configDir, 'closedIDs.json');
-        fs.writeFileSync(filePath, JSON.stringify(closedIds, null, 2));
-        logOutput(`Saved ${closedIds.length} closed DM user IDs to ${filePath}`, 'info');
+        logOutput(`Successfully closed ${closedIds.length} DMs. User IDs saved to ${filePath}`, 'info');
         
         return closedIds;
     } catch (error) {
