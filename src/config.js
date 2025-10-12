@@ -3,14 +3,18 @@ const path = require('path');
 const readline = require('readline');
 require('dotenv').config({ path: path.join(__dirname, '..', 'config', '.env') });
 const { initializeLogger } = require('./logger');
+const { ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile, validatePathExists } = require('./lib/file-utils');
+const { promptUser, cleanInput } = require('./lib/cli-helpers');
+const { verifyUserId, validateConfigPaths, validateDataPackage } = require('./lib/config-validators');
+const { resolveExportPath, promptForConfigValue } = require('./lib/config-defaults');
 
 // Initialize logger early to capture all output
 initializeLogger('./logs', 10);
 
 // Config directory path
 const CONFIG_DIR = path.join(__dirname, '..', 'config');
-const CONFIG_FILE_PATH = path.join(CONFIG_DIR, 'config.json');
-const ENV_FILE_PATH = path.join(CONFIG_DIR, '.env');
+const CONFIG_FILE_PATH = resolveConfigPath('config.json');
+const ENV_FILE_PATH = resolveConfigPath('.env');
 
 // Default configurations
 const defaultConfig = {
@@ -41,12 +45,12 @@ class ConfigManager {
         this.config = { ...defaultConfig };
         this.env = { ...envTemplate };
         this.initialized = false;
-        this.rl = null; // Shared readline interface from app
+        this.rl = null; // Shared readline interface from menu-main
         this.ownsReadline = false; // Track if we created it
     }
 
     /**
-     * Sets an external readline interface (from app.js)
+     * Sets an external readline interface (from menu-main.js)
      * @param {readline.Interface} readlineInterface - Readline interface to use
      */
     setReadline(readlineInterface) {
@@ -102,12 +106,10 @@ class ConfigManager {
     async loadConfig() {
         try {
             // Ensure config directory exists
-            if (!fs.existsSync(CONFIG_DIR)) {
-                fs.mkdirSync(CONFIG_DIR, { recursive: true });
-            }
+            ensureDirectory(CONFIG_DIR);
 
-            if (fs.existsSync(CONFIG_FILE_PATH)) {
-                const fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE_PATH, 'utf8'));
+            const fileConfig = readJsonFile(CONFIG_FILE_PATH);
+            if (fileConfig) {
                 this.config = { ...defaultConfig, ...fileConfig };
             } else {
                 console.warn('No config.json found, creating with default values...');
@@ -122,123 +124,35 @@ class ConfigManager {
     async createConfigFile() {
         // Step 1: Ask for data package directory first
         if (!this.config.DATA_PACKAGE_FOLDER || this.config.DATA_PACKAGE_FOLDER === '') {
-            const packagePath = await this.promptUser('Enter Discord data package directory path: ');
-            // Remove quotes and trim
-            this.config.DATA_PACKAGE_FOLDER = packagePath.trim().replace(/^['"]|['"]$/g, '');
+            const packagePath = await promptUser('Enter Discord data package directory path: ', this.rl);
+            this.config.DATA_PACKAGE_FOLDER = cleanInput(packagePath);
             
-            // Verify path exists
-            if (!fs.existsSync(this.config.DATA_PACKAGE_FOLDER)) {
-                throw new Error(`Data package directory does not exist: ${this.config.DATA_PACKAGE_FOLDER}`);
-            }
-            
-            // Verify it has messages folder
-            const messagesPath = path.join(this.config.DATA_PACKAGE_FOLDER, 'messages');
-            if (!fs.existsSync(messagesPath)) {
-                throw new Error(`Messages folder not found in data package: ${messagesPath}`);
-            }
+            // Verify data package structure
+            validateDataPackage(this.config.DATA_PACKAGE_FOLDER);
         }
 
         // Step 2: Read user.json and verify user ID
-        await this.verifyUserId();
+        const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl);
+        if (verifiedUserId) {
+            this.env.USER_DISCORD_ID = verifiedUserId;
+            process.env.USER_DISCORD_ID = verifiedUserId;
+        }
 
         // Step 3: Fill in remaining config values
         for (const [key, value] of Object.entries(this.config)) {
             if (value === '' && !process.env[key] && key !== 'DATA_PACKAGE_FOLDER') {
-                const answer = await this.promptUser(`Enter value for ${key}: `);
-                // Remove quotes and trim
-                const cleaned = answer.trim().replace(/^['"]|['"]$/g, '');
-                // If EXPORT_PATH left empty, default to repo-relative 'export'
-                if (key === 'EXPORT_PATH' && cleaned === '') {
-                    const repoExport = 'export';
-                    this.config[key] = repoExport;
-                    // Ensure default export directory exists in repo root
-                    try {
-                        const exportPath = path.join(process.cwd(), repoExport);
-                        if (!fs.existsSync(exportPath)) {
-                            fs.mkdirSync(exportPath, { recursive: true });
-                        }
-                    } catch (err) {
-                        console.warn(`Could not create default export directory ${path.join(process.cwd(), 'export')}: ${err.message}`);
-                    }
-                } else {
-                    this.config[key] = cleaned;
-                }
+                this.config[key] = await promptForConfigValue(key, value, this.rl);
             }
         }
         this.saveConfig();
     }
 
-    async verifyUserId() {
-        const userJsonPath = path.join(this.config.DATA_PACKAGE_FOLDER, 'account', 'user.json');
-        
-        if (!fs.existsSync(userJsonPath)) {
-            console.warn(`Warning: user.json not found at ${userJsonPath}`);
-            return;
-        }
-
-        try {
-            const userData = JSON.parse(fs.readFileSync(userJsonPath, 'utf8'));
-            const packageUserId = userData.id;
-            const packageUsername = userData.username;
-            
-            console.log(`\nFound user in data package: ${packageUsername} (ID: ${packageUserId})`);
-            
-            // Prompt for user ID
-            const providedUserId = (await this.promptUser(`Provide user ID for user ${packageUsername}: `)).trim().replace(/^['"]|['"]$/g, '');
-            
-            // Compare IDs
-            if (providedUserId !== packageUserId) {
-                console.warn(`\nWARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
-                const proceed = (await this.promptUser('Are you sure you want to proceed? (yes/no): ')).trim().toLowerCase();
-                
-                if (proceed !== 'yes' && proceed !== 'y') {
-                    throw new Error('User ID verification failed. Setup cancelled.');
-                }
-            } else {
-                console.log('✓ User ID verified successfully!');
-            }
-            
-            // Store the verified ID
-            this.env.USER_DISCORD_ID = providedUserId;
-            process.env.USER_DISCORD_ID = providedUserId;
-            
-        } catch (error) {
-            if (error.message.includes('Setup cancelled')) {
-                throw error;
-            }
-            console.error(`Error reading user.json: ${error.message}`);
-        }
-    }
-
     async validatePaths() {
         const pathsToCheck = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
+        const updated = await validateConfigPaths(this.config, pathsToCheck, this.rl, resolveExportPath);
         
-        for (const pathKey of pathsToCheck) {
-            const pathValue = this.config[pathKey];
-            if (!fs.existsSync(pathValue)) {
-                console.warn(`Path ${pathKey} (${pathValue}) does not exist`);
-                const newPath = await this.promptUser(`Enter valid path for ${pathKey}: `);
-                // Remove quotes and trim
-                // Remove quotes and trim
-                const cleaned = newPath.trim().replace(/^['"]|['"]$/g, '');
-                // If EXPORT_PATH left empty during validation, default to '/export'
-                if (pathKey === 'EXPORT_PATH' && cleaned === '') {
-                    const repoExport = 'export';
-                    this.config[pathKey] = repoExport;
-                    // Ensure default export directory exists in repo root
-                    try {
-                        const exportPath = path.join(process.cwd(), repoExport);
-                        if (!fs.existsSync(exportPath)) {
-                            fs.mkdirSync(exportPath, { recursive: true });
-                        }
-                    } catch (err) {
-                        console.warn(`Could not create default export directory ${path.join(process.cwd(), 'export')}: ${err.message}`);
-                    }
-                } else {
-                    this.config[pathKey] = cleaned;
-                }
-                this.saveConfig();
-            }
+        if (updated) {
+            this.saveConfig();
         }
     }
 
@@ -251,9 +165,8 @@ class ConfigManager {
             }
             
             if (!process.env[key]) {
-                const value = await this.promptUser(`Enter value for ${key}: `);
-                // Remove quotes and trim
-                const cleanValue = value.trim().replace(/^['"]|['"]$/g, '');
+                const value = await promptUser(`Enter value for ${key}: `, this.rl);
+                const cleanValue = cleanInput(value);
                 this.env[key] = cleanValue;
                 process.env[key] = cleanValue;
             } else {
@@ -264,27 +177,21 @@ class ConfigManager {
     }
 
     saveConfig() {
-        // Ensure config directory exists
-        if (!fs.existsSync(CONFIG_DIR)) {
-            fs.mkdirSync(CONFIG_DIR, { recursive: true });
-        }
-        fs.writeFileSync(CONFIG_FILE_PATH, JSON.stringify(this.config, null, 2));
+        ensureDirectory(CONFIG_DIR);
+        writeJsonFile(CONFIG_FILE_PATH, this.config);
     }
 
     updateEnvFile() {
-        // Ensure config directory exists
-        if (!fs.existsSync(CONFIG_DIR)) {
-            fs.mkdirSync(CONFIG_DIR, { recursive: true });
-        }
+        ensureDirectory(CONFIG_DIR);
 
         const envLines = Object.entries(this.env)
             .filter(([key, value]) => value !== undefined)
             .map(([key, value]) => `${key}=${value}`);
 
-        if (!fs.existsSync(ENV_FILE_PATH)) {
-            fs.writeFileSync(ENV_FILE_PATH, envLines.join('\n'));
-        } else {
-            const existingEnv = fs.readFileSync(ENV_FILE_PATH, 'utf-8')
+        let existingEnv = {};
+        
+        if (validatePathExists(ENV_FILE_PATH)) {
+            existingEnv = fs.readFileSync(ENV_FILE_PATH, 'utf-8')
                 .split('\n')
                 .reduce((acc, line) => {
                     if (line.trim()) {
@@ -293,27 +200,17 @@ class ConfigManager {
                     }
                     return acc;
                 }, {});
-
-            for (const [key, value] of Object.entries(this.env)) {
-                if (value !== undefined) {
-                    existingEnv[key] = value;
-                }
-            }
-
-            const updatedEnvLines = Object.entries(existingEnv)
-                .map(([key, value]) => `${key}=${value}`);
-            fs.writeFileSync(ENV_FILE_PATH, updatedEnvLines.join('\n'));
         }
-    }
 
-    async promptUser(query) {
-        const rl = this.initReadline();
+        for (const [key, value] of Object.entries(this.env)) {
+            if (value !== undefined) {
+                existingEnv[key] = value;
+            }
+        }
 
-        return new Promise(resolve => {
-            rl.question(query, answer => {
-                resolve(answer);
-            });
-        });
+        const updatedEnvLines = Object.entries(existingEnv)
+            .map(([key, value]) => `${key}=${value}`);
+        fs.writeFileSync(ENV_FILE_PATH, updatedEnvLines.join('\n'));
     }
 
     /**
@@ -354,8 +251,13 @@ class ConfigManager {
 
         // Clear environment variables
         this.env = { ...envTemplate };
-        if (fs.existsSync(ENV_FILE_PATH)) {
+        try {
             fs.unlinkSync(ENV_FILE_PATH);
+        } catch (error) {
+            // File may not exist, which is fine
+            if (error.code !== 'ENOENT') {
+                console.error(`Error deleting .env file: ${error.message}`);
+            }
         }
         
         // Clear process.env

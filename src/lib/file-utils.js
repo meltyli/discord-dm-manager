@@ -61,7 +61,139 @@ function getRecipients(channelJsonPaths, myDiscordId) {
     return Array.from(recipientIds);
 }
 
+/**
+ * Creates directory if it doesn't exist (recursive)
+ * @param {string} dirPath - Directory path to create
+ * @throws {Error} If directory cannot be created
+ */
+function ensureDirectory(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+}
+
+/**
+ * Validates that a path exists
+ * @param {string} pathValue - Path to validate
+ * @param {string} pathName - Name of path for error messages
+ * @param {boolean} throwOnError - Whether to throw or return boolean
+ * @returns {boolean} True if path exists (when not throwing)
+ * @throws {Error} If path doesn't exist and throwOnError is true
+ */
+function validatePathExists(pathValue, pathName, throwOnError = false) {
+    const exists = fs.existsSync(pathValue);
+    
+    if (!exists && throwOnError) {
+        throw new Error(`${pathName} does not exist: ${pathValue}`);
+    }
+    
+    return exists;
+}
+
+/**
+ * Resolves absolute path to config directory file
+ * @param {string} filename - Filename in config directory
+ * @returns {string} Absolute path to config file
+ */
+function resolveConfigPath(filename) {
+    return path.join(__dirname, '..', '..', 'config', filename);
+}
+
+/**
+ * Ensures export path exists, defaulting to 'export' if empty
+ * @param {string} pathValue - Export path value
+ * @returns {string} Cleaned and validated export path
+ */
+function ensureExportPath(pathValue) {
+    const cleaned = pathValue.trim().replace(/^['"]|['"]$/g, '');
+    const finalPath = cleaned || 'export';
+    
+    try {
+        const exportPath = path.isAbsolute(finalPath)
+            ? finalPath
+            : path.join(process.cwd(), finalPath);
+        
+        ensureDirectory(exportPath);
+    } catch (err) {
+        console.warn(`Could not create export directory ${finalPath}: ${err.message}`);
+    }
+    
+    return finalPath;
+}
+
+/**
+ * Safely reads and parses JSON file
+ * @param {string} filePath - Path to JSON file
+ * @param {*} defaultValue - Default value if file doesn't exist or parse fails
+ * @returns {*} Parsed JSON or defaultValue
+ */
+function readJsonFile(filePath, defaultValue = null) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return defaultValue;
+        }
+        const content = fs.readFileSync(filePath, 'utf8');
+        return JSON.parse(content);
+    } catch (error) {
+        console.error(`Error reading JSON file ${filePath}: ${error.message}`);
+        return defaultValue;
+    }
+}
+
+/**
+ * Writes data to JSON file with formatting
+ * @param {string} filePath - Path to JSON file
+ * @param {*} data - Data to write
+ * @param {number} indent - Indentation spaces
+ * @throws {Error} If write fails
+ */
+function writeJsonFile(filePath, data, indent = 2) {
+    const dirPath = path.dirname(filePath);
+    ensureDirectory(dirPath);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, indent));
+}
+
+/**
+ * Validates that a required configuration value exists
+ * @param {*} value - Configuration value to validate
+ * @param {string} configKey - Configuration key name (e.g., 'DCE_PATH')
+ * @param {string} friendlyName - User-friendly name for error messages
+ * @throws {Error} If value is undefined, null, or empty string
+ */
+function validateRequiredConfig(value, configKey, friendlyName) {
+    if (!value) {
+        throw new Error(`${configKey} not configured. Please configure ${friendlyName} in Configuration menu.`);
+    }
+}
+
+/**
+ * Validates DCE (Discord Chat Exporter) path and executable
+ * @param {string} dcePath - Path to DCE installation directory
+ * @returns {string} Full path to DCE executable
+ * @throws {Error} If dcePath is invalid or executable not found
+ */
+function validateDCEPath(dcePath) {
+    validateRequiredConfig(dcePath, 'DCE_PATH', 'Discord Chat Exporter path');
+    
+    const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
+    
+    // Check for executable with or without .exe extension
+    if (!fs.existsSync(dceExecutable) && !fs.existsSync(dceExecutable + '.exe')) {
+        throw new Error(`Discord Chat Exporter not found at: ${dceExecutable}. Please verify DCE_PATH in Configuration menu.`);
+    }
+    
+    return dceExecutable;
+}
+
 module.exports = {
     traverseDataPackage,
-    getRecipients
+    getRecipients,
+    ensureDirectory,
+    validatePathExists,
+    resolveConfigPath,
+    ensureExportPath,
+    readJsonFile,
+    writeJsonFile,
+    validateRequiredConfig,
+    validateDCEPath
 };
