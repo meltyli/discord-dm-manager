@@ -22,7 +22,7 @@ const defaultConfig = {
     RATE_LIMIT_INTERVAL_MS: 60000,
     LOG_LEVEL: 'info',
     DATA_PACKAGE_FOLDER: '',
-    EXPORT_PATH: '',
+    EXPORT_PATH: '/export',
     DCE_PATH: '',
     DRY_RUN: false
 };
