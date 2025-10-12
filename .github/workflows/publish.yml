@@ -44,7 +44,7 @@ jobs:
       
       - name: Install dependencies
         if: steps.version-check.outputs.version_changed == 'true'
-        run: npm ci
+        run: npm install
       
       - name: Run tests
         if: steps.version-check.outputs.version_changed == 'true'
