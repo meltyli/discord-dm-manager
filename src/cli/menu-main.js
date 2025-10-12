@@ -34,12 +34,15 @@ class DiscordDMApp {
         while (true) {
             clearScreen();
             getLogger().logOnly('[MENU] Main Menu');
+            
+            getLogger().pause(); // Pause logging for menu display
             console.log('\nDiscord DM Manager');
             console.log('=================');
             console.log('1. Configuration');
             console.log('2. Discord API');
             console.log('q. Exit');
             displaySettings(this.options);
+            getLogger().resume(); // Resume logging
 
             const choice = await getMenuChoice(this.rl);
 

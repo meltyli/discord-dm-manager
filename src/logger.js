@@ -8,6 +8,7 @@ class Logger {
         this.maxLogFiles = maxLogFiles;
         this.logStream = null;
         this.currentLogFile = null;
+        this.loggingEnabled = true; // Flag to control logging
         
         // Ensure logs directory exists
         ensureDirectory(this.logDir);
@@ -102,27 +103,37 @@ class Logger {
         
         console.log = (...args) => {
             originalLog.apply(console, args);
-            this.writeToLog(this.formatMessage('info', args));
+            if (this.loggingEnabled) {
+                this.writeToLog(this.formatMessage('info', args));
+            }
         };
         
         console.error = (...args) => {
             originalError.apply(console, args);
-            this.writeToLog(this.formatMessage('error', args));
+            if (this.loggingEnabled) {
+                this.writeToLog(this.formatMessage('error', args));
+            }
         };
         
         console.warn = (...args) => {
             originalWarn.apply(console, args);
-            this.writeToLog(this.formatMessage('warn', args));
+            if (this.loggingEnabled) {
+                this.writeToLog(this.formatMessage('warn', args));
+            }
         };
         
         console.info = (...args) => {
             originalInfo.apply(console, args);
-            this.writeToLog(this.formatMessage('info', args));
+            if (this.loggingEnabled) {
+                this.writeToLog(this.formatMessage('info', args));
+            }
         };
         
         console.debug = (...args) => {
             originalDebug.apply(console, args);
-            this.writeToLog(this.formatMessage('debug', args));
+            if (this.loggingEnabled) {
+                this.writeToLog(this.formatMessage('debug', args));
+            }
         };
         
         // Handle process exit to close log stream
@@ -146,6 +157,20 @@ class Logger {
         const timestamp = new Date().toISOString();
         const formattedMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
         this.writeToLog(formattedMessage);
+    }
+
+    /**
+     * Temporarily pause logging to file
+     */
+    pause() {
+        this.loggingEnabled = false;
+    }
+
+    /**
+     * Resume logging to file
+     */
+    resume() {
+        this.loggingEnabled = true;
     }
 
     close() {

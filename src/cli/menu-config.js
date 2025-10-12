@@ -25,6 +25,8 @@ class ConfigurationMenu {
         while (true) {
             clearScreen();
             getLogger().logOnly('[MENU] Configuration Menu');
+            
+            getLogger().pause(); // Pause logging for menu display
             console.log('\nConfiguration');
             console.log('=============');
             displayDetailedConfig(this.options);
@@ -34,6 +36,7 @@ class ConfigurationMenu {
             console.log('4. Advanced Settings');
             console.log('5. Reset to Default');
             console.log('q. Back to Main Menu');
+            getLogger().resume(); // Resume logging
 
             const choice = await getMenuChoice(this.rl);
 
@@ -117,12 +120,15 @@ class ConfigurationMenu {
         while (true) {
             clearScreen();
             getLogger().logOnly('[MENU] Advanced Settings');
+            
+            getLogger().pause(); // Pause logging for menu display
             displayAdvancedSettings(this.options);
             console.log('\n1. Toggle Dry Run Mode');
             console.log('2. Set Batch Size');
             console.log('3. Set API Delay');
             console.log('4. Set Rate Limit');
             console.log('q. Back to Configuration Menu');
+            getLogger().resume(); // Resume logging
 
             const choice = await getMenuChoice(this.rl);
 

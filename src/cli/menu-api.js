@@ -21,6 +21,8 @@ class ApiMenu {
         while (true) {
             clearScreen();
             getLogger().logOnly('[MENU] Discord API Menu');
+            
+            getLogger().pause(); // Pause logging for menu display
             console.log('\nDiscord API');
             console.log('===========');
             console.log('1. Export All Direct Messages');
@@ -30,6 +32,7 @@ class ApiMenu {
             console.log('5. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
             displaySettings(this.options);
+            getLogger().resume(); // Resume logging
 
             const choice = await getMenuChoice(this.rl);
 
