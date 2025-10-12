@@ -6,7 +6,8 @@ const cliProgress = require('cli-progress');
 const { initializeLogger } = require('./logger');
 const { getConfigManager } = require('./config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('./discord-api');
-const { traverseDataPackage, getRecipients } = require('./lib/file-utils');
+const { traverseDataPackage, getRecipients, ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile } = require('./lib/file-utils');
+const { waitForKeyPress, promptConfirmation } = require('./lib/cli-helpers');
 const configManager = getConfigManager();
 
 // Initialize logger to capture all console output
@@ -24,32 +25,6 @@ function logOutput(message, level = 'info') {
         // Use console directly - it will be intercepted by logger
         const levelMethod = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
         console[levelMethod](message);
-    }
-}
-
-async function waitForKeyPress(rlInterface = null) {
-    logOutput('Press any key to continue...', 'info');
-    
-    if (rlInterface) {
-        // Use provided readline interface
-        return new Promise(resolve => {
-            rlInterface.question('', () => {
-                resolve();
-            });
-        });
-    } else {
-        // Create temporary interface (for standalone execution)
-        const rl = readline.createInterface({
-            input: process.stdin,
-            output: process.stdout
-        });
-        
-        return new Promise(resolve => {
-            rl.question('', () => {
-                rl.close();
-                resolve();
-            });
-        });
     }
 }
 
@@ -80,26 +55,18 @@ async function closeAllOpenDMs() {
 
         logOutput(`Found ${currentDMs.length} open DMs. Closing...`, 'info');
         
-        // Prepare config directory and file path
-        const configDir = path.join(process.cwd(), 'config');
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        const filePath = path.join(configDir, 'closedIDs.json');
+        // Prepare file path
+        const filePath = resolveConfigPath('closedIDs.json');
         
         // Load existing data structure or initialize
         let data = { current: [], all: [] };
-        if (fs.existsSync(filePath)) {
-            try {
-                const existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                // Handle legacy format (plain array)
-                if (Array.isArray(existing)) {
-                    data.all = existing;
-                } else {
-                    data = existing;
-                }
-            } catch (error) {
-                logOutput(`Could not parse existing closedIDs.json, starting fresh: ${error.message}`, 'warn');
+        const existing = readJsonFile(filePath);
+        if (existing) {
+            // Handle legacy format (plain array)
+            if (Array.isArray(existing)) {
+                data.all = existing;
+            } else {
+                data = existing;
             }
         }
         
@@ -125,7 +92,7 @@ async function closeAllOpenDMs() {
                 }
                 
                 // Save after each close
-                fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+                writeJsonFile(filePath, data);
             }
             closeProgress.update(index + 1);
         }
@@ -201,15 +168,9 @@ async function saveOpenDMsToFile() {
             .map(dm => dm.recipients && dm.recipients.length > 0 ? dm.recipients[0].id : null)
             .filter(id => id !== null);
         
-        // Create config directory if it doesn't exist
-        const configDir = path.join(process.cwd(), 'config');
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        
         // Save to JSON file
-        const filePath = path.join(configDir, 'lastopened.json');
-        fs.writeFileSync(filePath, JSON.stringify(userIds, null, 2));
+        const filePath = resolveConfigPath('lastopened.json');
+        writeJsonFile(filePath, userIds);
         
         logOutput(`Saved ${userIds.length} open DM user IDs to ${filePath}`, 'info');
         return userIds;
@@ -222,13 +183,8 @@ async function saveOpenDMsToFile() {
 // Save batch processing state
 function saveBatchState(state) {
     try {
-        const configDir = path.join(process.cwd(), 'config');
-        if (!fs.existsSync(configDir)) {
-            fs.mkdirSync(configDir, { recursive: true });
-        }
-        
-        const filePath = path.join(configDir, 'batch-state.json');
-        fs.writeFileSync(filePath, JSON.stringify(state, null, 2));
+        const filePath = resolveConfigPath('batch-state.json');
+        writeJsonFile(filePath, state);
         logOutput(`Saved batch state: batch ${state.currentBatch}/${state.totalBatches}`, 'debug');
     } catch (error) {
         logOutput(`Failed to save batch state: ${error.message}`, 'error');
@@ -238,15 +194,8 @@ function saveBatchState(state) {
 // Load batch processing state
 function loadBatchState() {
     try {
-        const configDir = path.join(process.cwd(), 'config');
-        const filePath = path.join(configDir, 'batch-state.json');
-        
-        if (!fs.existsSync(filePath)) {
-            return null;
-        }
-        
-        const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        return state;
+        const filePath = resolveConfigPath('batch-state.json');
+        return readJsonFile(filePath);
     } catch (error) {
         logOutput(`Failed to load batch state: ${error.message}`, 'error');
         return null;
@@ -256,8 +205,7 @@ function loadBatchState() {
 // Clear batch processing state
 function clearBatchState() {
     try {
-        const configDir = path.join(process.cwd(), 'config');
-        const filePath = path.join(configDir, 'batch-state.json');
+        const filePath = resolveConfigPath('batch-state.json');
         
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
@@ -432,15 +380,9 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null) {
                 logOutput('Export completed successfully.', 'info');
             } catch (error) {
                 logOutput(`Export failed: ${error.message}`, 'error');
-                const continueAnyway = await new Promise(resolve => {
-                    if (rlInterface) {
-                        rlInterface.question('Continue with next batch anyway? (y/n): ', answer => {
-                            resolve(answer.toLowerCase() === 'y');
-                        });
-                    } else {
-                        resolve(false);
-                    }
-                });
+                const continueAnyway = rlInterface 
+                    ? await promptConfirmation('Continue with next batch anyway? (y/n): ', rlInterface)
+                    : false;
                 
                 if (!continueAnyway) {
                     logOutput('Processing stopped by user.', 'info');

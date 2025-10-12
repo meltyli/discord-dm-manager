@@ -12,6 +12,8 @@ const {
 } = require('./discord-api');
 const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
+const { resolveConfigPath, readJsonFile, writeJsonFile, ensureExportPath, validatePathExists } = require('./lib/file-utils');
+const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation } = require('./lib/cli-helpers');
 
 // Initialize logger to capture all console output
 initializeLogger('./logs', 10);
@@ -28,15 +30,9 @@ class DiscordDMApp {
         this.options = this.configManager.config;
     }
 
-    async question(query) {
-        return new Promise((resolve) => {
-            this.rl.question(query, resolve);
-        });
-    }
-
     async showMenu() {
         while (true) {
-            console.clear();
+            clearScreen();
             console.log('\nDiscord DM Manager');
             console.log('=================');
             console.log('1. Configuration');
@@ -45,10 +41,10 @@ class DiscordDMApp {
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
 
-            const choice = await this.question('\nSelect an option: ');
+            const choice = await getMenuChoice(this.rl);
 
             try {
-                switch (choice.trim().toLowerCase()) {
+                switch (choice) {
                     case '1':
                         await this.configurationMenu();
                         break;
@@ -61,13 +57,13 @@ class DiscordDMApp {
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                 }
             } catch (error) {
                 // Don't show error if it's just config completion
                 if (error.message !== 'CONFIG_COMPLETE') {
                     console.error('Error:', error.message);
-                    await this.question('\nPress Enter to continue...');
+                    await waitForKeyPress(this.rl);
                 }
             }
         }
@@ -75,7 +71,7 @@ class DiscordDMApp {
 
     async discordApiMenu() {
         while (true) {
-            console.clear();
+            clearScreen();
             console.log('\nDiscord API');
             console.log('===========');
             console.log('1. Export All Direct Messages');
@@ -87,39 +83,39 @@ class DiscordDMApp {
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
 
-            const choice = await this.question('\nSelect an option: ');
+            const choice = await getMenuChoice(this.rl);
 
             try {
-                switch (choice.trim().toLowerCase()) {
+                switch (choice) {
                     case '1':
                         await this.processAndExportAllDMs();
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                         break;
                     case '2':
                         await this.viewOpenDMs();
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                         break;
                     case '3':
                         await this.closeAllDMs();
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                         break;
                     case '4':
                         await this.reopenSpecificDM();
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                         break;
                     case '5':
                         await this.resetDMState();
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                         break;
                     case 'q':
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
-                        await this.question('\nPress Enter to continue...');
+                        await waitForKeyPress(this.rl);
                 }
             } catch (error) {
                 console.error('Error:', error.message);
-                await this.question('\nPress Enter to continue...');
+                await waitForKeyPress(this.rl);
             }
         }
     }
@@ -127,14 +123,18 @@ class DiscordDMApp {
     async resetDMState() {
         await this.ensureConfigured();
         
-        const closedIdsPath = path.join(process.cwd(), 'config', 'closedIDs.json');
+        const closedIdsPath = resolveConfigPath('closedIDs.json');
         
-        if (!fs.existsSync(closedIdsPath)) {
+        if (!validatePathExists(closedIdsPath, 'closedIDs.json')) {
             console.log('\nNo closedIDs.json file found. Nothing to reopen.');
             return;
         }
         
-        const closedIdsData = JSON.parse(fs.readFileSync(closedIdsPath, 'utf8'));
+        const closedIdsData = readJsonFile(closedIdsPath);
+        if (!closedIdsData) {
+            console.log('\nCould not read closedIDs.json. Nothing to reopen.');
+            return;
+        }
         
         // Handle both new structure { current: [], all: [] } and legacy array format
         let closedIds;
@@ -221,7 +221,7 @@ class DiscordDMApp {
     async reopenSpecificDM() {
         await this.ensureConfigured();
         
-        const userId = await this.question('\nEnter Discord User ID: ');
+        const userId = cleanInput(await waitForKeyPress(this.rl, '\nEnter Discord User ID: '));
         
         if (this.options.DRY_RUN) {
             console.log(`[DRY RUN] Would reopen DM with user ${userId} - no API call will be made`);
@@ -269,8 +269,7 @@ class DiscordDMApp {
         console.log('4. Close the batch and move to the next');
         console.log('5. Repeat until all DMs are processed\n');
         
-        const confirm = await this.question('Continue? (y/n): ');
-        if (confirm.toLowerCase() !== 'y') {
+        if (!await promptConfirmation('Continue? (y/n): ', this.rl)) {
             console.log('Operation cancelled.');
             return;
         }
@@ -350,12 +349,12 @@ class DiscordDMApp {
             await this.configManager.init();
             this.options = this.configManager.config;
             console.log('\nConfiguration complete!');
-            await this.question('\nPress Enter to continue...');
+            await waitForKeyPress(this.rl);
             return;
         }
 
         while (true) {
-            console.clear();
+            clearScreen();
             console.log('\nConfiguration');
             console.log('=============');
             console.log('\nPath Settings:');
@@ -377,10 +376,10 @@ class DiscordDMApp {
             console.log('5. Reset to Default');
             console.log('q. Back to Main Menu');
 
-            const choice = await this.question('\nSelect an option: ');
+            const choice = await getMenuChoice(this.rl);
 
             try {
-                switch (choice.trim().toLowerCase()) {
+                switch (choice) {
                     case '1':
                         await this.editDataPackageFolder();
                         break;
@@ -400,18 +399,16 @@ class DiscordDMApp {
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
-                        await this.question('\nPress Enter to continue...');
                 }
             } catch (error) {
                 console.error('Error:', error.message);
-                await this.question('\nPress Enter to continue...');
             }
         }
     }
 
     async editDataPackageFolder() {
-        const newValue = await this.question(`\nData Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `);
-        if (newValue.trim()) {
+        const newValue = cleanInput(await waitForKeyPress(this.rl, `\nData Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `));
+        if (newValue) {
             this.options.DATA_PACKAGE_FOLDER = newValue;
             this.configManager.saveConfig();
             console.log('Data package folder updated!');
@@ -419,36 +416,15 @@ class DiscordDMApp {
     }
 
     async editExportPath() {
-        const newValue = await this.question(`\nExport Path (current: ${this.options.EXPORT_PATH}): `);
-        // Clean input: trim and remove surrounding quotes
-        const cleaned = newValue.trim().replace(/^['"]|['"]$/g, '');
-        // If user doesn't provide a value (or only whitespace), default to repo-relative 'export'
-        if (cleaned) {
-            this.options.EXPORT_PATH = cleaned;
-        } else {
-            this.options.EXPORT_PATH = 'export';
-        }
-        // Ensure the export directory exists. If EXPORT_PATH is relative, create it under repo root.
-        try {
-            const exportPath = path.isAbsolute(this.options.EXPORT_PATH)
-                ? this.options.EXPORT_PATH
-                : path.join(process.cwd(), this.options.EXPORT_PATH);
-
-            if (!fs.existsSync(exportPath)) {
-                fs.mkdirSync(exportPath, { recursive: true });
-                console.log(`Created export directory at ${exportPath}`);
-            }
-        } catch (err) {
-            console.warn(`Could not create export directory ${this.options.EXPORT_PATH}: ${err.message}`);
-        }
-
+        const newValue = await waitForKeyPress(this.rl, `\nExport Path (current: ${this.options.EXPORT_PATH}): `);
+        this.options.EXPORT_PATH = ensureExportPath(newValue);
         this.configManager.saveConfig();
         console.log(`Export path set to ${this.options.EXPORT_PATH}`);
     }
 
     async editDCEPath() {
-        const newValue = await this.question(`\nDiscord Chat Exporter Path (current: ${this.options.DCE_PATH}): `);
-        if (newValue.trim()) {
+        const newValue = cleanInput(await waitForKeyPress(this.rl, `\nDiscord Chat Exporter Path (current: ${this.options.DCE_PATH}): `));
+        if (newValue) {
             this.options.DCE_PATH = newValue;
             this.configManager.saveConfig();
             console.log('Discord Chat Exporter path updated!');
@@ -461,14 +437,13 @@ class DiscordDMApp {
         console.log('  - All path settings');
         console.log('  - Advanced settings (will reset to defaults)');
         console.log('  - Environment variables (AUTHORIZATION_TOKEN, USER_DISCORD_ID)');
-        const confirm = await this.question('\nAre you sure you want to continue? (yes/no): ');
         
-        if (confirm.trim().toLowerCase() === 'yes' || confirm.trim().toLowerCase() === 'y') {
+        if (await promptConfirmation('\nAre you sure you want to continue? (yes/no): ', this.rl)) {
             this.configManager.resetToDefault();
             this.options = this.configManager.config;
             console.log('\n✓ Configuration reset successfully!');
             console.log('You will need to reconfigure before using the application.');
-            await this.question('\nPress Enter to continue...');
+            await waitForKeyPress(this.rl);
         } else {
             console.log('Reset cancelled.');
         }
@@ -476,7 +451,7 @@ class DiscordDMApp {
 
     async advancedSettings() {
         while (true) {
-            console.clear();
+            clearScreen();
             console.log('\nAdvanced Settings');
             console.log('=================');
             console.log('Caution: These settings affect API behavior. Modify carefully.');
@@ -492,10 +467,10 @@ class DiscordDMApp {
             console.log('4. Set Rate Limit');
             console.log('q. Back to Configuration Menu');
 
-            const choice = await this.question('\nSelect an option: ');
+            const choice = await getMenuChoice(this.rl);
 
             try {
-                switch (choice.trim().toLowerCase()) {
+                switch (choice) {
                     case '1':
                         this.toggleDryRun();
                         break;
@@ -512,18 +487,16 @@ class DiscordDMApp {
                         return;
                     default:
                         console.log('Invalid option. Please try again.');
-                        await this.question('\nPress Enter to continue...');
                 }
             } catch (error) {
                 console.error('Error:', error.message);
-                await this.question('\nPress Enter to continue...');
             }
         }
     }
 
     async setBatchSize() {
-        const newValue = await this.question(`Enter new batch size (current: ${this.options.BATCH_SIZE}): `);
-        if (newValue.trim()) {
+        const newValue = cleanInput(await waitForKeyPress(this.rl, `Enter new batch size (current: ${this.options.BATCH_SIZE}): `));
+        if (newValue) {
             this.options.BATCH_SIZE = Number(newValue);
             this.configManager.saveConfig();
             console.log(`Batch size updated to ${this.options.BATCH_SIZE}`);
@@ -531,8 +504,8 @@ class DiscordDMApp {
     }
 
     async setApiDelay() {
-        const newValue = await this.question(`Enter new API delay in ms (current: ${this.options.API_DELAY_MS}): `);
-        if (newValue.trim()) {
+        const newValue = cleanInput(await waitForKeyPress(this.rl, `Enter new API delay in ms (current: ${this.options.API_DELAY_MS}): `));
+        if (newValue) {
             this.options.API_DELAY_MS = Number(newValue);
             this.configManager.saveConfig();
             console.log(`API delay updated to ${this.options.API_DELAY_MS}ms`);
@@ -541,13 +514,13 @@ class DiscordDMApp {
 
     async setRateLimit() {
         console.log('\nRate Limit Configuration');
-        const requests = await this.question(`Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `);
-        const interval = await this.question(`Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `);
+        const requests = cleanInput(await waitForKeyPress(this.rl, `Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `));
+        const interval = cleanInput(await waitForKeyPress(this.rl, `Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `));
         
-        if (requests.trim()) {
+        if (requests) {
             this.options.RATE_LIMIT_REQUESTS = Number(requests);
         }
-        if (interval.trim()) {
+        if (interval) {
             this.options.RATE_LIMIT_INTERVAL_MS = Number(interval);
         }
         
@@ -564,8 +537,8 @@ class DiscordDMApp {
     async initialize() {
         try {
             // Only initialize config if files exist, otherwise let menu handle it
-            const configPath = require('path').join(__dirname, '..', 'config', 'config.json');
-            const envPath = require('path').join(__dirname, '..', 'config', '.env');
+            const configPath = resolveConfigPath('config.json');
+            const envPath = resolveConfigPath('.env');
             if (fs.existsSync(configPath) && fs.existsSync(envPath)) {
                 await this.configManager.init();
                 this.options = this.configManager.config;
@@ -581,8 +554,7 @@ class DiscordDMApp {
     async ensureConfigured() {
         if (!this.configManager.initialized) {
             console.log('\nConfiguration required before this operation.');
-            const configure = await this.question('Would you like to configure now? (yes/no): ');
-            if (configure.toLowerCase() === 'yes' || configure.toLowerCase() === 'y') {
+            if (await promptConfirmation('Would you like to configure now? (yes/no): ', this.rl)) {
                 await this.configManager.init();
                 this.options = this.configManager.config;
                 

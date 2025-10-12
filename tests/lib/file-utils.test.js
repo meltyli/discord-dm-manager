@@ -1,6 +1,15 @@
 const fs = require('fs');
 const path = require('path');
-const { traverseDataPackage, getRecipients } = require('../../src/lib/file-utils');
+const { 
+    traverseDataPackage, 
+    getRecipients,
+    ensureDirectory,
+    validatePathExists,
+    resolveConfigPath,
+    ensureExportPath,
+    readJsonFile,
+    writeJsonFile
+} = require('../../src/lib/file-utils');
 
 describe('traverseDataPackage', () => {
     test('should find all channel.json files in test package', () => {
@@ -60,3 +69,136 @@ describe('getRecipients', () => {
         fs.rmdirSync(tempDir);
     });
 });
+
+describe('ensureDirectory', () => {
+    const testDir = path.join(__dirname, '..', 'fixtures', 'test_dir_creation');
+
+    afterEach(() => {
+        if (fs.existsSync(testDir)) {
+            fs.rmSync(testDir, { recursive: true });
+        }
+    });
+
+    test('creates directory if it does not exist', () => {
+        ensureDirectory(testDir);
+        expect(fs.existsSync(testDir)).toBe(true);
+    });
+
+    test('does not throw if directory already exists', () => {
+        fs.mkdirSync(testDir, { recursive: true });
+        expect(() => ensureDirectory(testDir)).not.toThrow();
+    });
+
+    test('creates nested directories recursively', () => {
+        const nestedDir = path.join(testDir, 'nested', 'deep');
+        ensureDirectory(nestedDir);
+        expect(fs.existsSync(nestedDir)).toBe(true);
+    });
+});
+
+describe('validatePathExists', () => {
+    test('returns true for existing path', () => {
+        const existingPath = __dirname;
+        expect(validatePathExists(existingPath, 'testPath')).toBe(true);
+    });
+
+    test('returns false for non-existing path', () => {
+        expect(validatePathExists('/non/existent/path', 'testPath')).toBe(false);
+    });
+
+    test('throws error when throwOnError is true and path does not exist', () => {
+        expect(() => {
+            validatePathExists('/non/existent/path', 'testPath', true);
+        }).toThrow('testPath does not exist');
+    });
+});
+
+describe('resolveConfigPath', () => {
+    test('returns absolute path to config file', () => {
+        const configPath = resolveConfigPath('config.json');
+        expect(path.isAbsolute(configPath)).toBe(true);
+        expect(configPath).toContain('config');
+        expect(configPath).toContain('config.json');
+    });
+});
+
+describe('readJsonFile', () => {
+    const testFile = path.join(__dirname, '..', 'fixtures', 'test_read.json');
+    const testData = { test: 'data', number: 42 };
+
+    beforeEach(() => {
+        fs.writeFileSync(testFile, JSON.stringify(testData));
+    });
+
+    afterEach(() => {
+        if (fs.existsSync(testFile)) {
+            fs.unlinkSync(testFile);
+        }
+    });
+
+    test('reads and parses JSON file', () => {
+        const result = readJsonFile(testFile);
+        expect(result).toEqual(testData);
+    });
+
+    test('returns default value for non-existent file', () => {
+        const result = readJsonFile('/non/existent.json', { default: true });
+        expect(result).toEqual({ default: true });
+    });
+
+    test('returns null by default for non-existent file', () => {
+        const result = readJsonFile('/non/existent.json');
+        expect(result).toBeNull();
+    });
+});
+
+describe('writeJsonFile', () => {
+    const testFile = path.join(__dirname, '..', 'fixtures', 'test_write_dir', 'test_write.json');
+    const testData = { test: 'data', number: 42 };
+
+    afterEach(() => {
+        const dir = path.dirname(testFile);
+        if (fs.existsSync(dir)) {
+            fs.rmSync(dir, { recursive: true });
+        }
+    });
+
+    test('writes JSON file with formatting', () => {
+        writeJsonFile(testFile, testData);
+        expect(fs.existsSync(testFile)).toBe(true);
+        
+        const content = fs.readFileSync(testFile, 'utf8');
+        expect(JSON.parse(content)).toEqual(testData);
+    });
+
+    test('creates directory if it does not exist', () => {
+        writeJsonFile(testFile, testData);
+        expect(fs.existsSync(path.dirname(testFile))).toBe(true);
+    });
+});
+
+describe('ensureExportPath', () => {
+    const testExportPath = path.join(__dirname, '..', 'fixtures', 'test_export');
+
+    afterEach(() => {
+        if (fs.existsSync(testExportPath)) {
+            fs.rmSync(testExportPath, { recursive: true });
+        }
+    });
+
+    test('defaults empty string to "export"', () => {
+        const result = ensureExportPath('');
+        expect(result).toBe('export');
+    });
+
+    test('cleans quotes from path', () => {
+        const result = ensureExportPath('"test_path"');
+        expect(result).toBe('test_path');
+    });
+
+    test('returns cleaned path', () => {
+        const result = ensureExportPath('  test_path  ');
+        expect(result).toBe('test_path');
+    });
+});
+

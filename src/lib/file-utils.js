@@ -61,7 +61,105 @@ function getRecipients(channelJsonPaths, myDiscordId) {
     return Array.from(recipientIds);
 }
 
+/**
+ * Creates directory if it doesn't exist (recursive)
+ * @param {string} dirPath - Directory path to create
+ * @throws {Error} If directory cannot be created
+ */
+function ensureDirectory(dirPath) {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+}
+
+/**
+ * Validates that a path exists
+ * @param {string} pathValue - Path to validate
+ * @param {string} pathName - Name of path for error messages
+ * @param {boolean} throwOnError - Whether to throw or return boolean
+ * @returns {boolean} True if path exists (when not throwing)
+ * @throws {Error} If path doesn't exist and throwOnError is true
+ */
+function validatePathExists(pathValue, pathName, throwOnError = false) {
+    const exists = fs.existsSync(pathValue);
+    
+    if (!exists && throwOnError) {
+        throw new Error(`${pathName} does not exist: ${pathValue}`);
+    }
+    
+    return exists;
+}
+
+/**
+ * Resolves absolute path to config directory file
+ * @param {string} filename - Filename in config directory
+ * @returns {string} Absolute path to config file
+ */
+function resolveConfigPath(filename) {
+    return path.join(__dirname, '..', '..', 'config', filename);
+}
+
+/**
+ * Ensures export path exists, defaulting to 'export' if empty
+ * @param {string} pathValue - Export path value
+ * @returns {string} Cleaned and validated export path
+ */
+function ensureExportPath(pathValue) {
+    const cleaned = pathValue.trim().replace(/^['"]|['"]$/g, '');
+    const finalPath = cleaned || 'export';
+    
+    try {
+        const exportPath = path.isAbsolute(finalPath)
+            ? finalPath
+            : path.join(process.cwd(), finalPath);
+        
+        ensureDirectory(exportPath);
+    } catch (err) {
+        console.warn(`Could not create export directory ${finalPath}: ${err.message}`);
+    }
+    
+    return finalPath;
+}
+
+/**
+ * Safely reads and parses JSON file
+ * @param {string} filePath - Path to JSON file
+ * @param {*} defaultValue - Default value if file doesn't exist or parse fails
+ * @returns {*} Parsed JSON or defaultValue
+ */
+function readJsonFile(filePath, defaultValue = null) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return defaultValue;
+        }
+        const content = fs.readFileSync(filePath, 'utf8');
+        return JSON.parse(content);
+    } catch (error) {
+        console.error(`Error reading JSON file ${filePath}: ${error.message}`);
+        return defaultValue;
+    }
+}
+
+/**
+ * Writes data to JSON file with formatting
+ * @param {string} filePath - Path to JSON file
+ * @param {*} data - Data to write
+ * @param {number} indent - Indentation spaces
+ * @throws {Error} If write fails
+ */
+function writeJsonFile(filePath, data, indent = 2) {
+    const dirPath = path.dirname(filePath);
+    ensureDirectory(dirPath);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, indent));
+}
+
 module.exports = {
     traverseDataPackage,
-    getRecipients
+    getRecipients,
+    ensureDirectory,
+    validatePathExists,
+    resolveConfigPath,
+    ensureExportPath,
+    readJsonFile,
+    writeJsonFile
 };

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { ensureDirectory } = require('./lib/file-utils');
 
 class Logger {
     constructor(logDir = './logs', maxLogFiles = 10) {
@@ -9,9 +10,7 @@ class Logger {
         this.currentLogFile = null;
         
         // Ensure logs directory exists
-        if (!fs.existsSync(this.logDir)) {
-            fs.mkdirSync(this.logDir, { recursive: true });
-        }
+        ensureDirectory(this.logDir);
         
         // Initialize log file for today (includes rotation)
         this.initializeLogFile();
