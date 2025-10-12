@@ -16,3 +16,4 @@ Dscord Direct Message Manager revamped by melty. This script is intended to be u
 - Multi-user support (manage multiple Discord accounts)
 - move config defaults from config.js to config-defaults.js
 - add some package inspection tools that expose basic stats (eg. group_dm count, dm count, etc.)
+- add auto update (download latest release, extract and replace src files)
