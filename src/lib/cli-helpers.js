@@ -143,12 +143,22 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
  */
 async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 'HtmlDark']) {
     for (const format of formats) {
-        console.log(`Exporting in ${format} format...`);
+        console.log(`\nExporting in ${format} format...`);
+        console.log('═'.repeat(60));
+        console.log('Discord Chat Exporter Output:');
+        console.log('═'.repeat(60));
         
         try {
             await runDCEExport(token, exportPath, dcePath, format, userId);
-            console.log(`${format} export completed.`);
+            
+            console.log('═'.repeat(60));
+            console.log('Discord Chat Exporter Finished');
+            console.log('═'.repeat(60));
+            console.log(`${format} export completed.\n`);
         } catch (error) {
+            console.log('═'.repeat(60));
+            console.log('Discord Chat Exporter Finished (with errors)');
+            console.log('═'.repeat(60));
             console.error(`${format} export failed: ${error.message}`);
             throw error;
         }
