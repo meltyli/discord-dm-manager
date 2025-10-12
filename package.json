@@ -12,6 +12,32 @@
     "discord-dm-manager": "./src/cli/menu-main.js",
     "discord-dm-batch": "./src/batch/batch-entry.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/meltyli/discord-dm-manager.git"
+  },
+  "keywords": [
+    "discord",
+    "dm",
+    "direct-messages",
+    "bulk-manager",
+    "discord-chat-exporter",
+    "cli"
+  ],
+  "author": "meltyli",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/meltyli/discord-dm-manager/issues"
+  },
+  "homepage": "https://github.com/meltyli/discord-dm-manager#readme",
+  "files": [
+    "src/",
+    "config/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "dependencies": {
     "axios": "^1.7.9",
     "cli-progress": "^3.12.0",
