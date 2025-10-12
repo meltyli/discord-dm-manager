@@ -87,9 +87,10 @@ class ApiMenu {
             return;
         }
         
+        console.log(`\nReading from ${idHistoryPath}`);
         const idHistoryData = readJsonFile(idHistoryPath);
         if (!idHistoryData) {
-            console.log('\nCould not read id-history.json. Nothing to reopen.');
+            console.log('Could not read id-history.json. Nothing to reopen.');
             return;
         }
         
@@ -103,21 +104,20 @@ class ApiMenu {
             // Handle old property name
             closedIds = idHistoryData.current;
         } else {
-            console.log('\nInvalid id-history.json format. Nothing to reopen.');
+            console.log('Invalid id-history.json format. Nothing to reopen.');
             return;
         }
         
         if (closedIds.length === 0) {
-            console.log('\nNo closed DMs to reopen.');
+            console.log('No closed direct messages to reopen.');
             return;
         }
         
-        console.log(`\nReopening ${closedIds.length} closed DMs...`);
+        console.log(`Reopening ${closedIds.length} closed direct messages...`);
         
         if (this.options.DRY_RUN) {
             console.log('[DRY RUN] Would reopen these user IDs:');
             console.log(closedIds);
-            console.log('[DRY RUN] Would NOT clear id-history.json (preserves default state)');
             return;
         }
         
@@ -140,23 +140,25 @@ class ApiMenu {
         reopenProgress.stop();
         
         console.log(`\nReopened: ${reopened}, Skipped: ${skipped}`);
-        console.log('DM state reset complete. id-history.json NOT cleared (preserves default state).');
     }
 
     async viewOpenDMs() {
         await this.ensureConfigured();
         
         if (this.options.DRY_RUN) {
-            console.log('\n[DRY RUN] Skipping fetch of open DMs - no API call will be made');
+            console.log('\n[DRY RUN] Skipping fetch of open direct messages - no API call will be made');
             return;
         }
 
-        console.log('\nFetching open DMs...');
+        console.log('\nFetching open direct messages...');
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
-        console.log(`\nCurrently open DMs: ${dms.length}`);
+        console.log(`\nCount: ${dms.length}`);
         dms.forEach(dm => {
+            const channelType = dm.type === 1 ? 'DM' : dm.type === 3 ? 'GROUP_DM' : `TYPE_${dm.type}`;
             if (dm.recipients && dm.recipients[0]) {
-                console.log(`- Channel ID: ${dm.id}, User: ${dm.recipients[0].username}`);
+                console.log(`- Channel ID: ${dm.id}, Type: ${channelType}, User: ${dm.recipients[0].username}`);
+            } else {
+                console.log(`- Channel ID: ${dm.id}, Type: ${channelType}`);
             }
         });
     }
@@ -165,13 +167,12 @@ class ApiMenu {
         await this.ensureConfigured();
         
         if (this.options.DRY_RUN) {
-            console.log('\n[DRY RUN] Would fetch and close all open DMs - no API calls will be made');
+            console.log('\n[DRY RUN] Would fetch and close all open direct messages - no API calls will be made');
             return;
         }
 
-        console.log('\nClosing all open DMs...');
         await closeAllOpenDMs();
-        console.log('All DMs closed successfully! User IDs saved to id-history.json');
+        console.log('\nAll direct messages closed successfully!');
     }
 
     async reopenSpecificDM() {
@@ -180,15 +181,15 @@ class ApiMenu {
         const userId = cleanInput(await promptUser('\nEnter Discord User ID: ', this.rl));
         
         if (this.options.DRY_RUN) {
-            console.log(`[DRY RUN] Would reopen DM with user ${userId} - no API call will be made`);
+            console.log(`[DRY RUN] Would reopen direct message with user ${userId} - no API call will be made`);
             return;
         }
 
         try {
             await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
-            console.log('DM reopened successfully!');
+            console.log('Direct message reopened successfully!');
         } catch (error) {
-            console.error('Failed to reopen DM:', error.message);
+            console.error('Failed to reopen direct message:', error.message);
         }
     }
 
@@ -204,14 +205,14 @@ class ApiMenu {
             return;
         }
 
-        console.log('\nProcess and Export All DMs');
-        console.log('==========================');
+        console.log('\nProcess and Export All Direct Messages');
+        console.log('=======================================');
         console.log('This will:');
-        console.log('1. Close all currently open DMs');
-        console.log('2. Open DMs in batches of', this.options.BATCH_SIZE);
+        console.log('1. Close all currently open direct messages');
+        console.log('2. Open direct messages in batches of', this.options.BATCH_SIZE);
         console.log('3. Export each batch using Discord Chat Exporter');
         console.log('4. Close the batch and move to the next');
-        console.log('5. Repeat until all DMs are processed\n');
+        console.log('5. Repeat until all direct messages are processed\n');
         
         if (!await promptConfirmation('Continue? (y/n): ', this.rl)) {
             console.log('Operation cancelled.');
@@ -229,7 +230,7 @@ class ApiMenu {
 
         try {
             await processAndExportAllDMs(exportCallback, this.rl);
-            console.log('\nAll DMs processed and exported successfully!');
+            console.log('\nAll direct messages processed and exported successfully!');
         } catch (error) {
             console.error('Process and export failed:', error.message);
         }

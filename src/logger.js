@@ -80,7 +80,7 @@ class Logger {
     
     formatMessage(level, args) {
         const timestamp = new Date().toISOString();
-        const message = args.map(arg => {
+        let message = args.map(arg => {
             if (typeof arg === 'object') {
                 try {
                     return JSON.stringify(arg, null, 2);
@@ -91,7 +91,21 @@ class Logger {
             return String(arg);
         }).join(' ');
         
+        // Strip leading/trailing newlines and excessive whitespace
+        message = message.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ');
+        
         return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+    }
+    
+    /**
+     * Check if message should be logged (skip empty/whitespace-only messages)
+     */
+    shouldLog(args) {
+        if (!args || args.length === 0) return false;
+        
+        // Join all args and check if result is just whitespace
+        const combined = args.map(arg => String(arg)).join('').trim();
+        return combined.length > 0;
     }
     
     interceptConsole() {
@@ -103,35 +117,35 @@ class Logger {
         
         console.log = (...args) => {
             originalLog.apply(console, args);
-            if (this.loggingEnabled) {
+            if (this.loggingEnabled && this.shouldLog(args)) {
                 this.writeToLog(this.formatMessage('info', args));
             }
         };
         
         console.error = (...args) => {
             originalError.apply(console, args);
-            if (this.loggingEnabled) {
+            if (this.loggingEnabled && this.shouldLog(args)) {
                 this.writeToLog(this.formatMessage('error', args));
             }
         };
         
         console.warn = (...args) => {
             originalWarn.apply(console, args);
-            if (this.loggingEnabled) {
+            if (this.loggingEnabled && this.shouldLog(args)) {
                 this.writeToLog(this.formatMessage('warn', args));
             }
         };
         
         console.info = (...args) => {
             originalInfo.apply(console, args);
-            if (this.loggingEnabled) {
+            if (this.loggingEnabled && this.shouldLog(args)) {
                 this.writeToLog(this.formatMessage('info', args));
             }
         };
         
         console.debug = (...args) => {
             originalDebug.apply(console, args);
-            if (this.loggingEnabled) {
+            if (this.loggingEnabled && this.shouldLog(args)) {
                 this.writeToLog(this.formatMessage('debug', args));
             }
         };

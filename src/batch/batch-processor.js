@@ -14,19 +14,18 @@ const configManager = getConfigManager();
 async function closeAllOpenDMs() {
     try {
         if (configManager.get('DRY_RUN')) {
-            console.log('[DRY RUN] Would close all open DMs and save IDs to id-history.json');
+            console.log('[DRY RUN] Would close all open direct messages and save IDs to id-history.json');
             return [];
         }
 
-        console.log('Fetching all currently open DMs...');
         const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
         
         if (currentDMs.length === 0) {
-            console.log('No open DMs to close.');
+            console.log('No open direct messages to close.');
             return [];
         }
 
-        console.log(`Found ${currentDMs.length} open DMs. Closing...`);
+        console.log(`Closing ${currentDMs.length} open direct messages...`);
         
         // Prepare file path
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
@@ -76,12 +75,12 @@ async function closeAllOpenDMs() {
         }
         closeProgress.stop();
         
-        console.log(`\nSuccessfully closed ${data.latest.length} DMs. User IDs saved to ${filePath}`);
+        console.log(`Successfully closed ${data.latest.length} direct messages. User IDs saved to ${filePath}`);
         console.log(`Total unique IDs in history: ${data.uniqueIds.length}`);
         
         return data.latest;
     } catch (error) {
-        console.error(`Failed to close all open DMs: ${error.message}`);
+        console.error(`Failed to close all open direct messages: ${error.message}`);
         throw error;
     }
 }
@@ -95,11 +94,11 @@ async function closeAllOpenDMs() {
  */
 async function openBatchDMs(userIds, batchNum, totalBatches) {
     if (configManager.get('DRY_RUN')) {
-        console.log(`[DRY RUN] Would open batch ${batchNum + 1}/${totalBatches} with ${userIds.length} DMs`);
+        console.log(`[DRY RUN] Would open batch ${batchNum + 1}/${totalBatches} with ${userIds.length} direct messages`);
         return { processed: userIds.length, skipped: 0 };
     }
 
-    console.log(`Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} DMs)...`);
+    console.log(`Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} direct messages)...`);
     
     const batchProgress = createDMProgressBar();
     batchProgress.start(userIds.length, 0);
@@ -128,11 +127,11 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
  */
 async function closeBatchDMs() {
     if (configManager.get('DRY_RUN')) {
-        console.log('[DRY RUN] Would close current batch DMs');
+        console.log('[DRY RUN] Would close current batch direct messages');
         return;
     }
 
-    console.log('Closing current batch DMs...');
+    console.log('Closing current batch direct messages...');
     const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
     
     for (const dm of batchDMs) {
@@ -141,7 +140,7 @@ async function closeBatchDMs() {
             await delay(configManager.get('API_DELAY_MS'));
         }
     }
-    console.log(`Closed ${batchDMs.length} batch DMs`);
+    console.log(`Closed ${batchDMs.length} batch direct messages`);
 }
 
 /**
@@ -162,10 +161,10 @@ async function saveOpenDMsToFile() {
         const filePath = resolveConfigPath('lastopened.json');
         writeJsonFile(filePath, userIds);
         
-        console.log(`Saved ${userIds.length} open DM user IDs to ${filePath}`);
+        console.log(`Saved ${userIds.length} open direct message user IDs to ${filePath}`);
         return userIds;
     } catch (error) {
-        console.error(`Failed to save open DMs: ${error.message}`);
+        console.error(`Failed to save open direct messages: ${error.message}`);
         throw error;
     }
 }
@@ -177,8 +176,6 @@ async function saveOpenDMsToFile() {
  * @returns {Promise<void>}
  */
 async function processDMsInBatches(startBatch = 0, rlInterface = null) {
-    console.log('Starting DM processing...');
-
     try {
         await configManager.init();
 
@@ -186,21 +183,21 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
         const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
 
         if (allDmIds.length === 0) {
-            console.warn('No DM recipients found. Please check your Discord ID and data package path.');
+            console.warn('No direct message recipients found. Please check your Discord ID and data package path.');
             return;
         }
 
         if (configManager.get('DRY_RUN')) {
             console.log('Running in DRY RUN mode - no actual API calls will be made');
-            console.log(`Would process ${allDmIds.length} DM recipients`);
+            console.log(`Would process ${allDmIds.length} direct message recipients`);
             return;
         }
 
-        // Close all currently open DMs
+        // Close all currently open direct messages
         await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-        console.log(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        console.log(`Processing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
         
         if (startBatch > 0) {
             console.log(`Resuming from batch ${startBatch + 1}/${totalBatches}`);
@@ -239,14 +236,14 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             saveBatchState(batchState);
 
             if (!configManager.get('DRY_RUN')) {
-                console.log('\nBatch complete. Please review these DMs.');
+                console.log('\nBatch complete. Please review these direct messages.');
                 await waitForKeyPress(rlInterface);
 
                 await closeBatchDMs();
             }
         }
 
-        console.log(`\nProcessing complete!`);
+        console.log('\nProcessing complete!');
         console.log(`Processed users: ${processedUsers}`);
         console.log(`Skipped users: ${skippedUsers}`);
         
@@ -267,8 +264,6 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
  * @returns {Promise<void>}
  */
 async function processAndExportAllDMs(exportCallback, rlInterface = null) {
-    console.log('Starting DM processing with automatic exports...');
-
     try {
         await configManager.init();
 
@@ -276,21 +271,21 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null) {
         const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
 
         if (allDmIds.length === 0) {
-            console.warn('No DM recipients found. Please check your Discord ID and data package path.');
+            console.warn('No direct message recipients found. Please check your Discord ID and data package path.');
             return;
         }
 
         if (configManager.get('DRY_RUN')) {
             console.log('Running in DRY RUN mode - no actual API calls will be made');
-            console.log(`Would process ${allDmIds.length} DM recipients`);
+            console.log(`Would process ${allDmIds.length} direct message recipients`);
             return;
         }
 
-        // Step 1: Close all currently open DMs
+        // Step 1: Close all currently open direct messages
         await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-        console.log(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        console.log(`Processing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
         console.log('Each batch will be automatically exported before moving to the next.');
         
         let skippedUsers = 0;
@@ -352,7 +347,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null) {
             }
         }
 
-        console.log(`\nAll batches processed and exported!`);
+        console.log('\nAll batches processed and exported!');
         console.log(`Total processed users: ${processedUsers}`);
         console.log(`Total skipped users: ${skippedUsers}`);
         
