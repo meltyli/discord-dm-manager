@@ -1,5 +1,7 @@
 const fs = require('fs');
+const path = require('path');
 const readline = require('readline');
+const { spawn } = require('child_process');
 const { initializeLogger } = require('./logger');
 const { MessageParser } = require('./parse-messages');
 const {
@@ -7,7 +9,7 @@ const {
     closeDM,
     reopenDM
 } = require('./discord-api');
-const { saveOpenDMsToFile, processDMsInBatches } = require('./discord-dm-manager');
+const { saveOpenDMsToFile, processDMsInBatches, loadBatchState, clearBatchState, hasIncompleteBatchSession } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
 
 // Initialize logger to capture all console output
@@ -80,9 +82,18 @@ class DiscordDMApp {
             console.log('3. Close All Open DMs');
             console.log('4. Reopen DM with Specific User');
             console.log('5. Run Batch DM Processing');
+            console.log('6. Export Open DMs');
+            console.log('7. Resume Last Batch Session');
             console.log('q. Back to Main Menu');
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+            
+            // Show incomplete session warning
+            if (hasIncompleteBatchSession()) {
+                const state = loadBatchState();
+                console.log(`\n[!] Incomplete batch session detected:`);
+                console.log(`    Batch ${state.currentBatch}/${state.totalBatches} - Last updated: ${new Date(state.timestamp).toLocaleString()}`);
+            }
 
             const choice = await this.question('\nSelect an option: ');
 
@@ -106,6 +117,14 @@ class DiscordDMApp {
                         break;
                     case '5':
                         await this.runBatchProcessing();
+                        await this.question('\nPress Enter to continue...');
+                        break;
+                    case '6':
+                        await this.exportOpenDMs();
+                        await this.question('\nPress Enter to continue...');
+                        break;
+                    case '7':
+                        await this.resumeBatchSession();
                         await this.question('\nPress Enter to continue...');
                         break;
                     case 'q':
@@ -205,11 +224,151 @@ class DiscordDMApp {
         console.log('\nStarting batch DM processing...');
         console.log('This will close all open DMs, then reopen them in batches for review.');
         
+        // Check if there's an incomplete session
+        if (hasIncompleteBatchSession()) {
+            const state = loadBatchState();
+            console.log(`\n[!] Warning: Incomplete batch session detected (Batch ${state.currentBatch}/${state.totalBatches})`);
+            const resume = await this.question('Resume from last session? (y/n): ');
+            
+            if (resume.toLowerCase() === 'y') {
+                await this.resumeBatchSession();
+                return;
+            } else {
+                console.log('Starting new batch session...');
+                clearBatchState();
+            }
+        }
+        
+        // Ask if user wants to skip to a specific batch
+        const skipBatch = await this.question('\nStart from batch number (press Enter for 1): ');
+        const startBatch = skipBatch.trim() ? parseInt(skipBatch) - 1 : 0;
+        
+        if (startBatch > 0) {
+            console.log(`Starting from batch ${startBatch + 1}...`);
+        }
+        
         try {
-            await processDMsInBatches();
+            await processDMsInBatches(startBatch);
         } catch (error) {
             console.error('Batch processing failed:', error.message);
         }
+    }
+
+    async resumeBatchSession() {
+        await this.ensureConfigured();
+        
+        if (!hasIncompleteBatchSession()) {
+            console.log('\nNo incomplete batch session found.');
+            return;
+        }
+        
+        const state = loadBatchState();
+        console.log('\nResuming batch session...');
+        console.log(`Last session: Batch ${state.currentBatch}/${state.totalBatches}`);
+        console.log(`Processed: ${state.processedUsers} users`);
+        console.log(`Skipped: ${state.skippedUsers} users`);
+        console.log(`Last updated: ${new Date(state.timestamp).toLocaleString()}`);
+        
+        const confirm = await this.question(`\nResume from batch ${state.currentBatch + 1}? (y/n): `);
+        
+        if (confirm.toLowerCase() !== 'y') {
+            console.log('Resume cancelled.');
+            return;
+        }
+        
+        try {
+            await processDMsInBatches(state.currentBatch);
+        } catch (error) {
+            console.error('Batch processing failed:', error.message);
+        }
+    }
+
+    async exportOpenDMs() {
+        await this.ensureConfigured();
+        
+        // Validate DCE_PATH exists
+        const dcePath = this.options.DCE_PATH;
+        if (!dcePath) {
+            console.error('\nError: DCE_PATH not configured.');
+            console.error('Please configure Discord Chat Exporter path in Configuration menu.');
+            return;
+        }
+
+        const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
+        if (!fs.existsSync(dceExecutable) && !fs.existsSync(dceExecutable + '.exe')) {
+            console.error(`\nError: Discord Chat Exporter not found at: ${dceExecutable}`);
+            console.error('Please verify DCE_PATH in Configuration menu.');
+            return;
+        }
+
+        // Validate EXPORT_PATH exists
+        if (!this.options.EXPORT_PATH) {
+            console.error('\nError: EXPORT_PATH not configured.');
+            console.error('Please configure export path in Configuration menu.');
+            return;
+        }
+
+        console.log('\nExporting open DMs...');
+        console.log('This will export all currently open DMs using Discord Chat Exporter.');
+        
+        const formats = ['Json', 'HtmlDark'];
+        
+        for (const format of formats) {
+            console.log(`\nExporting in ${format} format...`);
+            
+            try {
+                await this.runDCEExport(format);
+                console.log(`${format} export completed.`);
+            } catch (error) {
+                console.error(`${format} export failed: ${error.message}`);
+            }
+        }
+        
+        console.log('\nAll exports completed!');
+    }
+
+    async runDCEExport(format) {
+        return new Promise((resolve, reject) => {
+            const dcePath = this.options.DCE_PATH;
+            const exportPath = this.options.EXPORT_PATH;
+            const authToken = process.env.AUTHORIZATION_TOKEN;
+            
+            const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
+            
+            const args = [
+                'exportdm',
+                '-t', authToken,
+                '-o', `${exportPath}/%G/%c/%C - %d/`,
+                '--partition', '10MB',
+                '--format', format,
+                '--media-dir', `${exportPath}/media`,
+                '--media',
+                '--reuse-media',
+                '--parallel', '4'
+            ];
+
+            const dceProcess = spawn(dceExecutable, args);
+            
+            dceProcess.stdout.on('data', (data) => {
+                console.log(data.toString().trim());
+            });
+            
+            dceProcess.stderr.on('data', (data) => {
+                console.error(data.toString().trim());
+            });
+            
+            dceProcess.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`DCE exited with code ${code}`));
+                }
+            });
+            
+            dceProcess.on('error', (error) => {
+                reject(new Error(`Failed to start DCE: ${error.message}`));
+            });
+        });
     }
 
     async configurationMenu() {

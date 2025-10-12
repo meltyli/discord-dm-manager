@@ -80,8 +80,69 @@ async function saveOpenDMsToFile() {
     }
 }
 
+// Save batch processing state
+function saveBatchState(state) {
+    try {
+        const configDir = path.join(process.cwd(), 'config');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        
+        const filePath = path.join(configDir, 'batch-state.json');
+        fs.writeFileSync(filePath, JSON.stringify(state, null, 2));
+        logOutput(`Saved batch state: batch ${state.currentBatch}/${state.totalBatches}`, 'debug');
+    } catch (error) {
+        logOutput(`Failed to save batch state: ${error.message}`, 'error');
+    }
+}
+
+// Load batch processing state
+function loadBatchState() {
+    try {
+        const configDir = path.join(process.cwd(), 'config');
+        const filePath = path.join(configDir, 'batch-state.json');
+        
+        if (!fs.existsSync(filePath)) {
+            return null;
+        }
+        
+        const state = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        return state;
+    } catch (error) {
+        logOutput(`Failed to load batch state: ${error.message}`, 'error');
+        return null;
+    }
+}
+
+// Clear batch processing state
+function clearBatchState() {
+    try {
+        const configDir = path.join(process.cwd(), 'config');
+        const filePath = path.join(configDir, 'batch-state.json');
+        
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+            logOutput('Cleared batch state', 'debug');
+        }
+    } catch (error) {
+        logOutput(`Failed to clear batch state: ${error.message}`, 'error');
+    }
+}
+
+// Check if there's an incomplete batch session
+function hasIncompleteBatchSession() {
+    const state = loadBatchState();
+    if (!state) return false;
+    
+    // Check if state is recent (within 7 days)
+    const stateAge = Date.now() - new Date(state.timestamp).getTime();
+    const sevenDays = 7 * 24 * 60 * 60 * 1000;
+    
+    return state.inProgress && stateAge < sevenDays;
+}
+
 // Main processing function
-async function processDMsInBatches() {
+async function processDMsInBatches(startBatch = 0) {
     logOutput('Starting DM processing...', 'info');
 
     try {
@@ -120,11 +181,27 @@ async function processDMsInBatches() {
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
         logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`, 'info');
         
+        if (startBatch > 0) {
+            logOutput(`Resuming from batch ${startBatch + 1}/${totalBatches}`, 'info');
+        }
+        
         const batchProgress = createProgressBar();
         let skippedUsers = 0;
         let processedUsers = 0;
         
-        for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+        // Initialize batch state
+        const batchState = {
+            allDmIds: allDmIds,
+            totalBatches: totalBatches,
+            currentBatch: startBatch,
+            processedUsers: 0,
+            skippedUsers: 0,
+            timestamp: new Date().toISOString(),
+            inProgress: true
+        };
+        saveBatchState(batchState);
+        
+        for (let batchNum = startBatch; batchNum < totalBatches; batchNum++) {
             const startIdx = batchNum * configManager.get('BATCH_SIZE');
             const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
             const currentBatch = allDmIds.slice(startIdx, endIdx);
@@ -144,6 +221,13 @@ async function processDMsInBatches() {
             }
             batchProgress.stop();
 
+            // Update state after completing batch
+            batchState.currentBatch = batchNum + 1;
+            batchState.processedUsers = processedUsers;
+            batchState.skippedUsers = skippedUsers;
+            batchState.timestamp = new Date().toISOString();
+            saveBatchState(batchState);
+
             if (!configManager.get('DRY_RUN')) {
                 logOutput('\nBatch complete. Please review these DMs.', 'info');
                 await waitForKeyPress();
@@ -162,6 +246,11 @@ async function processDMsInBatches() {
         logOutput(`\nProcessing complete!`, 'info');
         logOutput(`Processed users: ${processedUsers}`, 'info');
         logOutput(`Skipped users: ${skippedUsers}`, 'info');
+        
+        // Mark as complete and clear state
+        batchState.inProgress = false;
+        saveBatchState(batchState);
+        clearBatchState();
     } catch (error) {
         logOutput(`Fatal error in main process: ${error.message}`, 'error');
         throw error;
@@ -172,7 +261,10 @@ module.exports = {
     processDMsInBatches,
     traverseDataPackage,
     getRecipients,
-    saveOpenDMsToFile
+    saveOpenDMsToFile,
+    loadBatchState,
+    clearBatchState,
+    hasIncompleteBatchSession
 };
 
 // Only run if this file is executed directly (not imported)
