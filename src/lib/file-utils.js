@@ -153,6 +153,38 @@ function writeJsonFile(filePath, data, indent = 2) {
     fs.writeFileSync(filePath, JSON.stringify(data, null, indent));
 }
 
+/**
+ * Validates that a required configuration value exists
+ * @param {*} value - Configuration value to validate
+ * @param {string} configKey - Configuration key name (e.g., 'DCE_PATH')
+ * @param {string} friendlyName - User-friendly name for error messages
+ * @throws {Error} If value is undefined, null, or empty string
+ */
+function validateRequiredConfig(value, configKey, friendlyName) {
+    if (!value) {
+        throw new Error(`${configKey} not configured. Please configure ${friendlyName} in Configuration menu.`);
+    }
+}
+
+/**
+ * Validates DCE (Discord Chat Exporter) path and executable
+ * @param {string} dcePath - Path to DCE installation directory
+ * @returns {string} Full path to DCE executable
+ * @throws {Error} If dcePath is invalid or executable not found
+ */
+function validateDCEPath(dcePath) {
+    validateRequiredConfig(dcePath, 'DCE_PATH', 'Discord Chat Exporter path');
+    
+    const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
+    
+    // Check for executable with or without .exe extension
+    if (!fs.existsSync(dceExecutable) && !fs.existsSync(dceExecutable + '.exe')) {
+        throw new Error(`Discord Chat Exporter not found at: ${dceExecutable}. Please verify DCE_PATH in Configuration menu.`);
+    }
+    
+    return dceExecutable;
+}
+
 module.exports = {
     traverseDataPackage,
     getRecipients,
@@ -161,5 +193,7 @@ module.exports = {
     resolveConfigPath,
     ensureExportPath,
     readJsonFile,
-    writeJsonFile
+    writeJsonFile,
+    validateRequiredConfig,
+    validateDCEPath
 };

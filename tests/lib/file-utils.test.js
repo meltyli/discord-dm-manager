@@ -8,7 +8,9 @@ const {
     resolveConfigPath,
     ensureExportPath,
     readJsonFile,
-    writeJsonFile
+    writeJsonFile,
+    validateRequiredConfig,
+    validateDCEPath
 } = require('../../src/lib/file-utils');
 
 describe('traverseDataPackage', () => {
@@ -202,3 +204,101 @@ describe('ensureExportPath', () => {
     });
 });
 
+describe('validateRequiredConfig', () => {
+    test('does not throw for valid value', () => {
+        expect(() => {
+            validateRequiredConfig('/valid/path', 'TEST_PATH', 'test path');
+        }).not.toThrow();
+    });
+
+    test('throws for undefined value', () => {
+        expect(() => {
+            validateRequiredConfig(undefined, 'TEST_PATH', 'test path');
+        }).toThrow('TEST_PATH not configured');
+    });
+
+    test('throws for null value', () => {
+        expect(() => {
+            validateRequiredConfig(null, 'TEST_PATH', 'test path');
+        }).toThrow('TEST_PATH not configured');
+    });
+
+    test('throws for empty string', () => {
+        expect(() => {
+            validateRequiredConfig('', 'TEST_PATH', 'test path');
+        }).toThrow('TEST_PATH not configured');
+    });
+
+    test('includes friendly name in error message', () => {
+        expect(() => {
+            validateRequiredConfig(null, 'DCE_PATH', 'Discord Chat Exporter path');
+        }).toThrow('Please configure Discord Chat Exporter path in Configuration menu');
+    });
+});
+
+describe('validateDCEPath', () => {
+    test('throws for undefined path', () => {
+        expect(() => {
+            validateDCEPath(undefined);
+        }).toThrow('DCE_PATH not configured');
+    });
+
+    test('throws for non-existent executable', () => {
+        expect(() => {
+            validateDCEPath('/non/existent/path');
+        }).toThrow('Discord Chat Exporter not found');
+    });
+
+    test('throws for path with missing executable', () => {
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        
+        expect(() => {
+            validateDCEPath(tempDir);
+        }).toThrow('Discord Chat Exporter not found');
+    });
+
+    test('returns executable path when DCE exists', () => {
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        const dcePath = path.join(tempDir, 'DiscordChatExporter.Cli');
+        
+        // Create mock DCE executable
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        fs.writeFileSync(dcePath, '');
+        
+        try {
+            const result = validateDCEPath(tempDir);
+            expect(result).toBe(dcePath);
+        } finally {
+            // Cleanup
+            if (fs.existsSync(dcePath)) {
+                fs.unlinkSync(dcePath);
+            }
+        }
+    });
+
+    test('validates DCE with .exe extension on Windows-like paths', () => {
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        const dcePath = path.join(tempDir, 'DiscordChatExporter.Cli.exe');
+        
+        // Create mock DCE executable with .exe
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        fs.writeFileSync(dcePath, '');
+        
+        try {
+            const result = validateDCEPath(tempDir);
+            expect(result).toBe(path.join(tempDir, 'DiscordChatExporter.Cli'));
+        } finally {
+            // Cleanup
+            if (fs.existsSync(dcePath)) {
+                fs.unlinkSync(dcePath);
+            }
+        }
+    });
+});

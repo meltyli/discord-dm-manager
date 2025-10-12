@@ -10,7 +10,7 @@ const {
 } = require('./discord-api');
 const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
-const { resolveConfigPath, readJsonFile, writeJsonFile, ensureExportPath, validatePathExists } = require('./lib/file-utils');
+const { resolveConfigPath, readJsonFile, writeJsonFile, ensureExportPath, validatePathExists, validateRequiredConfig, validateDCEPath } = require('./lib/file-utils');
 const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('./lib/cli-helpers');
 
 // Initialize logger to capture all console output
@@ -234,23 +234,11 @@ class DiscordDMApp {
         await this.ensureConfigured();
         
         // Validate DCE_PATH and EXPORT_PATH
-        const dcePath = this.options.DCE_PATH;
-        if (!dcePath) {
-            console.error('\nError: DCE_PATH not configured.');
-            console.error('Please configure Discord Chat Exporter path in Configuration menu.');
-            return;
-        }
-
-        const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
-        if (!fs.existsSync(dceExecutable) && !fs.existsSync(dceExecutable + '.exe')) {
-            console.error(`\nError: Discord Chat Exporter not found at: ${dceExecutable}`);
-            console.error('Please verify DCE_PATH in Configuration menu.');
-            return;
-        }
-
-        if (!this.options.EXPORT_PATH) {
-            console.error('\nError: EXPORT_PATH not configured.');
-            console.error('Please configure export path in Configuration menu.');
+        try {
+            validateDCEPath(this.options.DCE_PATH);
+            validateRequiredConfig(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
+        } catch (error) {
+            console.error(`\nError: ${error.message}`);
             return;
         }
 
