@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
-const { spawn } = require('child_process');
 const cliProgress = require('cli-progress');
 const { initializeLogger } = require('./logger');
 const { MessageParser } = require('./parse-messages');
@@ -13,7 +12,7 @@ const {
 const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
 const { resolveConfigPath, readJsonFile, writeJsonFile, ensureExportPath, validatePathExists } = require('./lib/file-utils');
-const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation } = require('./lib/cli-helpers');
+const { waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs } = require('./lib/cli-helpers');
 
 // Initialize logger to capture all console output
 initializeLogger('./logs', 10);
@@ -274,21 +273,13 @@ class DiscordDMApp {
             return;
         }
 
-        // Create export callback that uses class methods
+        // Create export callback using centralized helper
         const exportCallback = async () => {
-            const formats = ['Json', 'HtmlDark'];
-            
-            for (const format of formats) {
-                console.log(`Exporting in ${format} format...`);
-                
-                try {
-                    await this.runDCEExport(format);
-                    console.log(`${format} export completed.`);
-                } catch (error) {
-                    console.error(`${format} export failed: ${error.message}`);
-                    throw error;
-                }
-            }
+            await exportDMs(
+                process.env.AUTHORIZATION_TOKEN,
+                this.options.EXPORT_PATH,
+                this.options.DCE_PATH
+            );
         };
 
         try {
@@ -297,50 +288,6 @@ class DiscordDMApp {
         } catch (error) {
             console.error('Process and export failed:', error.message);
         }
-    }
-
-    async runDCEExport(format) {
-        return new Promise((resolve, reject) => {
-            const dcePath = this.options.DCE_PATH;
-            const exportPath = this.options.EXPORT_PATH;
-            const authToken = process.env.AUTHORIZATION_TOKEN;
-            
-            const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
-            
-            const args = [
-                'exportdm',
-                '-t', authToken,
-                '-o', `${exportPath}/%G/%c/%C - %d/`,
-                '--partition', '10MB',
-                '--format', format,
-                '--media-dir', `${exportPath}/media`,
-                '--media',
-                '--reuse-media',
-                '--parallel', '4'
-            ];
-
-            const dceProcess = spawn(dceExecutable, args);
-            
-            dceProcess.stdout.on('data', (data) => {
-                console.log(data.toString().trim());
-            });
-            
-            dceProcess.stderr.on('data', (data) => {
-                console.error(data.toString().trim());
-            });
-            
-            dceProcess.on('close', (code) => {
-                if (code === 0) {
-                    resolve();
-                } else {
-                    reject(new Error(`DCE exited with code ${code}`));
-                }
-            });
-            
-            dceProcess.on('error', (error) => {
-                reject(new Error(`Failed to start DCE: ${error.message}`));
-            });
-        });
     }
 
     async configurationMenu() {

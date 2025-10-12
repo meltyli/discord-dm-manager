@@ -1,4 +1,6 @@
 const readline = require('readline');
+const { spawn } = require('child_process');
+const path = require('path');
 
 /**
  * Unified readline prompting wrapper
@@ -79,6 +81,76 @@ function formatPath(input) {
     return cleanInput(input);
 }
 
+/**
+ * Execute Discord Chat Exporter for a specific format
+ * @param {string} token - Discord authorization token
+ * @param {string} exportPath - Base export directory path
+ * @param {string} dcePath - Path to DCE installation directory
+ * @param {string} format - Export format (e.g., 'Json', 'HtmlDark')
+ * @returns {Promise<void>} Resolves on success, rejects on error
+ */
+async function runDCEExport(token, exportPath, dcePath, format) {
+    return new Promise((resolve, reject) => {
+        const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
+        
+        const args = [
+            'exportdm',
+            '-t', token,
+            '-o', `${exportPath}/%G/%c/%C - %d/`,
+            '--partition', '10MB',
+            '--format', format,
+            '--media-dir', `${exportPath}/media`,
+            '--media',
+            '--reuse-media',
+            '--parallel', '4'
+        ];
+
+        const dceProcess = spawn(dceExecutable, args);
+        
+        dceProcess.stdout.on('data', (data) => {
+            console.log(data.toString().trim());
+        });
+        
+        dceProcess.stderr.on('data', (data) => {
+            console.error(data.toString().trim());
+        });
+        
+        dceProcess.on('close', (code) => {
+            if (code === 0) {
+                resolve();
+            } else {
+                reject(new Error(`DCE exited with code ${code}`));
+            }
+        });
+        
+        dceProcess.on('error', (error) => {
+            reject(new Error(`Failed to start DCE: ${error.message}`));
+        });
+    });
+}
+
+/**
+ * Export DMs in multiple formats using Discord Chat Exporter
+ * @param {string} token - Discord authorization token
+ * @param {string} exportPath - Base export directory path
+ * @param {string} dcePath - Path to DCE installation directory
+ * @param {string[]} formats - Array of export formats (default: ['Json', 'HtmlDark'])
+ * @returns {Promise<void>} Resolves when all formats exported, rejects on error
+ */
+async function exportDMs(token, exportPath, dcePath, formats = ['Json', 'HtmlDark']) {
+    for (const format of formats) {
+        console.log(`Exporting in ${format} format...`);
+        
+        try {
+            await runDCEExport(token, exportPath, dcePath, format);
+            console.log(`${format} export completed.`);
+        } catch (error) {
+            console.error(`${format} export failed: ${error.message}`);
+            throw error;
+        }
+    }
+}
+
 module.exports = {
     promptUser,
     promptConfirmation,
@@ -86,5 +158,7 @@ module.exports = {
     getMenuChoice,
     clearScreen,
     cleanInput,
-    formatPath
+    formatPath,
+    runDCEExport,
+    exportDMs
 };
