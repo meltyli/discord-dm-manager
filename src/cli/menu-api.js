@@ -1,8 +1,8 @@
 const path = require('path');
 const { getCurrentOpenDMs, closeDM, reopenDM } = require('../discord-api');
-const { saveOpenDMsToFile, processAndExportAllDMs, processAndExportByChannelIds, closeAllOpenDMs } = require('../batch/batch-processor');
+const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
 const { resolveConfigPath, readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
-const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, exportChannelsByIds, createDMProgressBar } = require('../lib/cli-helpers');
+const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
 const { getLogger } = require('../logger');
 
@@ -26,11 +26,10 @@ class ApiMenu {
             console.log('\nDiscord API');
             console.log('===========');
             console.log('1. Export All Direct Messages');
-            console.log('2. Export All Direct Messages (New Mode)');
-            console.log('3. List Current Open Direct Messages');
-            console.log('4. Close All Open Direct Messages');
-            console.log('5. Reopen Direct Message (Specific User ID)');
-            console.log('6. Reset DM State (Reopen Closed Direct Messages)');
+            console.log('2. List Current Open Direct Messages');
+            console.log('3. Close All Open Direct Messages');
+            console.log('4. Reopen Direct Message (Specific User ID)');
+            console.log('5. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
             displaySettings(this.options);
             getLogger().resume(); // Resume logging
@@ -45,26 +44,21 @@ class ApiMenu {
                         await waitForKeyPress(this.rl);
                         break;
                     case '2':
-                        getLogger().logOnly('[ACTION] Export All Direct Messages (New Mode)');
-                        await this.processAndExportByChannelIds();
-                        await waitForKeyPress(this.rl);
-                        break;
-                    case '3':
                         getLogger().logOnly('[ACTION] List Current Open Direct Messages');
                         await this.viewOpenDMs();
                         await waitForKeyPress(this.rl);
                         break;
-                    case '4':
+                    case '3':
                         getLogger().logOnly('[ACTION] Close All Open Direct Messages');
                         await this.closeAllDMs();
                         await waitForKeyPress(this.rl);
                         break;
-                    case '5':
+                    case '4':
                         getLogger().logOnly('[ACTION] Reopen Direct Message (Specific User ID)');
                         await this.reopenSpecificDM();
                         await waitForKeyPress(this.rl);
                         break;
-                    case '6':
+                    case '5':
                         getLogger().logOnly('[ACTION] Reset DM State (Reopen Closed Direct Messages)');
                         await this.resetDMState();
                         await waitForKeyPress(this.rl);
@@ -247,52 +241,6 @@ class ApiMenu {
 
         try {
             await processAndExportAllDMs(exportCallback, this.rl);
-            console.log('\nAll direct messages processed and exported successfully!');
-        } catch (error) {
-            console.error('Process and export failed:', error.message);
-        }
-    }
-
-    async processAndExportByChannelIds() {
-        await this.ensureConfigured();
-        
-        // Validate DCE_PATH and EXPORT_PATH
-        try {
-            validateDCEPath(this.options.DCE_PATH);
-            validateRequiredConfig(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
-        } catch (error) {
-            console.error(`\nError: ${error.message}`);
-            return;
-        }
-
-        console.log('\nProcess and Export All Direct Messages (New Mode)');
-        console.log('==================================================');
-        console.log('This will:');
-        console.log('1. Close all currently open direct messages');
-        console.log('2. Open direct messages in batches of', this.options.BATCH_SIZE);
-        console.log('3. Export each batch by channel ID using Discord Chat Exporter');
-        console.log('4. Close the batch and move to the next');
-        console.log('5. Repeat until all direct messages are processed');
-        console.log('6. Reset DM state by reopening closed direct messages\n');
-        
-        if (!await promptConfirmation('Continue? (y/n): ', this.rl)) {
-            console.log('Operation cancelled.');
-            return;
-        }
-
-        // Create export callback for channel IDs
-        const exportCallback = async (channelIds) => {
-            await exportChannelsByIds(
-                process.env.AUTHORIZATION_TOKEN,
-                channelIds,
-                this.options.EXPORT_PATH,
-                this.options.DCE_PATH,
-                process.env.USER_DISCORD_ID
-            );
-        };
-
-        try {
-            await processAndExportByChannelIds(exportCallback, this.rl);
             console.log('\nAll direct messages processed and exported successfully!');
         } catch (error) {
             console.error('Process and export failed:', error.message);

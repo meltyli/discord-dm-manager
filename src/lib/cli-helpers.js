@@ -156,86 +156,6 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 
 }
 
 /**
- * Execute Discord Chat Exporter for specific channels by ID
- * @param {string} token - Discord authorization token
- * @param {string[]} channelIds - Array of channel IDs to export
- * @param {string} exportPath - Base export directory path
- * @param {string} dcePath - Path to DCE installation directory
- * @param {string} format - Export format (e.g., 'Json', 'HtmlDark')
- * @param {string} userId - Discord user ID for path organization
- * @returns {Promise<void>} Resolves on success, rejects on error
- */
-async function runDCEExportByChannels(token, channelIds, exportPath, dcePath, format, userId) {
-    return new Promise((resolve, reject) => {
-        const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
-        
-        const args = [
-            'export',
-            '-t', token,
-            '-o', `${exportPath}/${userId}/%G/%c/%C - %d/`,
-            '--partition', '10MB',
-            '--format', format,
-            '--media-dir', `${exportPath}/media`,
-            '--media',
-            '--reuse-media',
-            '--parallel', '4',
-            '--respect-rate-limits'
-        ];
-        
-        // Add channel IDs
-        for (const channelId of channelIds) {
-            args.push('-c', channelId);
-        }
-
-        const dceProcess = spawn(dceExecutable, args);
-        
-        dceProcess.stdout.on('data', (data) => {
-            console.log(data.toString().trim());
-        });
-        
-        dceProcess.stderr.on('data', (data) => {
-            console.error(data.toString().trim());
-        });
-        
-        dceProcess.on('close', (code) => {
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`DCE exited with code ${code}`));
-            }
-        });
-        
-        dceProcess.on('error', (error) => {
-            reject(new Error(`Failed to start DCE: ${error.message}`));
-        });
-    });
-}
-
-/**
- * Export specific channels by ID in multiple formats
- * @param {string} token - Discord authorization token
- * @param {string[]} channelIds - Array of channel IDs to export
- * @param {string} exportPath - Base export directory path
- * @param {string} dcePath - Path to DCE installation directory
- * @param {string} userId - Discord user ID for path organization
- * @param {string[]} formats - Array of export formats (default: ['Json', 'HtmlDark'])
- * @returns {Promise<void>} Resolves when all formats exported, rejects on error
- */
-async function exportChannelsByIds(token, channelIds, exportPath, dcePath, userId, formats = ['Json', 'HtmlDark']) {
-    for (const format of formats) {
-        console.log(`Exporting ${channelIds.length} channels in ${format} format...`);
-        
-        try {
-            await runDCEExportByChannels(token, channelIds, exportPath, dcePath, format, userId);
-            console.log(`${format} export completed.`);
-        } catch (error) {
-            console.error(`${format} export failed: ${error.message}`);
-            throw error;
-        }
-    }
-}
-
-/**
  * Create a standardized progress bar for DM operations
  * @param {string} label - Label for the items being tracked (default: 'DMs')
  * @returns {cliProgress.SingleBar} Configured progress bar instance
@@ -258,7 +178,5 @@ module.exports = {
     formatPath,
     runDCEExport,
     exportDMs,
-    runDCEExportByChannels,
-    exportChannelsByIds,
     createDMProgressBar
 };
