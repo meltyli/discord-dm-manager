@@ -64,7 +64,7 @@ describe('validateUser', () => {
     });
 
     test('should return true for valid user', async () => {
-        axios.get.mockResolvedValueOnce({ data: [] });
+        axios.post.mockResolvedValueOnce({ data: { id: '123' } });
 
         const result = await validateUser('test-token', '12345');
 
@@ -72,7 +72,7 @@ describe('validateUser', () => {
     });
 
     test('should return false for 404 error', async () => {
-        axios.get.mockRejectedValueOnce({
+        axios.post.mockRejectedValueOnce({
             response: { status: 404 }
         });
 
@@ -82,7 +82,7 @@ describe('validateUser', () => {
     });
 
     test('should return false for 400 error', async () => {
-        axios.get.mockRejectedValueOnce({
+        axios.post.mockRejectedValueOnce({
             response: { status: 400 }
         });
 
@@ -92,7 +92,7 @@ describe('validateUser', () => {
     });
 
     test('should return false for 403 error', async () => {
-        axios.get.mockRejectedValueOnce({
+        axios.post.mockRejectedValueOnce({
             response: { status: 403 }
         });
 
@@ -111,7 +111,7 @@ describe('reopenDM', () => {
         const mockChannel = { id: '123', recipients: ['456'] };
 
         // Mock validateUser response
-        axios.get.mockResolvedValueOnce({ data: [] });
+        axios.post.mockResolvedValueOnce({ data: { id: '123' } });
         // Mock reopenDM response
         axios.post.mockResolvedValueOnce({ data: mockChannel });
 
@@ -131,14 +131,14 @@ describe('reopenDM', () => {
 
     test('should return null when user is invalid', async () => {
         // Mock validateUser to return false
-        axios.get.mockRejectedValueOnce({
+        axios.post.mockRejectedValueOnce({
             response: { status: 404 }
         });
 
         const result = await reopenDM('test-token', 'invalid-user');
 
         expect(result).toBeNull();
-        expect(axios.post).not.toHaveBeenCalled();
+        expect(axios.post).toHaveBeenCalledTimes(1);
     });
 });
 

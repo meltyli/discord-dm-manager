@@ -399,11 +399,30 @@ class DiscordDMApp {
 
     async editExportPath() {
         const newValue = await this.question(`\nExport Path (current: ${this.options.EXPORT_PATH}): `);
-        if (newValue.trim()) {
-            this.options.EXPORT_PATH = newValue;
-            this.configManager.saveConfig();
-            console.log('Export path updated!');
+        // Clean input: trim and remove surrounding quotes
+        const cleaned = newValue.trim().replace(/^['"]|['"]$/g, '');
+        // If user doesn't provide a value (or only whitespace), default to repo-relative 'export'
+        if (cleaned) {
+            this.options.EXPORT_PATH = cleaned;
+        } else {
+            this.options.EXPORT_PATH = 'export';
         }
+        // Ensure the export directory exists. If EXPORT_PATH is relative, create it under repo root.
+        try {
+            const exportPath = path.isAbsolute(this.options.EXPORT_PATH)
+                ? this.options.EXPORT_PATH
+                : path.join(process.cwd(), this.options.EXPORT_PATH);
+
+            if (!fs.existsSync(exportPath)) {
+                fs.mkdirSync(exportPath, { recursive: true });
+                console.log(`Created export directory at ${exportPath}`);
+            }
+        } catch (err) {
+            console.warn(`Could not create export directory ${this.options.EXPORT_PATH}: ${err.message}`);
+        }
+
+        this.configManager.saveConfig();
+        console.log(`Export path set to ${this.options.EXPORT_PATH}`);
     }
 
     async editDCEPath() {

@@ -67,27 +67,29 @@ async function getCurrentOpenDMs(authToken, logger) {
 async function validateUser(authToken, userId, logger) {
     await rateLimiter.waitForSlot();
     try {
-        // Use GET to the user endpoint to validate existence/access. Tests mock axios.get.
-        await axios.get(`https://discord.com/api/v9/users/${userId}`, {
-            headers: {
-                'Authorization': authToken,
-                'Content-Type': 'application/json'
+        await axios.post('https://discord.com/api/v9/users/@me/channels', 
+            { recipients: [userId] },
+            {
+                headers: {
+                    'Authorization': authToken,
+                    'Content-Type': 'application/json'
+                }
             }
-        });
+        );
         return true;
     } catch (error) {
         if (error.response) {
             const status = error.response.status;
             if (status === 404) {
-                if (logger) logger(`User ${userId} not found, skipping`, 'debug');
+                if (logger) logger(`User ${userId} not found, skipping`);
                 return false;
             }
             if (status === 400) {
-                if (logger) logger(`Invalid user ID ${userId}, skipping`, 'debug');
+                if (logger) logger(`Invalid user ID ${userId}, skipping`);
                 return false;
             }
             if (status === 403) {
-                if (logger) logger(`User ${userId} access forbidden (likely deleted), skipping`, 'debug');
+                if (logger) logger(`User ${userId} access forbidden (likely deleted), skipping`);
                 return false;
             }
         }

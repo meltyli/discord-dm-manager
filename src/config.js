@@ -22,7 +22,7 @@ const defaultConfig = {
     RATE_LIMIT_INTERVAL_MS: 60000,
     LOG_LEVEL: 'info',
     DATA_PACKAGE_FOLDER: '',
-    EXPORT_PATH: '/export',
+    EXPORT_PATH: 'export',
     DCE_PATH: '',
     DRY_RUN: false
 };
@@ -146,7 +146,23 @@ class ConfigManager {
             if (value === '' && !process.env[key] && key !== 'DATA_PACKAGE_FOLDER') {
                 const answer = await this.promptUser(`Enter value for ${key}: `);
                 // Remove quotes and trim
-                this.config[key] = answer.trim().replace(/^['"]|['"]$/g, '');
+                const cleaned = answer.trim().replace(/^['"]|['"]$/g, '');
+                // If EXPORT_PATH left empty, default to repo-relative 'export'
+                if (key === 'EXPORT_PATH' && cleaned === '') {
+                    const repoExport = 'export';
+                    this.config[key] = repoExport;
+                    // Ensure default export directory exists in repo root
+                    try {
+                        const exportPath = path.join(process.cwd(), repoExport);
+                        if (!fs.existsSync(exportPath)) {
+                            fs.mkdirSync(exportPath, { recursive: true });
+                        }
+                    } catch (err) {
+                        console.warn(`Could not create default export directory ${path.join(process.cwd(), 'export')}: ${err.message}`);
+                    }
+                } else {
+                    this.config[key] = cleaned;
+                }
             }
         }
         this.saveConfig();
@@ -203,7 +219,24 @@ class ConfigManager {
                 console.warn(`Path ${pathKey} (${pathValue}) does not exist`);
                 const newPath = await this.promptUser(`Enter valid path for ${pathKey}: `);
                 // Remove quotes and trim
-                this.config[pathKey] = newPath.trim().replace(/^['"]|['"]$/g, '');
+                // Remove quotes and trim
+                const cleaned = newPath.trim().replace(/^['"]|['"]$/g, '');
+                // If EXPORT_PATH left empty during validation, default to '/export'
+                if (pathKey === 'EXPORT_PATH' && cleaned === '') {
+                    const repoExport = 'export';
+                    this.config[pathKey] = repoExport;
+                    // Ensure default export directory exists in repo root
+                    try {
+                        const exportPath = path.join(process.cwd(), repoExport);
+                        if (!fs.existsSync(exportPath)) {
+                            fs.mkdirSync(exportPath, { recursive: true });
+                        }
+                    } catch (err) {
+                        console.warn(`Could not create default export directory ${path.join(process.cwd(), 'export')}: ${err.message}`);
+                    }
+                } else {
+                    this.config[pathKey] = cleaned;
+                }
                 this.saveConfig();
             }
         }
