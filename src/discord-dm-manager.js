@@ -112,12 +112,6 @@ async function closeAllOpenDMs() {
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
                 const recipient = dm.recipients[0];
-                const username = recipient.username || 'Unknown';
-                const discriminator = recipient.discriminator || '0000';
-                
-                closeProgress.stop();
-                logOutput(`Closing DM with ${username}#${discriminator} (ID: ${recipient.id})`, 'debug');
-                closeProgress.start(currentDMs.length, index);
                 
                 await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
                 await delay(configManager.get('API_DELAY_MS'));
