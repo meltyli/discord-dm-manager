@@ -47,11 +47,13 @@ function getRecipients(channelJsonPaths, myDiscordId) {
             const channelJson = JSON.parse(data.trim());
             
             if (channelJson.type === "DM" || channelJson.type === "GROUP_DM") {
-                channelJson.recipients.forEach(recipientId => {
-                    if (recipientId !== myDiscordId) {
-                        recipientIds.add(recipientId);
-                    }
-                });
+                if (channelJson.recipients && Array.isArray(channelJson.recipients)) {
+                    channelJson.recipients.forEach(recipientId => {
+                        if (recipientId !== myDiscordId) {
+                            recipientIds.add(recipientId);
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error(`Error processing file ${filePath}: ${error.message}`);
