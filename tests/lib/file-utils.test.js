@@ -14,11 +14,33 @@ const {
 } = require('../../src/lib/file-utils');
 
 describe('traverseDataPackage', () => {
-    test('should find all channel.json files in test package', () => {
-        const testPackagePath = path.join(__dirname, '..', 'fixtures', 'fluffy_october', 'Messages');
-        const channelPaths = traverseDataPackage(testPackagePath);
+    const mockDataPath = path.join(__dirname, '..', 'fixtures', 'mock_package_test');
+
+    beforeEach(() => {
+        // Create mock directory structure with channel.json files
+        const channel1Dir = path.join(mockDataPath, 'c123456');
+        const channel2Dir = path.join(mockDataPath, 'c789012');
         
-        expect(channelPaths.length).toBeGreaterThan(0);
+        fs.mkdirSync(channel1Dir, { recursive: true });
+        fs.mkdirSync(channel2Dir, { recursive: true });
+        
+        const channelData1 = { id: "123456", type: "DM", recipients: ["user1", "user2"] };
+        const channelData2 = { id: "789012", type: "DM", recipients: ["user1", "user3"] };
+        
+        fs.writeFileSync(path.join(channel1Dir, 'channel.json'), JSON.stringify(channelData1));
+        fs.writeFileSync(path.join(channel2Dir, 'channel.json'), JSON.stringify(channelData2));
+    });
+
+    afterEach(() => {
+        if (fs.existsSync(mockDataPath)) {
+            fs.rmSync(mockDataPath, { recursive: true });
+        }
+    });
+
+    test('should find all channel.json files in test package', () => {
+        const channelPaths = traverseDataPackage(mockDataPath);
+        
+        expect(channelPaths.length).toBe(2);
         channelPaths.forEach(filePath => {
             expect(filePath).toContain('channel.json');
             expect(fs.existsSync(filePath)).toBe(true);
@@ -33,17 +55,41 @@ describe('traverseDataPackage', () => {
 });
 
 describe('getRecipients', () => {
+    const mockDataPath = path.join(__dirname, '..', 'fixtures', 'mock_recipients_test');
+
+    beforeEach(() => {
+        // Create mock directory structure with channel.json files
+        const channel1Dir = path.join(mockDataPath, 'c123456');
+        const channel2Dir = path.join(mockDataPath, 'c789012');
+        
+        fs.mkdirSync(channel1Dir, { recursive: true });
+        fs.mkdirSync(channel2Dir, { recursive: true });
+        
+        const channelData1 = { id: "123456", type: "DM", recipients: ["123456789", "111111111"] };
+        const channelData2 = { id: "789012", type: "DM", recipients: ["123456789", "222222222"] };
+        
+        fs.writeFileSync(path.join(channel1Dir, 'channel.json'), JSON.stringify(channelData1));
+        fs.writeFileSync(path.join(channel2Dir, 'channel.json'), JSON.stringify(channelData2));
+    });
+
+    afterEach(() => {
+        if (fs.existsSync(mockDataPath)) {
+            fs.rmSync(mockDataPath, { recursive: true });
+        }
+    });
+
     test('should extract unique recipients from DM channels', () => {
-        const testPackagePath = path.join(__dirname, '..', 'fixtures', 'fluffy_october', 'Messages');
-        const channelPaths = traverseDataPackage(testPackagePath);
+        const channelPaths = traverseDataPackage(mockDataPath);
         const myDiscordId = '123456789';
         
         const recipients = getRecipients(channelPaths, myDiscordId);
         
         expect(Array.isArray(recipients)).toBe(true);
-        expect(recipients.length).toBeGreaterThanOrEqual(0);
+        expect(recipients.length).toBe(2);
         // Should not include the user's own ID
         expect(recipients).not.toContain(myDiscordId);
+        expect(recipients).toContain('111111111');
+        expect(recipients).toContain('222222222');
     });
 
     test('should return empty array for empty channel list', () => {
@@ -53,7 +99,7 @@ describe('getRecipients', () => {
 
     test('should handle invalid JSON gracefully', () => {
         // Create a temporary invalid channel.json file
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_invalid_json_test');
         const tempFile = path.join(tempDir, 'channel.json');
         
         if (!fs.existsSync(tempDir)) {
@@ -250,18 +296,24 @@ describe('validateDCEPath', () => {
     });
 
     test('throws for path with missing executable', () => {
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'dce_test_empty');
         if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
         }
         
-        expect(() => {
-            validateDCEPath(tempDir);
-        }).toThrow('Discord Chat Exporter not found');
+        try {
+            expect(() => {
+                validateDCEPath(tempDir);
+            }).toThrow('Discord Chat Exporter not found');
+        } finally {
+            if (fs.existsSync(tempDir)) {
+                fs.rmSync(tempDir, { recursive: true });
+            }
+        }
     });
 
     test('returns executable path when DCE exists', () => {
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'dce_test_valid');
         const dcePath = path.join(tempDir, 'DiscordChatExporter.Cli');
         
         // Create mock DCE executable
@@ -275,14 +327,14 @@ describe('validateDCEPath', () => {
             expect(result).toBe(dcePath);
         } finally {
             // Cleanup
-            if (fs.existsSync(dcePath)) {
-                fs.unlinkSync(dcePath);
+            if (fs.existsSync(tempDir)) {
+                fs.rmSync(tempDir, { recursive: true });
             }
         }
     });
 
     test('validates DCE with .exe extension on Windows-like paths', () => {
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'temp_test');
+        const tempDir = path.join(__dirname, '..', 'fixtures', 'dce_test_exe');
         const dcePath = path.join(tempDir, 'DiscordChatExporter.Cli.exe');
         
         // Create mock DCE executable with .exe
@@ -296,8 +348,8 @@ describe('validateDCEPath', () => {
             expect(result).toBe(path.join(tempDir, 'DiscordChatExporter.Cli'));
         } finally {
             // Cleanup
-            if (fs.existsSync(dcePath)) {
-                fs.unlinkSync(dcePath);
+            if (fs.existsSync(tempDir)) {
+                fs.rmSync(tempDir, { recursive: true });
             }
         }
     });
