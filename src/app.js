@@ -77,11 +77,11 @@ class DiscordDMApp {
             console.clear();
             console.log('\nDiscord API');
             console.log('===========');
-            console.log('1. Process Recent Messages and Reopen DMs');
-            console.log('2. View Current Open DMs');
-            console.log('3. Close All Open DMs');
-            console.log('4. Reopen DM with Specific User');
-            console.log('5. Process and Export All DMs (Automated)');
+            console.log('1. Export All Direct Messages');
+            console.log('2. List Current Open Direct Messages');
+            console.log('3. Close All Open Direct Messages');
+            console.log('4. Reopen Direct Message (Specific User ID)');
+            console.log('5. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
@@ -91,7 +91,7 @@ class DiscordDMApp {
             try {
                 switch (choice.trim().toLowerCase()) {
                     case '1':
-                        await this.processRecentMessages();
+                        await this.processAndExportAllDMs();
                         await this.question('\nPress Enter to continue...');
                         break;
                     case '2':
@@ -107,7 +107,7 @@ class DiscordDMApp {
                         await this.question('\nPress Enter to continue...');
                         break;
                     case '5':
-                        await this.processAndExportAllDMs();
+                        await this.resetDMState();
                         await this.question('\nPress Enter to continue...');
                         break;
                     case 'q':
@@ -123,25 +123,50 @@ class DiscordDMApp {
         }
     }
 
-    async processRecentMessages() {
+    async resetDMState() {
         await this.ensureConfigured();
         
-        console.log('\nProcessing recent messages...');
+        const closedIdsPath = path.join(process.cwd(), 'config', 'closedIDs.json');
         
-        const parser = new MessageParser(this.options.DATA_PACKAGE_FOLDER);
-        const messages = await parser.processAllChannels();
-        
-        console.log(`Found ${messages.length} recent messages`);
-        
-        if (!this.options.DRY_RUN) {
-            console.log('Reopening DMs...');
-            await parser.reopenDMs(process.env.AUTHORIZATION_TOKEN);
-            console.log('DMs reopened successfully!');
-        } else {
-            console.log('[DRY RUN] Would have reopened DMs with these users:');
-            const uniqueUsers = new Set(messages.map(m => m.recipientId));
-            console.log(Array.from(uniqueUsers));
+        if (!fs.existsSync(closedIdsPath)) {
+            console.log('\nNo closed DM state found. Use option 5 first to process and close DMs.');
+            return;
         }
+        
+        const closedIds = JSON.parse(fs.readFileSync(closedIdsPath, 'utf8'));
+        
+        if (closedIds.length === 0) {
+            console.log('\nNo closed DMs to reopen.');
+            return;
+        }
+        
+        console.log(`\nReopening ${closedIds.length} closed DMs...`);
+        
+        if (this.options.DRY_RUN) {
+            console.log('[DRY RUN] Would reopen these user IDs:');
+            console.log(closedIds);
+            console.log('[DRY RUN] Would clear closedIDs.json');
+            return;
+        }
+        
+        let skipped = 0;
+        let reopened = 0;
+        
+        for (const userId of closedIds) {
+            const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId, console.log);
+            if (result === null) {
+                skipped++;
+            } else {
+                reopened++;
+            }
+            await new Promise(resolve => setTimeout(resolve, this.options.API_DELAY_MS));
+        }
+        
+        console.log(`\nReopened: ${reopened}, Skipped: ${skipped}`);
+        
+        // Clear the closedIDs file
+        fs.writeFileSync(closedIdsPath, JSON.stringify([], null, 2));
+        console.log('DM state reset complete. closedIDs.json cleared.');
     }
 
     async viewOpenDMs() {
@@ -171,15 +196,7 @@ class DiscordDMApp {
         }
 
         console.log('\nClosing all open DMs...');
-        const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN, console.log);
-        
-        for (const dm of dms) {
-            if (dm.type === 1) {
-                console.log(`Closing DM channel: ${dm.id}`);
-                await closeDM(process.env.AUTHORIZATION_TOKEN, dm.id, console.log);
-                await new Promise(resolve => setTimeout(resolve, this.options.API_DELAY_MS));
-            }
-        }
+        await closeAllOpenDMs();
         console.log('All DMs closed successfully!');
     }
 
