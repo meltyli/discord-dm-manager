@@ -1,16 +1,16 @@
 {
   "name": "discord-dm-manager",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Bulk Discord DM manager with DiscordChatExporter integration",
   "main": "src/cli/menu-main.js",
   "scripts": {
     "start": "node src/cli/menu-main.js",
-    "batch": "node src/discord-dm-manager.js",
+    "batch": "node src/batch/batch-entry.js",
     "test": "jest"
   },
   "bin": {
     "discord-dm-manager": "./src/cli/menu-main.js",
-    "discord-dm-batch": "./src/discord-dm-manager.js"
+    "discord-dm-batch": "./src/batch/batch-entry.js"
   },
   "dependencies": {
     "axios": "^1.7.9",

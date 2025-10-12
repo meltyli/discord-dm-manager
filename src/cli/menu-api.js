@@ -1,5 +1,5 @@
 const { getCurrentOpenDMs, closeDM, reopenDM } = require('../discord-api');
-const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('../discord-dm-manager');
+const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
 const { resolveConfigPath, readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
 const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
