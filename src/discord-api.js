@@ -20,8 +20,18 @@ async function withRetry(operation, description) {
             if (attempt === configManager.get('MAX_RETRIES')) {
                 throw error;
             }
-            console.warn(`${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`);
-            await delay(configManager.get('RETRY_DELAY_MS'));
+            
+            // Handle 429 rate limit with longer delay
+            let delayMs = configManager.get('RETRY_DELAY_MS');
+            if (error.response && error.response.status === 429) {
+                const retryAfter = error.response.headers['retry-after'];
+                delayMs = retryAfter ? parseInt(retryAfter) * 1000 : 10000;
+                console.warn(`${description} rate limited, waiting ${delayMs}ms before retry ${attempt}/${configManager.get('MAX_RETRIES')}`);
+            } else {
+                console.warn(`${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`);
+            }
+            
+            await delay(delayMs);
         }
     }
 }
