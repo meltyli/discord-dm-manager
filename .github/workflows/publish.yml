@@ -49,7 +49,13 @@ jobs:
 
       - name: Install dependencies
         if: steps.version-check.outputs.version_changed == 'true'
-        run: npm ci
+        run: |
+          # Use npm ci when a lockfile exists for reproducible installs; otherwise fall back to npm install
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci
+          else
+            npm install
+          fi
       
       - name: Run tests
         if: steps.version-check.outputs.version_changed == 'true'
