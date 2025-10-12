@@ -45,12 +45,12 @@ class ConfigManager {
         this.config = { ...defaultConfig };
         this.env = { ...envTemplate };
         this.initialized = false;
-        this.rl = null; // Shared readline interface from app
+        this.rl = null; // Shared readline interface from menu-main
         this.ownsReadline = false; // Track if we created it
     }
 
     /**
-     * Sets an external readline interface (from app.js)
+     * Sets an external readline interface (from menu-main.js)
      * @param {readline.Interface} readlineInterface - Readline interface to use
      */
     setReadline(readlineInterface) {
