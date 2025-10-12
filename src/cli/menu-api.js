@@ -173,6 +173,10 @@ class ApiMenu {
 
         await closeAllOpenDMs();
         console.log('\nAll direct messages closed successfully!');
+        
+        // Reset DM state by reopening the closed DMs
+        console.log('\nResetting DM state...');
+        await this.resetDMState();
     }
 
     async reopenSpecificDM() {
@@ -212,7 +216,8 @@ class ApiMenu {
         console.log('2. Open direct messages in batches of', this.options.BATCH_SIZE);
         console.log('3. Export each batch using Discord Chat Exporter');
         console.log('4. Close the batch and move to the next');
-        console.log('5. Repeat until all direct messages are processed\n');
+        console.log('5. Repeat until all direct messages are processed');
+        console.log('6. Reset DM state by reopening closed direct messages\n');
         
         if (!await promptConfirmation('Continue? (y/n): ', this.rl)) {
             console.log('Operation cancelled.');
