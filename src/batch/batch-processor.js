@@ -1,3 +1,4 @@
+const path = require('path');
 const { getConfigManager } = require('../config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('../discord-api');
 const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile } = require('../lib/file-utils');
@@ -13,7 +14,7 @@ const configManager = getConfigManager();
 async function closeAllOpenDMs() {
     try {
         if (configManager.get('DRY_RUN')) {
-            console.log('[DRY RUN] Would close all open DMs and save IDs to closedIDs.json');
+            console.log('[DRY RUN] Would close all open DMs and save IDs to id-history.json');
             return [];
         }
 
@@ -28,22 +29,27 @@ async function closeAllOpenDMs() {
         console.log(`Found ${currentDMs.length} open DMs. Closing...`);
         
         // Prepare file path
-        const filePath = resolveConfigPath('closedIDs.json');
+        const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
+        const filePath = path.join(dataPackagePath, 'messages', 'id-history.json');
         
         // Load existing data structure or initialize
-        let data = { current: [], all: [] };
+        let data = { latest: [], uniqueIds: [] };
         const existing = readJsonFile(filePath);
         if (existing) {
-            // Handle legacy format (plain array)
+            // Handle legacy format (plain array or old property names)
             if (Array.isArray(existing)) {
-                data.all = existing;
+                data.uniqueIds = existing;
+            } else if (existing.current || existing.all) {
+                // Handle old property names
+                data.latest = existing.current || [];
+                data.uniqueIds = existing.all || [];
             } else {
                 data = existing;
             }
         }
         
-        // Reset current array for this operation
-        data.current = [];
+        // Reset latest array for this operation
+        data.latest = [];
         
         const closeProgress = createDMProgressBar();
         closeProgress.start(currentDMs.length, 0);
@@ -55,12 +61,12 @@ async function closeAllOpenDMs() {
                 await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
                 await delay(configManager.get('API_DELAY_MS'));
                 
-                // Add to current array
-                data.current.push(recipient.id);
+                // Add to latest array
+                data.latest.push(recipient.id);
                 
-                // Add to all array only if not already present (maintain order)
-                if (!data.all.includes(recipient.id)) {
-                    data.all.push(recipient.id);
+                // Add to uniqueIds array only if not already present (maintain order)
+                if (!data.uniqueIds.includes(recipient.id)) {
+                    data.uniqueIds.push(recipient.id);
                 }
                 
                 // Save after each close
@@ -70,10 +76,10 @@ async function closeAllOpenDMs() {
         }
         closeProgress.stop();
         
-        console.log(`\nSuccessfully closed ${data.current.length} DMs. User IDs saved to ${filePath}`);
-        console.log(`Total unique IDs in history: ${data.all.length}`);
+        console.log(`\nSuccessfully closed ${data.latest.length} DMs. User IDs saved to ${filePath}`);
+        console.log(`Total unique IDs in history: ${data.uniqueIds.length}`);
         
-        return data.current;
+        return data.latest;
     } catch (error) {
         console.error(`Failed to close all open DMs: ${error.message}`);
         throw error;

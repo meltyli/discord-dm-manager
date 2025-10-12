@@ -1,3 +1,4 @@
+const path = require('path');
 const { getCurrentOpenDMs, closeDM, reopenDM } = require('../discord-api');
 const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
 const { resolveConfigPath, readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
@@ -65,27 +66,31 @@ class ApiMenu {
     async resetDMState() {
         await this.ensureConfigured();
         
-        const closedIdsPath = resolveConfigPath('closedIDs.json');
+        const dataPackagePath = this.configManager.get('DATA_PACKAGE_FOLDER');
+        const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
         
-        if (!validatePathExists(closedIdsPath, 'closedIDs.json')) {
-            console.log('\nNo closedIDs.json file found. Nothing to reopen.');
+        if (!validatePathExists(idHistoryPath, 'id-history.json')) {
+            console.log('\nNo id-history.json file found. Nothing to reopen.');
             return;
         }
         
-        const closedIdsData = readJsonFile(closedIdsPath);
-        if (!closedIdsData) {
-            console.log('\nCould not read closedIDs.json. Nothing to reopen.');
+        const idHistoryData = readJsonFile(idHistoryPath);
+        if (!idHistoryData) {
+            console.log('\nCould not read id-history.json. Nothing to reopen.');
             return;
         }
         
-        // Handle both new structure { current: [], all: [] } and legacy array format
+        // Handle both new structure { latest: [], uniqueIds: [] } and legacy formats
         let closedIds;
-        if (Array.isArray(closedIdsData)) {
-            closedIds = closedIdsData;
-        } else if (closedIdsData.current && Array.isArray(closedIdsData.current)) {
-            closedIds = closedIdsData.current;
+        if (Array.isArray(idHistoryData)) {
+            closedIds = idHistoryData;
+        } else if (idHistoryData.latest && Array.isArray(idHistoryData.latest)) {
+            closedIds = idHistoryData.latest;
+        } else if (idHistoryData.current && Array.isArray(idHistoryData.current)) {
+            // Handle old property name
+            closedIds = idHistoryData.current;
         } else {
-            console.log('\nInvalid closedIDs.json format. Nothing to reopen.');
+            console.log('\nInvalid id-history.json format. Nothing to reopen.');
             return;
         }
         
@@ -99,7 +104,7 @@ class ApiMenu {
         if (this.options.DRY_RUN) {
             console.log('[DRY RUN] Would reopen these user IDs:');
             console.log(closedIds);
-            console.log('[DRY RUN] Would NOT clear closedIDs.json (preserves default state)');
+            console.log('[DRY RUN] Would NOT clear id-history.json (preserves default state)');
             return;
         }
         
@@ -122,7 +127,7 @@ class ApiMenu {
         reopenProgress.stop();
         
         console.log(`\nReopened: ${reopened}, Skipped: ${skipped}`);
-        console.log('DM state reset complete. closedIDs.json NOT cleared (preserves default state).');
+        console.log('DM state reset complete. id-history.json NOT cleared (preserves default state).');
     }
 
     async viewOpenDMs() {
@@ -153,7 +158,7 @@ class ApiMenu {
 
         console.log('\nClosing all open DMs...');
         await closeAllOpenDMs();
-        console.log('All DMs closed successfully! User IDs saved to closedIDs.json');
+        console.log('All DMs closed successfully! User IDs saved to id-history.json');
     }
 
     async reopenSpecificDM() {
