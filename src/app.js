@@ -9,7 +9,7 @@ const {
     closeDM,
     reopenDM
 } = require('./discord-api');
-const { saveOpenDMsToFile, processDMsInBatches, loadBatchState, clearBatchState, hasIncompleteBatchSession } = require('./discord-dm-manager');
+const { saveOpenDMsToFile, processDMsInBatches, processAndExportAllDMs, closeAllOpenDMs, loadBatchState, clearBatchState, hasIncompleteBatchSession } = require('./discord-dm-manager');
 const { getConfigManager } = require('./config');
 
 // Initialize logger to capture all console output
@@ -84,6 +84,7 @@ class DiscordDMApp {
             console.log('5. Run Batch DM Processing');
             console.log('6. Export Open DMs');
             console.log('7. Resume Last Batch Session');
+            console.log('8. Process and Export All DMs (Automated)');
             console.log('q. Back to Main Menu');
             console.log('\nCurrent Settings:');
             console.log(`- Dry Run Mode: ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
@@ -125,6 +126,10 @@ class DiscordDMApp {
                         break;
                     case '7':
                         await this.resumeBatchSession();
+                        await this.question('\nPress Enter to continue...');
+                        break;
+                    case '8':
+                        await this.processAndExportAllDMs();
                         await this.question('\nPress Enter to continue...');
                         break;
                     case 'q':
@@ -280,6 +285,70 @@ class DiscordDMApp {
             await processDMsInBatches(state.currentBatch, this.rl);
         } catch (error) {
             console.error('Batch processing failed:', error.message);
+        }
+    }
+
+    async processAndExportAllDMs() {
+        await this.ensureConfigured();
+        
+        // Validate DCE_PATH and EXPORT_PATH
+        const dcePath = this.options.DCE_PATH;
+        if (!dcePath) {
+            console.error('\nError: DCE_PATH not configured.');
+            console.error('Please configure Discord Chat Exporter path in Configuration menu.');
+            return;
+        }
+
+        const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
+        if (!fs.existsSync(dceExecutable) && !fs.existsSync(dceExecutable + '.exe')) {
+            console.error(`\nError: Discord Chat Exporter not found at: ${dceExecutable}`);
+            console.error('Please verify DCE_PATH in Configuration menu.');
+            return;
+        }
+
+        if (!this.options.EXPORT_PATH) {
+            console.error('\nError: EXPORT_PATH not configured.');
+            console.error('Please configure export path in Configuration menu.');
+            return;
+        }
+
+        console.log('\nProcess and Export All DMs');
+        console.log('==========================');
+        console.log('This will:');
+        console.log('1. Close all currently open DMs');
+        console.log('2. Open DMs in batches of', this.options.BATCH_SIZE);
+        console.log('3. Export each batch using Discord Chat Exporter');
+        console.log('4. Close the batch and move to the next');
+        console.log('5. Repeat until all DMs are processed\n');
+        
+        const confirm = await this.question('Continue? (y/n): ');
+        if (confirm.toLowerCase() !== 'y') {
+            console.log('Operation cancelled.');
+            return;
+        }
+
+        // Create export callback that uses class methods
+        const exportCallback = async () => {
+            const formats = ['Json', 'HtmlDark'];
+            
+            for (const format of formats) {
+                console.log(`Exporting in ${format} format...`);
+                
+                try {
+                    await this.runDCEExport(format);
+                    console.log(`${format} export completed.`);
+                } catch (error) {
+                    console.error(`${format} export failed: ${error.message}`);
+                    throw error;
+                }
+            }
+        };
+
+        try {
+            await processAndExportAllDMs(exportCallback, this.rl);
+            console.log('\nAll DMs processed and exported successfully!');
+        } catch (error) {
+            console.error('Process and export failed:', error.message);
         }
     }
 

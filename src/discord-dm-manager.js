@@ -62,6 +62,101 @@ function createProgressBar() {
     });
 }
 
+// Close all currently open DMs and save their IDs
+async function closeAllOpenDMs() {
+    try {
+        if (configManager.get('DRY_RUN')) {
+            logOutput('[DRY RUN] Would close all open DMs', 'info');
+            return [];
+        }
+
+        const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
+        logOutput(`Closing ${currentDMs.length} currently open DMs...`, 'info');
+        
+        const closeProgress = createProgressBar();
+        closeProgress.start(currentDMs.length, 0);
+        
+        const closedIds = [];
+        for (const [index, dm] of currentDMs.entries()) {
+            if (dm.type === 1) {
+                logOutput(`Closing DM channel: ${dm.id}`, 'debug');
+                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
+                await delay(configManager.get('API_DELAY_MS'));
+                
+                // Save the user ID of the closed DM
+                if (dm.recipients && dm.recipients.length > 0) {
+                    closedIds.push(dm.recipients[0].id);
+                }
+            }
+            closeProgress.update(index + 1);
+        }
+        closeProgress.stop();
+        
+        // Save closed IDs to file
+        const configDir = path.join(process.cwd(), 'config');
+        if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+        }
+        const filePath = path.join(configDir, 'closedIDs.json');
+        fs.writeFileSync(filePath, JSON.stringify(closedIds, null, 2));
+        logOutput(`Saved ${closedIds.length} closed DM user IDs to ${filePath}`, 'info');
+        
+        return closedIds;
+    } catch (error) {
+        logOutput(`Failed to close all open DMs: ${error.message}`, 'error');
+        throw error;
+    }
+}
+
+// Open a batch of DMs
+async function openBatchDMs(userIds, batchNum, totalBatches) {
+    if (configManager.get('DRY_RUN')) {
+        logOutput(`[DRY RUN] Would open batch ${batchNum + 1}/${totalBatches} with ${userIds.length} DMs`, 'info');
+        return { processed: userIds.length, skipped: 0 };
+    }
+
+    logOutput(`Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} DMs)...`, 'info');
+    
+    const batchProgress = createProgressBar();
+    batchProgress.start(userIds.length, 0);
+    
+    let skippedUsers = 0;
+    let processedUsers = 0;
+    
+    for (const [index, userId] of userIds.entries()) {
+        const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId, logOutput);
+        if (result === null) {
+            skippedUsers++;
+        } else {
+            processedUsers++;
+        }
+        await delay(configManager.get('API_DELAY_MS'));
+        batchProgress.update(index + 1);
+    }
+    batchProgress.stop();
+    
+    return { processed: processedUsers, skipped: skippedUsers };
+}
+
+// Close current batch of DMs
+async function closeBatchDMs() {
+    if (configManager.get('DRY_RUN')) {
+        logOutput('[DRY RUN] Would close current batch DMs', 'info');
+        return;
+    }
+
+    logOutput('Closing current batch DMs...', 'info');
+    const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
+    
+    for (const dm of batchDMs) {
+        if (dm.type === 1) {
+            await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
+            await delay(configManager.get('API_DELAY_MS'));
+        }
+    }
+    logOutput(`Closed ${batchDMs.length} batch DMs`, 'info');
+}
+
 // Add this new function to save open DMs to a file
 async function saveOpenDMsToFile() {
     try {
@@ -152,7 +247,7 @@ function hasIncompleteBatchSession() {
     return state.inProgress && stateAge < sevenDays;
 }
 
-// Main processing function
+// Main processing function (legacy - kept for backwards compatibility)
 async function processDMsInBatches(startBatch = 0, rlInterface = null) {
     logOutput('Starting DM processing...', 'info');
 
@@ -173,21 +268,8 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             return;
         }
 
-        const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
-        logOutput(`Closing ${currentDMs.length} currently open DMs...`, 'info');
-        
-        const closeProgress = createProgressBar();
-        closeProgress.start(currentDMs.length, 0);
-        
-        for (const [index, dm] of currentDMs.entries()) {
-            if (dm.type === 1) {
-                logOutput(`Closing DM channel: ${dm.id}`, 'debug');
-                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
-                await delay(configManager.get('API_DELAY_MS'));
-            }
-            closeProgress.update(index + 1);
-        }
-        closeProgress.stop();
+        // Close all currently open DMs
+        await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
         logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`, 'info');
@@ -196,7 +278,6 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             logOutput(`Resuming from batch ${startBatch + 1}/${totalBatches}`, 'info');
         }
         
-        const batchProgress = createProgressBar();
         let skippedUsers = 0;
         let processedUsers = 0;
         
@@ -217,20 +298,10 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
             const currentBatch = allDmIds.slice(startIdx, endIdx);
 
-            logOutput(`\nProcessing batch ${batchNum + 1}/${totalBatches}`, 'info');
-            batchProgress.start(currentBatch.length, 0);
-
-            for (const [index, userId] of currentBatch.entries()) {
-                const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId, logOutput);
-                if (result === null) {
-                    skippedUsers++;
-                } else {
-                    processedUsers++;
-                }
-                await delay(configManager.get('API_DELAY_MS'));
-                batchProgress.update(index + 1);
-            }
-            batchProgress.stop();
+            // Open batch
+            const stats = await openBatchDMs(currentBatch, batchNum, totalBatches);
+            processedUsers += stats.processed;
+            skippedUsers += stats.skipped;
 
             // Update state after completing batch
             batchState.currentBatch = batchNum + 1;
@@ -243,14 +314,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
                 logOutput('\nBatch complete. Please review these DMs.', 'info');
                 await waitForKeyPress(rlInterface);
 
-                logOutput('Closing batch DMs...', 'info');
-                const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'), logOutput);
-                for (const dm of batchDMs) {
-                    if (dm.type === 1) {
-                        await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id, logOutput);
-                        await delay(configManager.get('API_DELAY_MS'));
-                    }
-                }
+                await closeBatchDMs();
             }
         }
 
@@ -268,8 +332,119 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
     }
 }
 
+// Process all DMs with automatic export after each batch
+async function processAndExportAllDMs(exportCallback, rlInterface = null) {
+    logOutput('Starting DM processing with automatic exports...', 'info');
+
+    try {
+        await configManager.init();
+
+        const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
+        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
+
+        if (allDmIds.length === 0) {
+            logOutput('No DM recipients found. Please check your Discord ID and data package path.', 'warn');
+            return;
+        }
+
+        if (configManager.get('DRY_RUN')) {
+            logOutput('Running in DRY RUN mode - no actual API calls will be made', 'info');
+            logOutput(`Would process ${allDmIds.length} DM recipients`, 'info');
+            return;
+        }
+
+        // Step 1: Close all currently open DMs
+        await closeAllOpenDMs();
+
+        const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
+        logOutput(`Processing ${allDmIds.length} DMs in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`, 'info');
+        logOutput('Each batch will be automatically exported before moving to the next.', 'info');
+        
+        let skippedUsers = 0;
+        let processedUsers = 0;
+        
+        // Initialize batch state
+        const batchState = {
+            allDmIds: allDmIds,
+            totalBatches: totalBatches,
+            currentBatch: 0,
+            processedUsers: 0,
+            skippedUsers: 0,
+            timestamp: new Date().toISOString(),
+            inProgress: true
+        };
+        saveBatchState(batchState);
+        
+        for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+            const startIdx = batchNum * configManager.get('BATCH_SIZE');
+            const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
+            const currentBatch = allDmIds.slice(startIdx, endIdx);
+
+            // Step 2: Open batch
+            const stats = await openBatchDMs(currentBatch, batchNum, totalBatches);
+            processedUsers += stats.processed;
+            skippedUsers += stats.skipped;
+
+            // Update state after completing batch
+            batchState.currentBatch = batchNum + 1;
+            batchState.processedUsers = processedUsers;
+            batchState.skippedUsers = skippedUsers;
+            batchState.timestamp = new Date().toISOString();
+            saveBatchState(batchState);
+
+            // Step 3: Export the batch
+            logOutput('\nExporting current batch...', 'info');
+            try {
+                await exportCallback();
+                logOutput('Export completed successfully.', 'info');
+            } catch (error) {
+                logOutput(`Export failed: ${error.message}`, 'error');
+                const continueAnyway = await new Promise(resolve => {
+                    if (rlInterface) {
+                        rlInterface.question('Continue with next batch anyway? (y/n): ', answer => {
+                            resolve(answer.toLowerCase() === 'y');
+                        });
+                    } else {
+                        resolve(false);
+                    }
+                });
+                
+                if (!continueAnyway) {
+                    logOutput('Processing stopped by user.', 'info');
+                    return;
+                }
+            }
+
+            // Step 4: Close batch DMs
+            await closeBatchDMs();
+            
+            // Small delay before next batch
+            if (batchNum < totalBatches - 1) {
+                logOutput(`Batch ${batchNum + 1}/${totalBatches} complete. Moving to next batch...`, 'info');
+                await delay(configManager.get('API_DELAY_MS') * 2);
+            }
+        }
+
+        logOutput(`\nAll batches processed and exported!`, 'info');
+        logOutput(`Total processed users: ${processedUsers}`, 'info');
+        logOutput(`Total skipped users: ${skippedUsers}`, 'info');
+        
+        // Mark as complete and clear state
+        batchState.inProgress = false;
+        saveBatchState(batchState);
+        clearBatchState();
+    } catch (error) {
+        logOutput(`Fatal error in main process: ${error.message}`, 'error');
+        throw error;
+    }
+}
+
 module.exports = {
     processDMsInBatches,
+    processAndExportAllDMs,
+    closeAllOpenDMs,
+    openBatchDMs,
+    closeBatchDMs,
     traverseDataPackage,
     getRecipients,
     saveOpenDMsToFile,
