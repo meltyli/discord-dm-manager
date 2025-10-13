@@ -214,8 +214,38 @@ class ApiMenu {
             return;
         }
 
+        // Prompt for DM type filter
+        console.log('\nWhich type of conversations would you like to export?');
+        console.log('1. DM only (1-on-1 conversations)');
+        console.log('2. GROUP_DM only (group conversations)');
+        console.log('3. Both DM and GROUP_DM');
+        
+        const typeChoice = cleanInput(await promptUser('Enter your choice (1-3): ', this.rl));
+        
+        let typeFilter;
+        let typeDescription;
+        switch (typeChoice) {
+            case '1':
+                typeFilter = ['DM'];
+                typeDescription = 'DM only';
+                break;
+            case '2':
+                typeFilter = ['GROUP_DM'];
+                typeDescription = 'GROUP_DM only';
+                break;
+            case '3':
+                typeFilter = ['DM', 'GROUP_DM'];
+                typeDescription = 'both DM and GROUP_DM';
+                break;
+            default:
+                console.log('Invalid choice. Defaulting to both types.');
+                typeFilter = ['DM', 'GROUP_DM'];
+                typeDescription = 'both DM and GROUP_DM';
+        }
+
         console.log('\nProcess and Export All Direct Messages');
         console.log('=======================================');
+        console.log(`Filtering: ${typeDescription}`);
         console.log('This will:');
         console.log('1. Close all currently open direct messages');
         console.log('2. Open direct messages in batches of', this.options.BATCH_SIZE);
@@ -240,7 +270,7 @@ class ApiMenu {
         };
 
         try {
-            await processAndExportAllDMs(exportCallback, this.rl);
+            await processAndExportAllDMs(exportCallback, this.rl, typeFilter);
             console.log('\nAll direct messages processed and exported successfully!');
         } catch (error) {
             console.error('Process and export failed:', error.message);

@@ -261,14 +261,15 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
  * Process all DMs with automatic export after each batch
  * @param {Function} exportCallback - Callback function to export DMs
  * @param {readline.Interface} rlInterface - Readline interface for user input
+ * @param {string[]} [typeFilter] - Optional array of channel types to include (e.g., ['DM'], ['GROUP_DM'], or ['DM', 'GROUP_DM'])
  * @returns {Promise<void>}
  */
-async function processAndExportAllDMs(exportCallback, rlInterface = null) {
+async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFilter = ['DM', 'GROUP_DM']) {
     try {
         await configManager.init();
 
         const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
-        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
+        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'), typeFilter);
 
         if (allDmIds.length === 0) {
             console.warn('No direct message recipients found. Please check your Discord ID and data package path.');

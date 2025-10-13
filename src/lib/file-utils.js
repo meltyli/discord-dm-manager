@@ -36,9 +36,10 @@ function traverseDataPackage(packagePath) {
  * Extracts unique recipient IDs from channel.json files (DM and GROUP_DM only)
  * @param {string[]} channelJsonPaths - Array of paths to channel.json files
  * @param {string} myDiscordId - Current user's Discord ID to exclude
+ * @param {string[]} [typeFilter] - Optional array of channel types to include (e.g., ['DM'], ['GROUP_DM'], or ['DM', 'GROUP_DM'])
  * @returns {string[]} Array of unique recipient Discord IDs
  */
-function getRecipients(channelJsonPaths, myDiscordId) {
+function getRecipients(channelJsonPaths, myDiscordId, typeFilter = ['DM', 'GROUP_DM']) {
     const recipientIds = new Set();
     
     channelJsonPaths.forEach(filePath => {
@@ -46,7 +47,7 @@ function getRecipients(channelJsonPaths, myDiscordId) {
             const data = fs.readFileSync(filePath, 'utf8');
             const channelJson = JSON.parse(data.trim());
             
-            if (channelJson.type === "DM" || channelJson.type === "GROUP_DM") {
+            if (typeFilter.includes(channelJson.type)) {
                 if (channelJson.recipients && Array.isArray(channelJson.recipients)) {
                     channelJson.recipients.forEach(recipientId => {
                         if (recipientId !== myDiscordId) {
