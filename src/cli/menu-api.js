@@ -268,6 +268,8 @@ class ApiMenu {
         try {
             await processAndExportAllDMs(exportCallback, this.rl, typeFilter);
             console.log('\nAll direct messages processed and exported successfully!');
+            console.log('\nResetting DM state...');
+            await this.resetDMState();
         } catch (error) {
             console.error('Process and export failed:', error.message);
         }
