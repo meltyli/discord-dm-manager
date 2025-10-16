@@ -76,7 +76,11 @@ USER_DISCORD_ID=your_user_id
 - `config/batch-state.json` - Batch processing state (auto-managed)
 
 ID History is stored in the data package:
-- `DATA_PACKAGE_FOLDER/messages/id-history.json` - Contains `{ "latest": [], "uniqueIds": [] }` where `latest` is IDs from last closeAllOpenDMs operation, `uniqueIds` is ordered historical list of all unique closed IDs
+- `DATA_PACKAGE_FOLDER/messages/id-history.json` - Contains channel information from Discord API with three keys:
+  - `originalState`: Channel objects from first capture (when closeAllOpenDMs is first run)
+  - `latest`: Channel objects from most recent close operation (only type=1 DMs)
+  - `uniqueChannels`: All unique channels ever seen (unique based on channel.id)
+  - Each channel object contains full data from getCurrentOpenDMs API response
 
 **Critical**: Access config via singleton: `const configManager = getConfigManager();`
 - Use `configManager.get('KEY')` for config.json values

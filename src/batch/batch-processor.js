@@ -8,13 +8,13 @@ const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-sta
 const configManager = getConfigManager();
 
 /**
- * Close all currently open DMs and save their IDs
- * @returns {Promise<string[]>} Array of closed DM user IDs
+ * Close all currently open DMs and save their channel information
+ * @returns {Promise<string[]>} Array of closed DM user IDs (for backward compatibility)
  */
 async function closeAllOpenDMs() {
     try {
         if (configManager.get('DRY_RUN')) {
-            console.log('[DRY RUN] Would close all open direct messages and save IDs to id-history.json');
+            console.log('[DRY RUN] Would close all open direct messages and save to id-history.json');
             return [];
         }
 
@@ -31,54 +31,31 @@ async function closeAllOpenDMs() {
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
         const filePath = path.join(dataPackagePath, 'messages', 'id-history.json');
         
-        // Load existing data structure or initialize
-        let data = { latest: [], uniqueIds: [] };
-        const existing = readJsonFile(filePath);
-        if (existing) {
-            // Handle legacy format (plain array or old property names)
-            if (Array.isArray(existing)) {
-                data.uniqueIds = existing;
-            } else if (existing.current || existing.all) {
-                // Handle old property names
-                data.latest = existing.current || [];
-                data.uniqueIds = existing.all || [];
-            } else {
-                data = existing;
-            }
-        }
-        
-        // Reset latest array for this operation
-        data.latest = [];
+        const closedUserIds = [];
         
         const closeProgress = createDMProgressBar();
         closeProgress.start(currentDMs.length, 0);
         
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
-                const recipient = dm.recipients[0];
-                
                 await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
                 await delay(configManager.get('API_DELAY_MS'));
                 
-                // Add to latest array
-                data.latest.push(recipient.id);
-                
-                // Add to uniqueIds array only if not already present (maintain order)
-                if (!data.uniqueIds.includes(recipient.id)) {
-                    data.uniqueIds.push(recipient.id);
-                }
-                
-                // Save after each close
-                writeJsonFile(filePath, data);
+                // For backward compatibility, collect user IDs from type 1 (DM)
+                closedUserIds.push(dm.recipients[0].id);
             }
             closeProgress.update(index + 1);
         }
         closeProgress.stop();
         
-        console.log(`Successfully closed ${data.latest.length} direct messages. User IDs saved to ${filePath}`);
-        console.log(`Total unique IDs in history: ${data.uniqueIds.length}`);
+        // Update id-history.json with full channel data
+        // Filter to only type 1 (DM) as specified in the requirements
+        const type1Channels = currentDMs.filter(dm => dm.type === 1);
+        updateIdHistory(filePath, type1Channels);
         
-        return data.latest;
+        console.log(`Successfully closed ${closedUserIds.length} direct messages. Channel info saved to ${filePath}`);
+        
+        return closedUserIds;
     } catch (error) {
         console.error(`Failed to close all open direct messages: ${error.message}`);
         throw error;

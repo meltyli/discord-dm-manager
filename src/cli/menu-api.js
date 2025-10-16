@@ -94,18 +94,18 @@ class ApiMenu {
             return;
         }
         
-        // Handle both new structure { latest: [], uniqueIds: [] } and legacy formats
-        let closedIds;
-        if (Array.isArray(idHistoryData)) {
-            closedIds = idHistoryData;
-        } else if (idHistoryData.latest && Array.isArray(idHistoryData.latest)) {
-            closedIds = idHistoryData.latest;
-        } else if (idHistoryData.current && Array.isArray(idHistoryData.current)) {
-            // Handle old property name
-            closedIds = idHistoryData.current;
-        } else {
-            console.log('Invalid id-history.json format. Nothing to reopen.');
-            return;
+        // Extract user IDs from latest channels
+        let closedIds = [];
+        if (idHistoryData.latest && Array.isArray(idHistoryData.latest)) {
+            idHistoryData.latest.forEach(channel => {
+                if (channel.recipients && Array.isArray(channel.recipients)) {
+                    channel.recipients.forEach(recipient => {
+                        if (recipient.id && !closedIds.includes(recipient.id)) {
+                            closedIds.push(recipient.id);
+                        }
+                    });
+                }
+            });
         }
         
         if (closedIds.length === 0) {

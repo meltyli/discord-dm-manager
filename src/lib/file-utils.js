@@ -189,29 +189,44 @@ function validateDCEPath(dcePath) {
 }
 
 /**
- * Updates id-history.json with current recipient IDs
- * Preserves original-state from first run, updates latest and uniqueIds
+ * Updates id-history.json with channel information from getCurrentOpenDMs
+ * Preserves originalState from first run, updates latest and uniqueChannels
  * @param {string} idHistoryPath - Path to id-history.json
- * @param {string[]} currentIds - Current recipient IDs
+ * @param {Array} currentChannels - Array of channel objects from getCurrentOpenDMs
  */
-function updateIdHistory(idHistoryPath, currentIds) {
+function updateIdHistory(idHistoryPath, currentChannels) {
     const existing = readJsonFile(idHistoryPath, null);
     
-    if (!existing || !existing['original-state']) {
-        // First run - set original-state
+    if (!existing || !existing.originalState) {
+        // First run - set originalState
         const data = {
-            'original-state': currentIds,
-            'latest': currentIds,
-            'uniqueIds': currentIds
+            originalState: currentChannels,
+            latest: currentChannels,
+            uniqueChannels: currentChannels
         };
         writeJsonFile(idHistoryPath, data);
     } else {
-        // Subsequent runs - preserve original-state, update others
-        const allIds = new Set([...existing.uniqueIds, ...currentIds]);
+        // Subsequent runs - preserve originalState, update latest and uniqueChannels
+        const existingChannelMap = new Map();
+        
+        // Build map of existing unique channels by id
+        if (existing.uniqueChannels && Array.isArray(existing.uniqueChannels)) {
+            existing.uniqueChannels.forEach(channel => {
+                existingChannelMap.set(channel.id, channel);
+            });
+        }
+        
+        // Add new channels to map (will not overwrite existing ones)
+        currentChannels.forEach(channel => {
+            if (!existingChannelMap.has(channel.id)) {
+                existingChannelMap.set(channel.id, channel);
+            }
+        });
+        
         const data = {
-            'original-state': existing['original-state'],
-            'latest': currentIds,
-            'uniqueIds': Array.from(allIds)
+            originalState: existing.originalState,
+            latest: currentChannels,
+            uniqueChannels: Array.from(existingChannelMap.values())
         };
         writeJsonFile(idHistoryPath, data);
     }

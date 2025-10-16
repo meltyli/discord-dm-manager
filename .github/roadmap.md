@@ -63,9 +63,9 @@ Acceptance:
 - Don't hide menu option 2 and instead prompt the user the menu option they need to use before it's available
 
 ### Session 7 Revamp id-history.json output
-- the format should be
-- Add a third value to #file:id-history.json and call it original-state. this will contian the IDs of the FIRST capture when closing dms
-
-adjust the code for generating this file
+✅ Completed - id-history.json now stores full channel objects from getCurrentOpenDMs with three keys:
+- `originalState`: Channel data from first capture
+- `latest`: Channel data from most recent close operation (type=1 DMs only)
+- `uniqueChannels`: All unique channels ever seen (by channel.id)
 
 #file:guidelines.instructions.md 
