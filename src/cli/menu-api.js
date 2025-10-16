@@ -178,10 +178,6 @@ class ApiMenu {
 
         await closeAllOpenDMs();
         console.log('\nAll direct messages closed successfully!');
-        
-        // Reset DM state by reopening the closed DMs
-        console.log('\nResetting DM state...');
-        await this.resetDMState();
     }
 
     async reopenSpecificDM() {

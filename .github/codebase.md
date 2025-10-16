@@ -1,7 +1,7 @@
 # Discord DM Manager - AI Coding Agent Instructions
 
 ## Project Overview
-A Node.js CLI tool for managing Discord Direct Messages at scale. Works in tandem with Discord Chat Exporter to process and batch-manage DMs from Discord data packages. The tool reopens DMs based on message recency, allowing systematic review and archival.
+A Node.js CLI tool for managing Discord Direct Messages at scale. Works in tandem with Discord Chat Exporter to process and batch-manage DMs from Discord data packages. The tool can reopen DMs based on message recency, allowing systematic review and archival; reopening is an explicit action (either as part of the batch-processing export flow or via the "Reset DM State" menu option).
 
 ## Architecture & Key Components
 
@@ -44,8 +44,8 @@ Project uses modular architecture with focused files across 4 directories:
 
 ### Critical Data Flow
 1. Parse Discord data package → extract DM recipients from `channel.json` files
-2. Close all currently open DMs
-3. Batch reopen DMs (default: 100 at a time) with rate limiting
+2. Close all currently open DMs (does NOT automatically reopen them — reopening is an explicit step)
+3. Batch reopen DMs (default: 100 at a time) with rate limiting — performed when running the batch-processing export flow or explicitly via the "Reset DM State" menu option
 4. **Manual Mode**: User reviews batch, presses key to continue, batch closed, next batch opened
 5. **Automated Mode**: Export batch automatically, close batch, open next batch, repeat
 
