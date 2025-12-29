@@ -1,7 +1,7 @@
 const path = require('path');
-const { getCurrentOpenDMs, closeDM, reopenDM } = require('../discord-api');
-const { saveOpenDMsToFile, processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
-const { resolveConfigPath, readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
+const { getCurrentOpenDMs, reopenDM } = require('../discord-api');
+const { processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
+const { readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
 const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
 const { getLogger } = require('../logger');
@@ -234,9 +234,9 @@ class ApiMenu {
                 typeDescription = 'both DM and GROUP_DM';
                 break;
             default:
-                console.log('Invalid choice. Defaulting to both types.');
-                typeFilter = ['DM', 'GROUP_DM'];
-                typeDescription = 'both DM and GROUP_DM';
+                console.log('Invalid choice. Defaulting to DM only.');
+                typeFilter = ['DM'];
+                typeDescription = 'DM only';
         }
 
         console.log('\nProcess and Export All Direct Messages');

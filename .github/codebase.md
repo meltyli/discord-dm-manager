@@ -81,6 +81,9 @@ ID History is stored in the data package:
   - `latest`: Channel objects from most recent close operation (only type=1 DMs)
   - `uniqueChannels`: All unique channels ever seen (unique based on channel.id)
   - Each channel object contains full data from getCurrentOpenDMs API response
+  - Channel types: type=1 (DM), type=3 (GROUP_DM) - numeric values from Discord API
+
+**Note**: Discord data package `channel.json` files use string types ("DM", "GROUP_DM") while Discord API responses use numeric types (1, 3).
 
 **Critical**: Access config via singleton: `const configManager = getConfigManager();`
 - Use `configManager.get('KEY')` for config.json values

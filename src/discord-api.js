@@ -70,6 +70,12 @@ async function getCurrentOpenDMs(authToken) {
  * @returns {Promise<boolean>} True if valid, false if not found/deleted/invalid
  */
 async function validateUser(authToken, userId) {
+    // In DRY_RUN mode, skip validation and return true
+    if (configManager.get('DRY_RUN')) {
+        console.log(`[DRY RUN] Would validate user ${userId}`);
+        return true;
+    }
+
     await rateLimiter.waitForSlot();
     try {
         await axios.post('https://discord.com/api/v9/users/@me/channels', 

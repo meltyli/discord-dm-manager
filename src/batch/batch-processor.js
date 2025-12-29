@@ -1,7 +1,7 @@
 const path = require('path');
 const { getConfigManager } = require('../config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('../discord-api');
-const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile } = require('../lib/file-utils');
+const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile, updateIdHistory } = require('../lib/file-utils');
 const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('../lib/cli-helpers');
 const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-state');
 
@@ -37,21 +37,23 @@ async function closeAllOpenDMs() {
         closeProgress.start(currentDMs.length, 0);
         
         for (const [index, dm] of currentDMs.entries()) {
-            if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
-                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
-                await delay(configManager.get('API_DELAY_MS'));
-                
-                // For backward compatibility, collect user IDs from type 1 (DM)
-                closedUserIds.push(dm.recipients[0].id);
+            if (dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0) {
+            await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
+            await delay(configManager.get('API_DELAY_MS'));
+
+            // collect all recipient ids
+            const recipientIds = dm.recipients
+                .map(r => r && r.id)
+                .filter(Boolean);
+
+            closedUserIds.push(...recipientIds);
             }
             closeProgress.update(index + 1);
         }
         closeProgress.stop();
         
         // Update id-history.json with full channel data
-        // Filter to only type 1 (DM) as specified in the requirements
-        const type1Channels = currentDMs.filter(dm => dm.type === 1);
-        updateIdHistory(filePath, type1Channels);
+        updateIdHistory(filePath, currentDMs);
         
         console.log(`Successfully closed ${closedUserIds.length} direct messages. Channel info saved to ${filePath}`);
         
@@ -118,32 +120,6 @@ async function closeBatchDMs() {
         }
     }
     console.log(`Closed ${batchDMs.length} batch direct messages`);
-}
-
-/**
- * Save currently open DMs to file
- * @returns {Promise<string[]>} Array of open DM user IDs
- */
-async function saveOpenDMsToFile() {
-    try {
-        const openDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
-        
-        // Extract IDs of recipients (users) from DM channels
-        const userIds = openDMs
-            .filter(dm => dm.type === 1) // Filter for DM channels only
-            .map(dm => dm.recipients && dm.recipients.length > 0 ? dm.recipients[0].id : null)
-            .filter(id => id !== null);
-        
-        // Save to JSON file
-        const filePath = resolveConfigPath('lastopened.json');
-        writeJsonFile(filePath, userIds);
-        
-        console.log(`Saved ${userIds.length} open direct message user IDs to ${filePath}`);
-        return userIds;
-    } catch (error) {
-        console.error(`Failed to save open direct messages: ${error.message}`);
-        throw error;
-    }
 }
 
 /**
@@ -343,7 +319,6 @@ module.exports = {
     closeAllOpenDMs,
     openBatchDMs,
     closeBatchDMs,
-    saveOpenDMsToFile,
     processDMsInBatches,
     processAndExportAllDMs
 };

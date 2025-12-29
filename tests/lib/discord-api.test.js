@@ -4,25 +4,29 @@ const { getCurrentOpenDMs, validateUser, reopenDM, closeDM } = require('../../sr
 // Mock axios
 jest.mock('axios');
 
+// Store original mock implementation
+let configManagerMock;
+
 // Mock config
 jest.mock('../../src/config', () => ({
-    getConfigManager: () => ({
-        get: jest.fn((key) => {
-            const config = {
-                'MAX_RETRIES': 3,
-                'RETRY_DELAY_MS': 100,
-                'RATE_LIMIT_REQUESTS': 50,
-                'RATE_LIMIT_INTERVAL_MS': 60000,
-                'DRY_RUN': false
-            };
-            return config[key];
-        })
-    })
+    getConfigManager: () => configManagerMock
 }));
 
 describe('getCurrentOpenDMs', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        configManagerMock = {
+            get: jest.fn((key) => {
+                const config = {
+                    'MAX_RETRIES': 3,
+                    'RETRY_DELAY_MS': 100,
+                    'RATE_LIMIT_REQUESTS': 50,
+                    'RATE_LIMIT_INTERVAL_MS': 60000,
+                    'DRY_RUN': false
+                };
+                return config[key];
+            })
+        };
     });
 
     test('should fetch open DMs successfully', async () => {
@@ -56,11 +60,37 @@ describe('getCurrentOpenDMs', () => {
         expect(result).toEqual([]);
         expect(axios.get).toHaveBeenCalledTimes(2);
     });
+
+    test('should return empty array in DRY_RUN mode without making API call', async () => {
+        configManagerMock.get = jest.fn((key) => {
+            const config = {
+                'DRY_RUN': true
+            };
+            return config[key];
+        });
+
+        const result = await getCurrentOpenDMs('test-token');
+
+        expect(result).toEqual([]);
+        expect(axios.get).not.toHaveBeenCalled();
+    });
 });
 
 describe('validateUser', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        configManagerMock = {
+            get: jest.fn((key) => {
+                const config = {
+                    'MAX_RETRIES': 3,
+                    'RETRY_DELAY_MS': 100,
+                    'RATE_LIMIT_REQUESTS': 50,
+                    'RATE_LIMIT_INTERVAL_MS': 60000,
+                    'DRY_RUN': false
+                };
+                return config[key];
+            })
+        };
     });
 
     test('should return true for valid user', async () => {
@@ -100,11 +130,37 @@ describe('validateUser', () => {
 
         expect(result).toBe(false);
     });
+
+    test('should return true in DRY_RUN mode without making API call', async () => {
+        configManagerMock.get = jest.fn((key) => {
+            const config = {
+                'DRY_RUN': true
+            };
+            return config[key];
+        });
+
+        const result = await validateUser('test-token', '12345');
+
+        expect(result).toBe(true);
+        expect(axios.post).not.toHaveBeenCalled();
+    });
 });
 
 describe('reopenDM', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        configManagerMock = {
+            get: jest.fn((key) => {
+                const config = {
+                    'MAX_RETRIES': 3,
+                    'RETRY_DELAY_MS': 100,
+                    'RATE_LIMIT_REQUESTS': 50,
+                    'RATE_LIMIT_INTERVAL_MS': 60000,
+                    'DRY_RUN': false
+                };
+                return config[key];
+            })
+        };
     });
 
     test('should reopen DM successfully when user is valid', async () => {
@@ -140,11 +196,37 @@ describe('reopenDM', () => {
         expect(result).toBeNull();
         expect(axios.post).toHaveBeenCalledTimes(1);
     });
+
+    test('should return mock data in DRY_RUN mode without making API call', async () => {
+        configManagerMock.get = jest.fn((key) => {
+            const config = {
+                'DRY_RUN': true
+            };
+            return config[key];
+        });
+
+        const result = await reopenDM('test-token', '456');
+
+        expect(result).toEqual({ id: 'dry-run-id' });
+        expect(axios.post).not.toHaveBeenCalled();
+    });
 });
 
 describe('closeDM', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        configManagerMock = {
+            get: jest.fn((key) => {
+                const config = {
+                    'MAX_RETRIES': 3,
+                    'RETRY_DELAY_MS': 100,
+                    'RATE_LIMIT_REQUESTS': 50,
+                    'RATE_LIMIT_INTERVAL_MS': 60000,
+                    'DRY_RUN': false
+                };
+                return config[key];
+            })
+        };
     });
 
     test('should close DM successfully', async () => {
@@ -170,5 +252,18 @@ describe('closeDM', () => {
         await closeDM('test-token', '123');
 
         expect(axios.delete).toHaveBeenCalledTimes(2);
+    });
+
+    test('should not make API call in DRY_RUN mode', async () => {
+        configManagerMock.get = jest.fn((key) => {
+            const config = {
+                'DRY_RUN': true
+            };
+            return config[key];
+        });
+
+        await closeDM('test-token', '123');
+
+        expect(axios.delete).not.toHaveBeenCalled();
     });
 });
