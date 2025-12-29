@@ -5,6 +5,10 @@ const { readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPat
 const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
 const { getLogger } = require('../logger');
+const { randomDelay } = require('../lib/rate-limiter');
+
+// Track API call count for random delays
+let apiCallCount = 0;
 
 class ApiMenu {
     constructor(rl, configManager, ensureConfiguredFn) {
@@ -134,7 +138,11 @@ class ApiMenu {
             } else {
                 reopened++;
             }
-            await new Promise(resolve => setTimeout(resolve, this.options.API_DELAY_MS));
+            
+            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+            apiCallCount++;
+            await randomDelay(apiCallCount);
+            
             reopenProgress.update(index + 1);
         }
         reopenProgress.stop();

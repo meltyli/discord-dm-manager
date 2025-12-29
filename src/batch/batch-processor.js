@@ -39,7 +39,10 @@ async function closeAllOpenDMs() {
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0) {
             await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
-            await delay(configManager.get('API_DELAY_MS'));
+            
+            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+            apiCallCount++;
+            await randomDelay(apiCallCount);
 
             // collect all recipient ids
             const recipientIds = dm.recipients
@@ -92,7 +95,11 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
         } else {
             processedUsers++;
         }
-        await delay(configManager.get('API_DELAY_MS'));
+        
+        // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+        apiCallCount++;
+        await randomDelay(apiCallCount);
+        
         batchProgress.update(index + 1);
     }
     batchProgress.stop();
@@ -116,7 +123,10 @@ async function closeBatchDMs() {
     for (const dm of batchDMs) {
         if (dm.type === 1) {
             await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
-            await delay(configManager.get('API_DELAY_MS'));
+            
+            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+            apiCallCount++;
+            await randomDelay(apiCallCount);
         }
     }
     console.log(`Closed ${batchDMs.length} batch direct messages`);

@@ -2,8 +2,11 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { getConfigManager } = require('./config');
-const { RateLimiter, delay } = require('./lib/rate-limiter');
+const { RateLimiter, delay, randomDelay } = require('./lib/rate-limiter');
 const configManager = getConfigManager();
+
+// Track API call count for random delays
+let apiCallCount = 0;
 
 /**
  * Retries an operation with exponential backoff
