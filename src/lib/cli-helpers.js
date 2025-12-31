@@ -163,6 +163,15 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
     const { getExportStatus, updateExportStatus } = require('./file-utils');
     const exportStatuses = idHistoryPath ? getExportStatus(idHistoryPath) : {};
     
+    const progressBar = new cliProgress.SingleBar({
+        format: 'Progress |{bar}| {percentage}% | {value}/{total} | {username}',
+        barCompleteChar: '\u2588',
+        barIncompleteChar: '\u2591',
+        hideCursor: true
+    });
+    
+    progressBar.start(channels.length, 0, { username: 'Starting' });
+    
     for (let i = 0; i < channels.length; i++) {
         const channel = channels[i];
         const recipient = channel.recipients && channel.recipients[0];
@@ -175,7 +184,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
         }
         
         activeCount++;
-        process.stdout.write(`\r\x1b[K⏳ ${displayName} (${completed + 1}/${channels.length})...`);
+        progressBar.update(completed, { username: displayName });
         
         (async () => {
             try {
@@ -198,7 +207,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                 );
                 
                 completed++;
-                process.stdout.write(`\r\x1b[K✓ ${displayName} (${completed}/${channels.length})\n`);
+                progressBar.update(completed, { username: displayName });
                 results.push(result);
                 
                 if (idHistoryPath) {
@@ -206,7 +215,10 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                 }
             } catch (error) {
                 completed++;
-                process.stdout.write(`\r\x1b[K✗ ${displayName}: ${error.message} (${completed}/${channels.length})\n`);
+                progressBar.update(completed, { username: displayName });
+                progressBar.stop();
+                process.stdout.write(`✗ ${displayName}: [${error.message}]\n`);
+                progressBar.start(channels.length, completed, { username: displayName });
                 results.push({ success: false, channelId: channel.id, channelName: displayName, error: error.message });
                 
                 if (idHistoryPath) {
@@ -226,6 +238,9 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     
+    progressBar.stop();
+    console.log('');
+    
     return results;
 }
 
@@ -238,8 +253,7 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
     const allResults = [];
     
     for (const format of formats) {
-        console.log(`\nExporting ${channels.length} channel(s) in ${format} format...`);
-        console.log('═'.repeat(60));
+        console.log(`\nExporting ${channels.length} channel(s) in ${format} format`);
         
         try {
             const results = await exportChannelsInParallel(
@@ -256,12 +270,10 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
             const successCount = results.filter(r => r.success).length;
             const failCount = results.filter(r => !r.success).length;
             
-            console.log('═'.repeat(60));
             console.log(`${format} export completed: ${successCount} succeeded, ${failCount} failed\n`);
             allResults.push({ format, success: failCount === 0, results });
         } catch (error) {
-            console.log('═'.repeat(60));
-            console.error(`${format} export failed: ${error.message}`);
+            console.error(`${format} export failed: [${error.message}]`);
             allResults.push({ format, success: false, error: error.message });
         }
     }
@@ -270,11 +282,16 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
     return { success: allSucceeded, results: allResults };
 }
 
-function createDMProgressBar(label = 'DMs') {
+function createDMProgressBar(label = 'DMs', showUsername = false) {
+    const format = showUsername 
+        ? 'Progress |{bar}| {percentage}% | {value}/{total} | {username}'
+        : `Progress |{bar}| {percentage}% || {value}/{total} ${label}`;
+    
     return new cliProgress.SingleBar({
-        format: `Progress |{bar}| {percentage}% || {value}/{total} ${label}`,
+        format: format,
         barCompleteChar: '\u2588',
-        barIncompleteChar: '\u2591'
+        barIncompleteChar: '\u2591',
+        hideCursor: true
     });
 }
 
