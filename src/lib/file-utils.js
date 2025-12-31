@@ -43,7 +43,11 @@ function getRecipients(channelJsonPaths, myDiscordId, typeFilter = ['DM', 'GROUP
                 if (channelJson.recipients && Array.isArray(channelJson.recipients)) {
                     channelJson.recipients.forEach(recipientId => {
                         if (recipientId !== myDiscordId) {
-                            recipientIds.add(recipientId);
+                            // Filter out invalid IDs like "Deleted User" - only accept numeric strings
+                            const isValidId = /^\d+$/.test(String(recipientId));
+                            if (isValidId) {
+                                recipientIds.add(recipientId);
+                            }
                         }
                     });
                 }
