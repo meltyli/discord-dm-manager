@@ -19,7 +19,7 @@ const ENV_FILE_PATH = resolveConfigPath('.env');
 
 // Default configurations
 const defaultConfig = {
-    BATCH_SIZE: 30,
+    BATCH_SIZE: 20,
     API_DELAY_MS: 100,
     MAX_RETRIES: 3,
     RETRY_DELAY_MS: 5000,
