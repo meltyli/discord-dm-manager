@@ -9,6 +9,6 @@
 ### Roadmap / Current status
 Check out this project's roadmap and feature list: https://github.com/meltyli/discord-dm-manager/wiki/roadmap
 
-## ⚠️ Please [visit the wiki](https://github.com/meltyli/discord-dm-manager/wiki) to learn how to use this tool. ⚠️
+## ⚠️ Please visit the wiki to learn how to use this tool. ⚠️
 
 For full usage instructions and examples, see the project wiki: https://github.com/meltyli/discord-dm-manager/wiki
