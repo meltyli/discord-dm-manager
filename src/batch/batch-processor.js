@@ -66,7 +66,7 @@ async function closeAllOpenDMs() {
             console.log(`[DRY RUN] Found ${dmCount} open direct messages that would be closed`);
             console.log('[DRY RUN] Saving channel data to id-history.json...');
             updateIdHistory(filePath, currentDMs);
-            console.log('[DRY RUN] Channel data saved. Would close these DMs:');
+            console.log('[DRY RUN] Channel data saved!\n\n Would close these DMs:');
             currentDMs.forEach(dm => {
                 if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
                     const username = dm.recipients[0].username || 'Unknown';
@@ -81,7 +81,7 @@ async function closeAllOpenDMs() {
         
         console.log('Saving channel data to id-history.json before closing...');
         updateIdHistory(filePath, currentDMs);
-        console.log('Channel data saved. Now closing DMs...');
+        console.log('Channel data saved!\n\n Now closing DMs...');
         
         const closedUserIds = [];
         
@@ -292,36 +292,20 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             batchState.reopenedInCurrentBatch = stats.reopenedIds || [];
             batchState.timestamp = new Date().toISOString();
             saveBatchState(batchState);
-
-            console.log('\nExporting current batch...');
-            
-            // Mark all channels in current batch as in-progress
-            for (const recipientId of stats.reopenedIds) {
-                updateExportStatus(idHistoryPath, recipientId, 'in-progress');
-            }
             
             try {
                 const exportResult = await exportCallback();
                 
-                // Check if exportCallback returned status (new format)
                 const exportSuccess = exportResult && exportResult.success !== undefined 
                     ? exportResult.success 
-                    : true; // Assume success if no status returned (backward compatibility)
+                    : true;
                 
                 if (exportSuccess) {
                     console.log('Export completed successfully.');
-                    // Mark all successfully reopened channels as completed
-                    for (const recipientId of stats.reopenedIds) {
-                        updateExportStatus(idHistoryPath, recipientId, 'completed');
-                        exportedCount++;
-                    }
+                    exportedCount += stats.reopenedIds.length;
                 } else {
                     console.error('Export completed with errors.');
-                    // Mark channels as failed
-                    for (const recipientId of stats.reopenedIds) {
-                        updateExportStatus(idHistoryPath, recipientId, 'failed');
-                        failedCount++;
-                    }
+                    failedCount += stats.reopenedIds.length;
                     
                     const continueAnyway = rlInterface 
                         ? await promptConfirmation('Continue with next batch anyway? (y/n): ', rlInterface)
@@ -334,11 +318,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
                 }
             } catch (error) {
                 console.error(`Export failed: ${error.message}`);
-                // Mark channels as failed
-                for (const recipientId of stats.reopenedIds) {
-                    updateExportStatus(idHistoryPath, recipientId, 'failed');
-                    failedCount++;
-                }
+                failedCount += stats.reopenedIds.length;
                 
                 const continueAnyway = rlInterface 
                     ? await promptConfirmation('Continue with next batch anyway? (y/n): ', rlInterface)
@@ -358,8 +338,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
                 await delay(configManager.get('API_DELAY_MS') * 2);
             }
         }
-
-        console.log('\nAll batches processed and exported!');
+        console.log('\nAll batches processed!');
         console.log(`Total processed users: ${processedUsers}`);
         console.log(`Total skipped users: ${skippedUsers}`);
         console.log(`Successfully exported: ${exportedCount}`);

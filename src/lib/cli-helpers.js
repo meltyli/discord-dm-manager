@@ -56,7 +56,7 @@ function cleanInput(input) {
     return input.trim().replace(/^['"]|['"]$/g, '');
 }
 
-async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown') {
+async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown', afterTimestamp = null) {
     return new Promise((resolve, reject) => {
         const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
         
@@ -73,6 +73,10 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
             '--respect-rate-limits',
             '--fuck-russia'
         ];
+        
+        if (afterTimestamp) {
+            args.push('--after', afterTimestamp);
+        }
 
         const dceProcess = spawn(dceExecutable, args, {
             stdio: ['ignore', 'pipe', 'pipe']
@@ -102,11 +106,14 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
     });
 }
 
-async function exportChannelsInParallel(token, exportPath, dcePath, format, userId, channels, concurrency = 2) {
+async function exportChannelsInParallel(token, exportPath, dcePath, format, userId, channels, concurrency = 2, idHistoryPath = null) {
     const results = [];
     let completed = 0;
     let activeCount = 0;
     const maxActive = 2;
+    
+    const { getExportStatus, updateExportStatus } = require('./file-utils');
+    const exportStatuses = idHistoryPath ? getExportStatus(idHistoryPath) : {};
     
     for (let i = 0; i < channels.length; i++) {
         const channel = channels[i];
@@ -124,6 +131,13 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
         
         (async () => {
             try {
+                const channelStatus = exportStatuses[recipientId];
+                const afterTimestamp = channelStatus?.status === 'completed' ? channelStatus.timestamp : null;
+                
+                if (idHistoryPath) {
+                    updateExportStatus(idHistoryPath, recipientId, 'in-progress');
+                }
+                
                 const result = await runDCEExportChannel(
                     token, 
                     exportPath, 
@@ -131,16 +145,25 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                     format, 
                     userId, 
                     channel.id, 
-                    username
+                    username,
+                    afterTimestamp
                 );
                 
                 completed++;
                 process.stdout.write(`\r\x1b[K✓ ${displayName} (${completed}/${channels.length})\n`);
                 results.push(result);
+                
+                if (idHistoryPath) {
+                    updateExportStatus(idHistoryPath, recipientId, 'completed');
+                }
             } catch (error) {
                 completed++;
                 process.stdout.write(`\r\x1b[K✗ ${displayName}: ${error.message} (${completed}/${channels.length})\n`);
                 results.push({ success: false, channelId: channel.id, channelName: displayName, error: error.message });
+                
+                if (idHistoryPath) {
+                    updateExportStatus(idHistoryPath, recipientId, 'failed');
+                }
             } finally {
                 activeCount--;
             }
@@ -158,7 +181,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
     return results;
 }
 
-async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'], channels = null, concurrency = 2) {
+async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'], channels = null, concurrency = 2, idHistoryPath = null) {
     if (!channels) {
         console.error('No channels provided for export');
         return { success: false, results: [] };
@@ -178,7 +201,8 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
                 format, 
                 userId, 
                 channels,
-                concurrency
+                concurrency,
+                idHistoryPath
             );
             
             const successCount = results.filter(r => r.success).length;

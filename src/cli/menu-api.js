@@ -247,8 +247,12 @@ class ApiMenu extends MenuBase {
         // Create export callback using centralized helper
         const exportCallback = async () => {
             const { getCurrentOpenDMs } = require('../discord-api');
+            const path = require('path');
             const openDMs = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
             const dmChannels = openDMs.filter(dm => dm.type === 1);
+            
+            const dataPackagePath = this.options.DATA_PACKAGE_FOLDER;
+            const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
             
             return await exportDMs(
                 process.env.AUTHORIZATION_TOKEN,
@@ -257,7 +261,8 @@ class ApiMenu extends MenuBase {
                 process.env.USER_DISCORD_ID,
                 ['Json'],
                 dmChannels,
-                2
+                2,
+                idHistoryPath
             );
         };
 
