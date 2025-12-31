@@ -78,6 +78,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
             '--media',
             '--reuse-media',
             '--respect-rate-limits',
+            '--markdown false',
             '--fuck-russia'
         ];
         
