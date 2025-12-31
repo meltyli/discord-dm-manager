@@ -25,7 +25,6 @@ class ConfigurationMenu extends MenuBase {
             console.log('2. Edit Export Path');
             console.log('3. Edit Discord Chat Exporter Path');
             console.log('4. Advanced Settings');
-            console.log('5. Reset to Default');
             console.log('q. Back to Main Menu');
         }, async (choice) => {
             switch (choice) {
@@ -41,9 +40,6 @@ class ConfigurationMenu extends MenuBase {
                 case '4':
                     return await this.executeMenuAction('Advanced Settings', 
                         () => this.advancedSettings(), false);
-                case '5':
-                    return await this.executeMenuAction('Reset to Default', 
-                        () => this.resetToDefault(), false);
                 case 'q':
                     return false;
                 default:
@@ -110,6 +106,7 @@ class ConfigurationMenu extends MenuBase {
             console.log('3. Set API Delay');
             console.log('4. Set Rate Limit');
             console.log('5. Toggle Suppress Menu Errors');
+            console.log('6. Reset to Default');
             console.log('q. Back to Configuration Menu');
         }, async (choice) => {
             switch (choice) {
@@ -128,6 +125,9 @@ class ConfigurationMenu extends MenuBase {
                 case '5':
                     return await this.executeMenuAction('Toggle Suppress Menu Errors', 
                         () => this.toggleSuppressMenuErrors(), false);
+                case '6':
+                    return await this.executeMenuAction('Reset to Default', 
+                        () => this.resetToDefault(), false);
                 case 'q':
                     return false;
                 default:
