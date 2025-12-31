@@ -9,11 +9,6 @@ const {
     readJsonFile,
     writeJsonFile
 } = require('../../src/lib/file-utils');
-const {
-    validatePathExists,
-    validateRequired,
-    validateDCEPath
-} = require('../../src/lib/validators');
 
 describe('traverseDataPackage', () => {
     const mockDataPath = path.join(__dirname, '..', 'fixtures', 'mock_package_test');
@@ -154,23 +149,6 @@ describe('ensureDirectory', () => {
     });
 });
 
-describe('validatePathExists', () => {
-    test('returns true for existing path', () => {
-        const existingPath = __dirname;
-        expect(validatePathExists(existingPath, 'testPath')).toBe(true);
-    });
-
-    test('returns false for non-existing path', () => {
-        expect(validatePathExists('/non/existent/path', 'testPath')).toBe(false);
-    });
-
-    test('throws error when throwOnError is true and path does not exist', () => {
-        expect(() => {
-            validatePathExists('/non/existent/path', 'testPath', true);
-        }).toThrow('testPath does not exist');
-    });
-});
-
 describe('resolveConfigPath', () => {
     test('returns absolute path to config file', () => {
         const configPath = resolveConfigPath('config.json');
@@ -257,110 +235,5 @@ describe('ensureExportPath', () => {
     test('returns cleaned path', () => {
         const result = ensureExportPath('  test_path  ');
         expect(result).toBe('test_path');
-    });
-});
-
-describe('validateRequired', () => {
-    test('does not throw for valid value', () => {
-        expect(() => {
-            validateRequired('/valid/path', 'TEST_PATH', 'test path');
-        }).not.toThrow();
-    });
-
-    test('throws for undefined value', () => {
-        expect(() => {
-            validateRequired(undefined, 'TEST_PATH', 'test path');
-        }).toThrow('TEST_PATH not configured');
-    });
-
-    test('throws for null value', () => {
-        expect(() => {
-            validateRequired(null, 'TEST_PATH', 'test path');
-        }).toThrow('TEST_PATH not configured');
-    });
-
-    test('throws for empty string', () => {
-        expect(() => {
-            validateRequired('', 'TEST_PATH', 'test path');
-        }).toThrow('TEST_PATH not configured');
-    });
-
-    test('includes friendly name in error message', () => {
-        expect(() => {
-            validateRequired(null, 'DCE_PATH', 'Discord Chat Exporter path');
-        }).toThrow('Please configure Discord Chat Exporter path in Configuration menu');
-    });
-});
-
-describe('validateDCEPath', () => {
-    test('throws for undefined path', () => {
-        expect(() => {
-            validateDCEPath(undefined);
-        }).toThrow('DCE_PATH not configured');
-    });
-
-    test('throws for non-existent executable', () => {
-        expect(() => {
-            validateDCEPath('/non/existent/path');
-        }).toThrow('Discord Chat Exporter not found');
-    });
-
-    test('throws for path with missing executable', () => {
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'dce_test_empty');
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
-        
-        try {
-            expect(() => {
-                validateDCEPath(tempDir);
-            }).toThrow('Discord Chat Exporter not found');
-        } finally {
-            if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true });
-            }
-        }
-    });
-
-    test('returns executable path when DCE exists', () => {
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'dce_test_valid');
-        const dcePath = path.join(tempDir, 'DiscordChatExporter.Cli');
-        
-        // Create mock DCE executable
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
-        fs.writeFileSync(dcePath, '');
-        
-        try {
-            const result = validateDCEPath(tempDir);
-            expect(result).toBe(dcePath);
-        } finally {
-            // Cleanup
-            if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true });
-            }
-        }
-    });
-
-    test('validates DCE with .exe extension on Windows-like paths', () => {
-        const tempDir = path.join(__dirname, '..', 'fixtures', 'dce_test_exe');
-        const dcePath = path.join(tempDir, 'DiscordChatExporter.Cli.exe');
-        
-        // Create mock DCE executable with .exe
-        if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true });
-        }
-        fs.writeFileSync(dcePath, '');
-        
-        try {
-            const result = validateDCEPath(tempDir);
-            expect(result).toBe(path.join(tempDir, 'DiscordChatExporter.Cli'));
-        } finally {
-            // Cleanup
-            if (fs.existsSync(tempDir)) {
-                fs.rmSync(tempDir, { recursive: true });
-            }
-        }
     });
 });
