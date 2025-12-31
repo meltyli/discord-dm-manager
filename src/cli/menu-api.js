@@ -2,31 +2,22 @@ const path = require('path');
 const { getCurrentOpenDMs, reopenDM } = require('../discord-api');
 const { processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
 const { readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
-const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
+const { promptUser, waitForKeyPress, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
-const { getLogger } = require('../logger');
-const { randomDelay } = require('../lib/rate-limiter');
+const { isDryRun } = require('../lib/dry-run-helper');
+const { getApiDelayTracker } = require('../lib/api-delay-tracker');
+const { MenuBase } = require('./menu-base');
 
-// Track API call count for random delays
-let apiCallCount = 0;
+const delayTracker = getApiDelayTracker();
 
-class ApiMenu {
+class ApiMenu extends MenuBase {
     constructor(rl, configManager, ensureConfiguredFn) {
-        this.rl = rl;
-        this.configManager = configManager;
+        super(rl, configManager);
         this.ensureConfigured = ensureConfiguredFn;
     }
 
-    get options() {
-        return this.configManager.config;
-    }
-
     async show() {
-        while (true) {
-            clearScreen();
-            getLogger().logOnly('[MENU] Discord API Menu');
-            
-            getLogger().pause(); // Pause logging for menu display
+        await this.runMenuLoop('Discord API Menu', () => {
             console.log('\nDiscord API');
             console.log('===========');
             console.log('1. Export All Direct Messages');
@@ -36,48 +27,31 @@ class ApiMenu {
             console.log('5. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
             displaySettings(this.options);
-            getLogger().resume(); // Resume logging
-
-            const choice = await getMenuChoice(this.rl);
-
-            try {
-                switch (choice) {
-                    case '1':
-                        getLogger().logOnly('[ACTION] Export All Direct Messages');
-                        await this.processAndExportAllDMs();
-                        await waitForKeyPress(this.rl);
-                        break;
-                    case '2':
-                        getLogger().logOnly('[ACTION] List Current Open Direct Messages');
-                        await this.viewOpenDMs();
-                        await waitForKeyPress(this.rl);
-                        break;
-                    case '3':
-                        getLogger().logOnly('[ACTION] Close All Open Direct Messages');
-                        await this.closeAllDMs();
-                        await waitForKeyPress(this.rl);
-                        break;
-                    case '4':
-                        getLogger().logOnly('[ACTION] Reopen Direct Message (Specific User ID)');
-                        await this.reopenSpecificDM();
-                        await waitForKeyPress(this.rl);
-                        break;
-                    case '5':
-                        getLogger().logOnly('[ACTION] Reset DM State (Reopen Closed Direct Messages)');
-                        await this.resetDMState();
-                        await waitForKeyPress(this.rl);
-                        break;
-                    case 'q':
-                        return;
-                    default:
-                        console.log('Invalid option. Please try again.');
-                        await waitForKeyPress(this.rl);
-                }
-            } catch (error) {
-                console.error('Error:', error.message);
-                await waitForKeyPress(this.rl);
+        }, async (choice) => {
+            switch (choice) {
+                case '1':
+                    return await this.executeMenuAction('Export All Direct Messages', 
+                        () => this.processAndExportAllDMs());
+                case '2':
+                    return await this.executeMenuAction('List Current Open Direct Messages', 
+                        () => this.viewOpenDMs());
+                case '3':
+                    return await this.executeMenuAction('Close All Open Direct Messages', 
+                        () => this.closeAllDMs());
+                case '4':
+                    return await this.executeMenuAction('Reopen Direct Message (Specific User ID)', 
+                        () => this.reopenSpecificDM());
+                case '5':
+                    return await this.executeMenuAction('Reset DM State (Reopen Closed Direct Messages)', 
+                        () => this.resetDMState());
+                case 'q':
+                    return false;
+                default:
+                    console.log('Invalid option. Please try again.');
+                    await waitForKeyPress(this.rl);
+                    return true;
             }
-        }
+        });
     }
 
     async resetDMState() {
@@ -119,15 +93,13 @@ class ApiMenu {
         
         console.log(`Reopening ${closedIds.length} closed direct messages...`);
         
-        if (this.options.DRY_RUN) {
+        if (isDryRun()) {
             console.log('[DRY RUN] Would reopen these user IDs:');
             console.log(closedIds);
             return;
         }
         
-        // Reset API call counter for this operation
-        apiCallCount = 0;
-        const totalCalls = closedIds.length;
+        delayTracker.reset(closedIds.length);
         
         const reopenProgress = createDMProgressBar();
         reopenProgress.start(closedIds.length, 0);
@@ -143,10 +115,7 @@ class ApiMenu {
                 reopened++;
             }
             
-            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
-            apiCallCount++;
-            await randomDelay(apiCallCount, totalCalls);
-            
+            await delayTracker.trackAndDelay();
             reopenProgress.update(index + 1);
         }
         reopenProgress.stop();
@@ -156,14 +125,11 @@ class ApiMenu {
 
     async viewOpenDMs() {
         await this.ensureConfigured();
-        
-        if (this.options.DRY_RUN) {
-            console.log('\n[DRY RUN] Skipping fetch of open direct messages - no API call will be made');
-            return;
-        }
 
         console.log('\nFetching open direct messages...');
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
+        await delayTracker.trackAndDelay();
+        
         console.log(`\nCount: ${dms.length}`);
         dms.forEach(dm => {
             const channelType = dm.type === 1 ? 'DM' : dm.type === 3 ? 'GROUP_DM' : `TYPE_${dm.type}`;
@@ -183,13 +149,15 @@ class ApiMenu {
     async closeAllDMs() {
         await this.ensureConfigured();
         
-        if (this.options.DRY_RUN) {
-            console.log('\n[DRY RUN] Would fetch and close all open direct messages - no API calls will be made');
-            return;
+        if (isDryRun()) {
+            console.log('\n[DRY RUN] Fetching open direct messages...');
         }
 
         await closeAllOpenDMs();
-        console.log('\nAll direct messages closed successfully!');
+        
+        if (!isDryRun()) {
+            console.log('\nAll direct messages closed successfully!');
+        }
     }
 
     async reopenSpecificDM() {
@@ -197,8 +165,8 @@ class ApiMenu {
         
         const userId = cleanInput(await promptUser('\nEnter Discord User ID: ', this.rl));
         
-        if (this.options.DRY_RUN) {
-            console.log(`[DRY RUN] Would reopen direct message with user ${userId} - no API call will be made`);
+        if (isDryRun()) {
+            console.log(`[DRY RUN] Would reopen direct message with user ${userId}`);
             return;
         }
 

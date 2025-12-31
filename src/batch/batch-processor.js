@@ -4,13 +4,11 @@ const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('../discord-api'
 const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile, updateIdHistory } = require('../lib/file-utils');
 const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('../lib/cli-helpers');
 const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-state');
-const { randomDelay } = require('../lib/rate-limiter');
+const { isDryRun } = require('../lib/dry-run-helper');
+const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 
 const configManager = getConfigManager();
-
-// Track API call count for random delays
-let apiCallCount = 0;
-let totalApiCalls = 0;
+const delayTracker = getApiDelayTracker();
 
 /**
  * Close all currently open DMs and save their channel information
@@ -18,28 +16,35 @@ let totalApiCalls = 0;
  */
 async function closeAllOpenDMs() {
     try {
-        if (configManager.get('DRY_RUN')) {
-            console.log('[DRY RUN] Would close all open direct messages and save to id-history.json');
-            return [];
-        }
-
         const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+        await delayTracker.trackAndDelay();
         
         if (currentDMs.length === 0) {
             console.log('No open direct messages to close.');
             return [];
         }
 
-        console.log(`Closing ${currentDMs.length} open direct messages...`);
+        const dmCount = currentDMs.filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0).length;
         
-        // Reset API call counter for this operation
-        apiCallCount = 0;
-        totalApiCalls = currentDMs.filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0).length;
-        
-        // Prepare file path and save channel data BEFORE closing anything
-        // This ensures we have a backup in case the program crashes during closure
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
         const filePath = path.join(dataPackagePath, 'messages', 'id-history.json');
+        
+        if (isDryRun()) {
+            console.log(`[DRY RUN] Found ${dmCount} open direct messages that would be closed`);
+            console.log('[DRY RUN] Saving channel data to id-history.json...');
+            updateIdHistory(filePath, currentDMs);
+            console.log('[DRY RUN] Channel data saved. Would close these DMs:');
+            currentDMs.forEach(dm => {
+                if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
+                    const username = dm.recipients[0].username || 'Unknown';
+                    console.log(`  - ${username} (ID: ${dm.id})`);
+                }
+            });
+            return [];
+        }
+
+        console.log(`Closing ${dmCount} open direct messages...`);
+        delayTracker.reset(dmCount);
         
         console.log('Saving channel data to id-history.json before closing...');
         updateIdHistory(filePath, currentDMs);
@@ -52,18 +57,11 @@ async function closeAllOpenDMs() {
         
         for (const [index, dm] of currentDMs.entries()) {
             if (dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0) {
-            await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
-            
-            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
-            apiCallCount++;
-            await randomDelay(apiCallCount, totalApiCalls);
-
-            // collect all recipient ids
-            const recipientIds = dm.recipients
-                .map(r => r && r.id)
-                .filter(Boolean);
-
-            closedUserIds.push(...recipientIds);
+                await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
+                await delayTracker.trackAndDelay();
+                
+                const recipientIds = dm.recipients.map(r => r && r.id).filter(Boolean);
+                closedUserIds.push(...recipientIds);
             }
             closeProgress.update(index + 1);
         }
@@ -86,16 +84,16 @@ async function closeAllOpenDMs() {
  * @returns {Promise<Object>} Statistics object with processed and skipped counts
  */
 async function openBatchDMs(userIds, batchNum, totalBatches) {
-    if (configManager.get('DRY_RUN')) {
+    if (isDryRun()) {
         console.log(`[DRY RUN] Would open batch ${batchNum + 1}/${totalBatches} with ${userIds.length} direct messages`);
-        return { processed: userIds.length, skipped: 0 };
+        userIds.forEach((userId, index) => {
+            console.log(`  ${index + 1}. Would reopen DM with user ID: ${userId}`);
+        });
+        return { processed: userIds.length, skipped: 0, reopenedIds: [] };
     }
 
     console.log(`Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} direct messages)...`);
-    
-    // Reset API call counter for this batch
-    apiCallCount = 0;
-    totalApiCalls = userIds.length;
+    delayTracker.reset(userIds.length);
     
     const batchProgress = createDMProgressBar();
     batchProgress.start(userIds.length, 0);
@@ -113,10 +111,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
             successfullyReopened.push(userId);
         }
         
-        // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
-        apiCallCount++;
-        await randomDelay(apiCallCount, totalApiCalls);
-        
+        await delayTracker.trackAndDelay();
         batchProgress.update(index + 1);
     }
     batchProgress.stop();
@@ -129,25 +124,32 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
  * @returns {Promise<void>}
  */
 async function closeBatchDMs() {
-    if (configManager.get('DRY_RUN')) {
-        console.log('[DRY RUN] Would close current batch direct messages');
+    if (isDryRun()) {
+        console.log('[DRY RUN] Fetching current batch direct messages...');
+        const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+        await delayTracker.trackAndDelay();
+        
+        const dmCount = batchDMs.filter(dm => dm.type === 1).length;
+        console.log(`[DRY RUN] Would close ${dmCount} direct messages:`);
+        batchDMs.forEach((dm, index) => {
+            if (dm.type === 1 && dm.recipients && dm.recipients.length > 0) {
+                const username = dm.recipients[0].username || 'Unknown';
+                console.log(`  ${index + 1}. Would close DM with ${username} (Channel ID: ${dm.id})`);
+            }
+        });
         return;
     }
 
     console.log('Closing current batch direct messages...');
     const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+    await delayTracker.trackAndDelay();
     
-    // Reset API call counter for this operation
-    apiCallCount = 0;
-    totalApiCalls = batchDMs.filter(dm => dm.type === 1).length;
+    delayTracker.reset(batchDMs.filter(dm => dm.type === 1).length);
     
     for (const dm of batchDMs) {
         if (dm.type === 1) {
             await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
-            
-            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
-            apiCallCount++;
-            await randomDelay(apiCallCount, totalApiCalls);
+            await delayTracker.trackAndDelay();
         }
     }
     console.log(`Closed ${batchDMs.length} batch direct messages`);
@@ -220,7 +222,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             batchState.timestamp = new Date().toISOString();
             saveBatchState(batchState);
 
-            if (!configManager.get('DRY_RUN')) {
+            if (!isDryRun()) {
                 console.log('\nBatch complete. Please review these direct messages.');
                 await waitForKeyPress(rlInterface);
 
@@ -261,13 +263,12 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             return;
         }
 
-        if (configManager.get('DRY_RUN')) {
+        if (isDryRun()) {
             console.log('Running in DRY RUN mode - no actual API calls will be made');
             console.log(`Would process ${allDmIds.length} direct message recipients`);
             return;
         }
 
-        // Step 1: Close all currently open direct messages
         await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));

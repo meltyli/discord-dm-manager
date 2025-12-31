@@ -1,16 +1,11 @@
-const { resolveConfigPath, ensureExportPath } = require('../lib/file-utils');
-const { promptUser, waitForKeyPress, getMenuChoice, clearScreen, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
+const { ensureExportPath } = require('../lib/file-utils');
+const { promptUser, waitForKeyPress, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
 const { displayDetailedConfig, displayAdvancedSettings } = require('./menu-helpers');
-const { getLogger } = require('../logger');
+const { MenuBase } = require('./menu-base');
 
-class ConfigurationMenu {
+class ConfigurationMenu extends MenuBase {
     constructor(rl, configManager) {
-        this.rl = rl;
-        this.configManager = configManager;
-    }
-
-    get options() {
-        return this.configManager.config;
+        super(rl, configManager);
     }
 
     async show() {
@@ -22,11 +17,7 @@ class ConfigurationMenu {
             return;
         }
 
-        while (true) {
-            clearScreen();
-            getLogger().logOnly('[MENU] Configuration Menu');
-            
-            getLogger().pause(); // Pause logging for menu display
+        await this.runMenuLoop('Configuration Menu', () => {
             console.log('\nConfiguration');
             console.log('=============');
             displayDetailedConfig(this.options);
@@ -36,41 +27,30 @@ class ConfigurationMenu {
             console.log('4. Advanced Settings');
             console.log('5. Reset to Default');
             console.log('q. Back to Main Menu');
-            getLogger().resume(); // Resume logging
-
-            const choice = await getMenuChoice(this.rl);
-
-            try {
-                switch (choice) {
-                    case '1':
-                        getLogger().logOnly('[ACTION] Edit Data Package Folder');
-                        await this.editDataPackageFolder();
-                        break;
-                    case '2':
-                        getLogger().logOnly('[ACTION] Edit Export Path');
-                        await this.editExportPath();
-                        break;
-                    case '3':
-                        getLogger().logOnly('[ACTION] Edit Discord Chat Exporter Path');
-                        await this.editDCEPath();
-                        break;
-                    case '4':
-                        getLogger().logOnly('[ACTION] Advanced Settings');
-                        await this.advancedSettings();
-                        break;
-                    case '5':
-                        getLogger().logOnly('[ACTION] Reset to Default');
-                        await this.resetToDefault();
-                        break;
-                    case 'q':
-                        return;
-                    default:
-                        console.log('Invalid option. Please try again.');
-                }
-            } catch (error) {
-                console.error('Error:', error.message);
+        }, async (choice) => {
+            switch (choice) {
+                case '1':
+                    return await this.executeMenuAction('Edit Data Package Folder', 
+                        () => this.editDataPackageFolder(), false);
+                case '2':
+                    return await this.executeMenuAction('Edit Export Path', 
+                        () => this.editExportPath(), false);
+                case '3':
+                    return await this.executeMenuAction('Edit Discord Chat Exporter Path', 
+                        () => this.editDCEPath(), false);
+                case '4':
+                    return await this.executeMenuAction('Advanced Settings', 
+                        () => this.advancedSettings(), false);
+                case '5':
+                    return await this.executeMenuAction('Reset to Default', 
+                        () => this.resetToDefault(), false);
+                case 'q':
+                    return false;
+                default:
+                    console.log('Invalid option. Please try again.');
+                    return true;
             }
-        }
+        });
     }
 
     async editDataPackageFolder() {
@@ -117,48 +97,34 @@ class ConfigurationMenu {
     }
 
     async advancedSettings() {
-        while (true) {
-            clearScreen();
-            getLogger().logOnly('[MENU] Advanced Settings');
-            
-            getLogger().pause(); // Pause logging for menu display
+        await this.runMenuLoop('Advanced Settings', () => {
             displayAdvancedSettings(this.options);
             console.log('\n1. Toggle Dry Run Mode');
             console.log('2. Set Batch Size');
             console.log('3. Set API Delay');
             console.log('4. Set Rate Limit');
             console.log('q. Back to Configuration Menu');
-            getLogger().resume(); // Resume logging
-
-            const choice = await getMenuChoice(this.rl);
-
-            try {
-                switch (choice) {
-                    case '1':
-                        getLogger().logOnly('[ACTION] Toggle Dry Run Mode');
-                        this.toggleDryRun();
-                        break;
-                    case '2':
-                        getLogger().logOnly('[ACTION] Set Batch Size');
-                        await this.setBatchSize();
-                        break;
-                    case '3':
-                        getLogger().logOnly('[ACTION] Set API Delay');
-                        await this.setApiDelay();
-                        break;
-                    case '4':
-                        getLogger().logOnly('[ACTION] Set Rate Limit');
-                        await this.setRateLimit();
-                        break;
-                    case 'q':
-                        return;
-                    default:
-                        console.log('Invalid option. Please try again.');
-                }
-            } catch (error) {
-                console.error('Error:', error.message);
+        }, async (choice) => {
+            switch (choice) {
+                case '1':
+                    return await this.executeMenuAction('Toggle Dry Run Mode', 
+                        () => this.toggleDryRun(), false);
+                case '2':
+                    return await this.executeMenuAction('Set Batch Size', 
+                        () => this.setBatchSize(), false);
+                case '3':
+                    return await this.executeMenuAction('Set API Delay', 
+                        () => this.setApiDelay(), false);
+                case '4':
+                    return await this.executeMenuAction('Set Rate Limit', 
+                        () => this.setRateLimit(), false);
+                case 'q':
+                    return false;
+                default:
+                    console.log('Invalid option. Please try again.');
+                    return true;
             }
-        }
+        });
     }
 
     async setBatchSize() {

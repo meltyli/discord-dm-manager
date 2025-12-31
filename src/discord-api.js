@@ -2,11 +2,10 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { getConfigManager } = require('./config');
-const { RateLimiter, delay, randomDelay } = require('./lib/rate-limiter');
-const configManager = getConfigManager();
+const { RateLimiter, delay } = require('./lib/rate-limiter');
+const { isDryRun } = require('./lib/dry-run-helper');
 
-// Track API call count for random delays
-let apiCallCount = 0;
+const configManager = getConfigManager();
 
 /**
  * Retries an operation with exponential backoff
@@ -48,12 +47,6 @@ const rateLimiter = new RateLimiter(configManager.get('RATE_LIMIT_REQUESTS'), co
  * @returns {Promise<Array>} Array of open DM channel objects
  */
 async function getCurrentOpenDMs(authToken) {
-    // In DRY_RUN mode, return mock data instead of making API call
-    if (configManager.get('DRY_RUN')) {
-        console.log('[DRY RUN] Skipping API call to fetch open DMs');
-        return [];
-    }
-
     await rateLimiter.waitForSlot();
     return withRetry(async () => {
         const response = await axios.get('https://discord.com/api/v9/users/@me/channels', {
@@ -73,8 +66,7 @@ async function getCurrentOpenDMs(authToken) {
  * @returns {Promise<boolean>} True if valid, false if not found/deleted/invalid
  */
 async function validateUser(authToken, userId) {
-    // In DRY_RUN mode, skip validation and return true
-    if (configManager.get('DRY_RUN')) {
+    if (isDryRun()) {
         console.log(`[DRY RUN] Would validate user ${userId}`);
         return true;
     }
@@ -118,8 +110,7 @@ async function validateUser(authToken, userId) {
  * @returns {Promise<Object|null>} Channel object or null if user invalid
  */
 async function reopenDM(authToken, userId) {
-    // In DRY_RUN mode, skip rate limiting and API calls entirely
-    if (configManager.get('DRY_RUN')) {
+    if (isDryRun()) {
         console.log(`[DRY RUN] Would reopen DM with user ${userId}`);
         return { id: 'dry-run-id' };
     }
@@ -162,8 +153,7 @@ async function reopenDM(authToken, userId) {
  * @returns {Promise<void>}
  */
 async function closeDM(authToken, channelId) {
-    // In DRY_RUN mode, skip rate limiting and API calls entirely
-    if (configManager.get('DRY_RUN')) {
+    if (isDryRun()) {
         console.log(`[DRY RUN] Would close DM channel ${channelId}`);
         return;
     }
