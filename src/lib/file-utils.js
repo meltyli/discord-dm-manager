@@ -118,7 +118,8 @@ function updateIdHistory(idHistoryPath, currentChannels) {
         const data = {
             originalState: currentChannels,
             latest: currentChannels,
-            uniqueChannels: currentChannels
+            uniqueChannels: currentChannels,
+            exportStatus: {}
         };
         writeJsonFile(idHistoryPath, data);
     } else {
@@ -142,10 +143,54 @@ function updateIdHistory(idHistoryPath, currentChannels) {
         const data = {
             originalState: existing.originalState,
             latest: currentChannels,
-            uniqueChannels: Array.from(existingChannelMap.values())
+            uniqueChannels: Array.from(existingChannelMap.values()),
+            exportStatus: existing.exportStatus || {}
         };
         writeJsonFile(idHistoryPath, data);
     }
+}
+
+function getExportStatus(idHistoryPath) {
+    const data = readJsonFile(idHistoryPath, null);
+    if (!data || !data.exportStatus) {
+        return {};
+    }
+    return data.exportStatus;
+}
+
+function updateExportStatus(idHistoryPath, channelId, status) {
+    const data = readJsonFile(idHistoryPath, null);
+    if (!data) {
+        throw new Error('id-history.json does not exist. Run closeAllOpenDMs first.');
+    }
+    
+    if (!data.exportStatus) {
+        data.exportStatus = {};
+    }
+    
+    data.exportStatus[channelId] = {
+        status: status,
+        timestamp: new Date().toISOString()
+    };
+    
+    writeJsonFile(idHistoryPath, data);
+}
+
+function getChannelsToExport(idHistoryPath, recipientIds) {
+    const exportStatus = getExportStatus(idHistoryPath);
+    
+    // Filter out channels that are already completed
+    return recipientIds.filter(recipientId => {
+        const status = exportStatus[recipientId];
+        return !status || status.status !== 'completed';
+    });
+}
+
+function getCompletedExports(idHistoryPath) {
+    const exportStatus = getExportStatus(idHistoryPath);
+    return Object.entries(exportStatus)
+        .filter(([_, info]) => info.status === 'completed')
+        .map(([channelId, _]) => channelId);
 }
 
 module.exports = {
@@ -156,5 +201,9 @@ module.exports = {
     ensureExportPath,
     readJsonFile,
     writeJsonFile,
-    updateIdHistory
+    updateIdHistory,
+    getExportStatus,
+    updateExportStatus,
+    getChannelsToExport,
+    getCompletedExports
 };

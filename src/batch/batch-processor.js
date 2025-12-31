@@ -1,7 +1,7 @@
 const path = require('path');
 const { getConfigManager } = require('../config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('../discord-api');
-const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile, updateIdHistory } = require('../lib/file-utils');
+const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile, updateIdHistory, getChannelsToExport, updateExportStatus, getCompletedExports } = require('../lib/file-utils');
 const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('../lib/cli-helpers');
 const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-state');
 const { isDryRun } = require('../lib/dry-run-helper');
@@ -245,20 +245,43 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
         if (!setup) return;
         
         const { allDmIds, totalBatches } = setup;
+        
+        // Get id-history.json path for export status tracking
+        const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
+        const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
+        
+        // Filter out already completed exports
+        const channelsToExport = getChannelsToExport(idHistoryPath, allDmIds);
+        const completedCount = allDmIds.length - channelsToExport.length;
+        
+        if (completedCount > 0) {
+            console.log(`\n${completedCount} DM(s) already exported. Skipping...`);
+        }
+        
+        if (channelsToExport.length === 0) {
+            console.log('\nAll DMs have already been exported!');
+            return;
+        }
+        
+        console.log(`\n${channelsToExport.length} DM(s) remaining to export.`);
         console.log('Each batch will be automatically exported before moving to the next.');
         
         let skippedUsers = 0;
         let processedUsers = 0;
+        let exportedCount = 0;
+        let failedCount = 0;
         
-        const batchState = createBatchState(allDmIds, totalBatches);
+        // Recalculate batches based on filtered list
+        const adjustedTotalBatches = Math.ceil(channelsToExport.length / configManager.get('BATCH_SIZE'));
+        const batchState = createBatchState(channelsToExport, adjustedTotalBatches);
         saveBatchState(batchState);
         
-        for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+        for (let batchNum = 0; batchNum < adjustedTotalBatches; batchNum++) {
             const startIdx = batchNum * configManager.get('BATCH_SIZE');
-            const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
-            const currentBatch = allDmIds.slice(startIdx, endIdx);
+            const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), channelsToExport.length);
+            const currentBatch = channelsToExport.slice(startIdx, endIdx);
 
-            const stats = await openBatchDMs(currentBatch, batchNum, totalBatches);
+            const stats = await openBatchDMs(currentBatch, batchNum, adjustedTotalBatches);
             processedUsers += stats.processed;
             skippedUsers += stats.skipped;
 
@@ -271,11 +294,52 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             saveBatchState(batchState);
 
             console.log('\nExporting current batch...');
+            
+            // Mark all channels in current batch as in-progress
+            for (const recipientId of stats.reopenedIds) {
+                updateExportStatus(idHistoryPath, recipientId, 'in-progress');
+            }
+            
             try {
-                await exportCallback();
-                console.log('Export completed successfully.');
+                const exportResult = await exportCallback();
+                
+                // Check if exportCallback returned status (new format)
+                const exportSuccess = exportResult && exportResult.success !== undefined 
+                    ? exportResult.success 
+                    : true; // Assume success if no status returned (backward compatibility)
+                
+                if (exportSuccess) {
+                    console.log('Export completed successfully.');
+                    // Mark all successfully reopened channels as completed
+                    for (const recipientId of stats.reopenedIds) {
+                        updateExportStatus(idHistoryPath, recipientId, 'completed');
+                        exportedCount++;
+                    }
+                } else {
+                    console.error('Export completed with errors.');
+                    // Mark channels as failed
+                    for (const recipientId of stats.reopenedIds) {
+                        updateExportStatus(idHistoryPath, recipientId, 'failed');
+                        failedCount++;
+                    }
+                    
+                    const continueAnyway = rlInterface 
+                        ? await promptConfirmation('Continue with next batch anyway? (y/n): ', rlInterface)
+                        : false;
+                    
+                    if (!continueAnyway) {
+                        console.log('Processing stopped by user.');
+                        return;
+                    }
+                }
             } catch (error) {
                 console.error(`Export failed: ${error.message}`);
+                // Mark channels as failed
+                for (const recipientId of stats.reopenedIds) {
+                    updateExportStatus(idHistoryPath, recipientId, 'failed');
+                    failedCount++;
+                }
+                
                 const continueAnyway = rlInterface 
                     ? await promptConfirmation('Continue with next batch anyway? (y/n): ', rlInterface)
                     : false;
@@ -289,8 +353,8 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             await closeBatchDMs();
             
             // Small delay before next batch
-            if (batchNum < totalBatches - 1) {
-                console.log(`Batch ${batchNum + 1}/${totalBatches} complete. Moving to next batch...`);
+            if (batchNum < adjustedTotalBatches - 1) {
+                console.log(`Batch ${batchNum + 1}/${adjustedTotalBatches} complete. Moving to next batch...`);
                 await delay(configManager.get('API_DELAY_MS') * 2);
             }
         }
@@ -298,6 +362,8 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
         console.log('\nAll batches processed and exported!');
         console.log(`Total processed users: ${processedUsers}`);
         console.log(`Total skipped users: ${skippedUsers}`);
+        console.log(`Successfully exported: ${exportedCount}`);
+        console.log(`Failed exports: ${failedCount}`);
         
         // Mark as complete and clear state
         batchState.inProgress = false;

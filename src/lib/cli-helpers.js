@@ -98,6 +98,8 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
 }
 
 async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 'HtmlDark']) {
+    const results = [];
+    
     for (const format of formats) {
         console.log(`\nExporting in ${format} format...`);
         console.log('═'.repeat(60));
@@ -111,14 +113,19 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 
             console.log('Discord Chat Exporter Finished');
             console.log('═'.repeat(60));
             console.log(`${format} export completed.\n`);
+            results.push({ format, success: true });
         } catch (error) {
             console.log('═'.repeat(60));
             console.log('Discord Chat Exporter Finished (with errors)');
             console.log('═'.repeat(60));
             console.error(`${format} export failed: ${error.message}`);
-            throw error;
+            results.push({ format, success: false, error: error.message });
         }
     }
+    
+    // Return overall success (all formats succeeded)
+    const allSucceeded = results.every(r => r.success);
+    return { success: allSucceeded, results };
 }
 
 function createDMProgressBar(label = 'DMs') {

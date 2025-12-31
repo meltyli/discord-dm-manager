@@ -31,12 +31,16 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 
 **Utilities (src/lib/):**
 - `cli-helpers.js` - Input prompts, progress bars, DCE spawn wrapper
-  - `exportDMs(token, exportPath, dcePath, userId)` - Exports DMs in Json and HtmlDark
+  - `exportDMs(token, exportPath, dcePath, userId)` - Exports DMs in Json and HtmlDark, returns {success, results}
   - `runDCEExport()` - Spawns DiscordChatExporter.Cli with proper args
 - `file-utils.js` - File operations, JSON atomic writes
   - `traverseDataPackage()` - Finds all channel.json files
   - `getRecipients(paths, userId, typeFilter)` - Extracts recipient IDs by channel type
-  - `updateIdHistory()` - Maintains originalState/latest/uniqueChannels structure
+  - `updateIdHistory()` - Maintains originalState/latest/uniqueChannels/exportStatus structure
+  - `getExportStatus()` - Retrieves export status map from id-history.json
+  - `updateExportStatus(path, channelId, status)` - Updates export status for a channel
+  - `getChannelsToExport(path, recipientIds)` - Filters out completed exports
+  - `getCompletedExports()` - Returns array of completed channel IDs
 - `config-validators.js` - Path validation, user ID verification
 - `config-defaults.js` - Export path resolution
 - `rate-limiter.js` - RateLimiter class + randomDelay()
@@ -48,10 +52,13 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 **Main Export Workflow:**
 1. Parse Discord data package → extract DM recipients from channel.json files (filter by DM/GROUP_DM type)
 2. Close all currently open DMs → save channel data to id-history.json
-3. Initialize batch processing with typeFilter
-4. **Automated Mode**: For each batch:
+3. Check export status → skip already completed exports (resume functionality)
+4. Initialize batch processing with typeFilter
+5. **Automated Mode**: For each batch:
    - Reopen batch (default: 30 at a time) with user validation
+   - Mark channels as 'in-progress' in exportStatus
    - Export via Discord Chat Exporter (Json + HtmlDark formats)
+   - Mark channels as 'completed' or 'failed' based on export result
    - Close batch
    - Apply random delays (0-2s regular, 5-20s pause every 40-50 calls)
    - Repeat until complete
@@ -104,10 +111,34 @@ Located at `{DATA_PACKAGE_FOLDER}/messages/id-history.json`:
 {
   "originalState": [...],     // First capture from closeAllOpenDMs
   "latest": [...],            // Most recent close (type=1 DMs only)
-  "uniqueChannels": [...]     // All unique channels ever seen
+  "uniqueChannels": [...],    // All unique channels ever seen
+  "exportStatus": {           // Export progress tracking (NEW)
+    "channelId1": {
+      "status": "completed",  // Status: pending, in-progress, completed, failed
+      "timestamp": "2025-12-31T10:30:45.123Z"
+    },
+    "channelId2": {
+      "status": "in-progress",
+      "timestamp": "2025-12-31T10:35:20.456Z"
+    }
+  }
 }
 ```
 Each channel object contains full Discord API response data (id, type, recipients array with username/id).
+
+**Export Status:**
+- `pending`: Not yet exported (implicit if not in exportStatus)
+- `in-progress`: Currently being exported
+- `completed`: Successfully exported
+- `failed`: Export failed
+
+**Resume Functionality:**
+When running export operations, the system automatically:
+1. Checks `exportStatus` to identify completed exports
+2. Skips channels with `completed` status
+3. Updates status to `in-progress` before export
+4. Updates to `completed` or `failed` after export attempt
+5. Shows count of already-exported and remaining DMs
 
 **Channel Types:**
 - Discord data package channel.json: String types ("DM", "GROUP_DM")
