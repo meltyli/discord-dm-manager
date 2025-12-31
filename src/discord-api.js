@@ -92,7 +92,7 @@ async function validateUser(authToken, userId) {
     }, `Validating user ${userId}`);
 }
 
-async function reopenDM(authToken, userId) {
+async function reopenDM(authToken, userId, progressBar = null) {
     if (isDryRun()) {
         console.log(`[DRY RUN] Would reopen DM with user ${userId}`);
         return { id: 'dry-run-id' };
@@ -115,15 +115,30 @@ async function reopenDM(authToken, userId) {
                 const status = error.response.status;
                 // Handle expected error cases that shouldn't be retried
                 if (status === 404) {
-                    console.log(`User ${userId} not found, skipping`);
+                    if (progressBar) {
+                        process.stdout.write('\r\x1b[K');
+                        console.log(`User ${userId} not found, skipping`);
+                    } else {
+                        console.log(`User ${userId} not found, skipping`);
+                    }
                     return null;
                 }
                 if (status === 400) {
-                    console.log(`Invalid user ID ${userId}, skipping`);
+                    if (progressBar) {
+                        process.stdout.write('\r\x1b[K');
+                        console.log(`Invalid user ID ${userId}, skipping`);
+                    } else {
+                        console.log(`Invalid user ID ${userId}, skipping`);
+                    }
                     return null;
                 }
                 if (status === 403) {
-                    console.log(`User ${userId} access forbidden (likely deleted), skipping`);
+                    if (progressBar) {
+                        process.stdout.write('\r\x1b[K');
+                        console.log(`User ${userId} access forbidden (likely deleted), skipping`);
+                    } else {
+                        console.log(`User ${userId} access forbidden (likely deleted), skipping`);
+                    }
                     return null;
                 }
             }

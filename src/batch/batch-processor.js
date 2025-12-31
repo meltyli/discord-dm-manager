@@ -25,7 +25,10 @@ function createBatchState(allDmIds, totalBatches, currentBatch = 0) {
 async function initializeBatchProcessing(typeFilter = null) {
     await configManager.init();
     
+    console.log('Loading data package...');
     const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
+    console.log(`Found ${channelJsonPaths.length} channel(s). Processing recipients...`);
+    
     const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'), typeFilter);
     
     if (allDmIds.length === 0) {
@@ -129,7 +132,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     
     try {
         for (const [index, userId] of userIds.entries()) {
-            const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId);
+            const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId, batchProgress);
             if (result === null) {
                 skippedUsers++;
             } else {
@@ -141,6 +144,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
             batchProgress.update(index + 1);
         }
         batchProgress.stop();
+        console.log('');
         
         return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };
     } catch (error) {
