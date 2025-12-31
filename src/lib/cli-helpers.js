@@ -74,14 +74,8 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
             '--fuck-russia'
         ];
 
-        const dceProcess = spawn(dceExecutable, args);
-        
-        dceProcess.stdout.on('data', (data) => {
-            process.stdout.write(data.toString());
-        });
-
-        dceProcess.stderr.on('data', (data) => {
-            process.stderr.write(data.toString());
+        const dceProcess = spawn(dceExecutable, args, {
+            stdio: ['ignore', 'inherit', 'inherit']
         });
         
         dceProcess.on('close', (code) => {
