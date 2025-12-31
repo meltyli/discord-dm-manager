@@ -79,8 +79,8 @@ class ConfigManager {
 
         try {
             await this.loadConfig();
-            await this.ensureEnvValues();
             await this.validatePaths();
+            await this.ensureEnvValues();
             
             this.initialized = true;
         } finally {
@@ -107,22 +107,18 @@ class ConfigManager {
     }
 
     async createConfigFile() {
+        console.log('\nSetting up configuration...');
+        console.log('='.repeat(60));
+        console.log('Step 1: Configure paths');
+        console.log('='.repeat(60));
+        
         // Step 1: Ask for data package directory first
         if (!this.config.DATA_PACKAGE_FOLDER || this.config.DATA_PACKAGE_FOLDER === '') {
             const packagePath = await promptUser('Enter Discord data package directory path: ', this.rl);
             this.config.DATA_PACKAGE_FOLDER = cleanInput(packagePath);
         }
 
-        // Step 2: Read user.json and verify user ID (if data package exists)
-        if (validatePathExists(this.config.DATA_PACKAGE_FOLDER)) {
-            const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl);
-            if (verifiedUserId) {
-                this.env.USER_DISCORD_ID = verifiedUserId;
-                process.env.USER_DISCORD_ID = verifiedUserId;
-            }
-        }
-
-        // Step 3: Fill in remaining config values
+        // Step 2: Fill in remaining config values (paths and settings)
         for (const [key, value] of Object.entries(this.config)) {
             if (value === '' && !process.env[key] && key !== 'DATA_PACKAGE_FOLDER') {
                 this.config[key] = await promptForConfigValue(key, value, this.rl);
@@ -138,9 +134,22 @@ class ConfigManager {
         if (updated) {
             this.saveConfig();
         }
+        
+        // After paths are validated, verify user ID from data package
+        if (validatePathExists(this.config.DATA_PACKAGE_FOLDER) && !process.env.USER_DISCORD_ID) {
+            const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl);
+            if (verifiedUserId) {
+                this.env.USER_DISCORD_ID = verifiedUserId;
+                process.env.USER_DISCORD_ID = verifiedUserId;
+            }
+        }
     }
 
     async ensureEnvValues() {
+        console.log('\n' + '='.repeat(60));
+        console.log('Step 2: Configure authentication');
+        console.log('='.repeat(60));
+        
         for (const [key, defaultValue] of Object.entries(envTemplate)) {
             // Skip USER_DISCORD_ID if already set during verification
             if (key === 'USER_DISCORD_ID' && process.env[key]) {
@@ -158,6 +167,8 @@ class ConfigManager {
             }
         }
         this.updateEnvFile();
+        
+        console.log('\n✓ Configuration complete!\n');
     }
 
     saveConfig() {
