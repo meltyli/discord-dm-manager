@@ -197,40 +197,12 @@ class ApiMenu extends MenuBase {
             return;
         }
 
-        // Prompt for DM type filter
-        console.log('Which type of conversations would you like to export?');
-        console.log('1. DM only (1-on-1 conversations)');
-        console.log('2. GROUP_DM only (group conversations)');
-        console.log('3. Both DM and GROUP_DM');
-        console.log('');
-        
-        const typeChoice = cleanInput(await promptUser('Enter your choice (1-3): ', this.rl));
-        
-        let typeFilter;
-        let typeDescription;
-        switch (typeChoice) {
-            case '1':
-                typeFilter = ['DM'];
-                typeDescription = 'DM only';
-                break;
-            case '2':
-                typeFilter = ['GROUP_DM'];
-                typeDescription = 'GROUP_DM only';
-                break;
-            case '3':
-                typeFilter = ['DM', 'GROUP_DM'];
-                typeDescription = 'both DM and GROUP_DM';
-                break;
-            default:
-                console.log('Invalid choice. Defaulting to DM only.');
-                typeFilter = ['DM'];
-                typeDescription = 'DM only';
-        }
+        // Hardcoded to DM only (1-on-1 conversations)
+        const typeFilter = ['DM'];
 
         console.clear();
         console.log('\nProcess and Export All Direct Messages');
         console.log('=======================================');
-        console.log(`Filtering: ${typeDescription}`);
         console.log('This will:');
         console.log('1. Close all currently open direct messages');
         console.log('2. Open direct messages in batches of', this.options.BATCH_SIZE);
