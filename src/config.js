@@ -112,15 +112,25 @@ class ConfigManager {
         console.log('Step 1: Configure paths');
         console.log('='.repeat(60));
         
-        // Step 1: Ask for data package directory first
+        
         if (!this.config.DATA_PACKAGE_FOLDER || this.config.DATA_PACKAGE_FOLDER === '') {
             const packagePath = await promptUser('Enter Discord data package directory path: ', this.rl);
             this.config.DATA_PACKAGE_FOLDER = cleanInput(packagePath);
         }
-
-        // Step 2: Fill in remaining config values (paths and settings)
+        
+        const exportPrompt = `Enter export directory path (default: ./export): `;
+        const exportPath = await promptUser(exportPrompt, this.rl);
+        const cleanedExport = cleanInput(exportPath);
+        this.config.EXPORT_PATH = cleanedExport || './export';
+        
+        if (!this.config.DCE_PATH || this.config.DCE_PATH === '') {
+            const dcePath = await promptUser('Enter Discord Chat Exporter directory path: ', this.rl);
+            this.config.DCE_PATH = cleanInput(dcePath);
+        }
+        
+        const pathKeys = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
         for (const [key, value] of Object.entries(this.config)) {
-            if (value === '' && !process.env[key] && key !== 'DATA_PACKAGE_FOLDER') {
+            if (value === '' && !process.env[key] && !pathKeys.includes(key)) {
                 this.config[key] = await promptForConfigValue(key, value, this.rl);
             }
         }
