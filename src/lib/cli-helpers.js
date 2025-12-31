@@ -76,11 +76,11 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
         const dceProcess = spawn(dceExecutable, args);
         
         dceProcess.stdout.on('data', (data) => {
-            console.log(data.toString().trim());
+            process.stdout.write(data.toString());
         });
-        
+
         dceProcess.stderr.on('data', (data) => {
-            console.error(data.toString().trim());
+            process.stderr.write(data.toString());
         });
         
         dceProcess.on('close', (code) => {
