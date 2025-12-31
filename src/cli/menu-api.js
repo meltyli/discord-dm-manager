@@ -28,7 +28,6 @@ class ApiMenu extends MenuBase {
             console.log('4. Reopen Direct Message (Specific User ID)');
             console.log('5. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
-            // Dry run status is shown in the title when enabled
         }, async (choice) => {
             switch (choice) {
                 case '1':
@@ -110,15 +109,21 @@ class ApiMenu extends MenuBase {
         let reopened = 0;
         
         for (const [index, userId] of closedIds.entries()) {
-            const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
-            if (result === null) {
-                skipped++;
-            } else {
-                reopened++;
+            try {
+                const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
+                if (result === null) {
+                    skipped++;
+                } else {
+                    reopened++;
+                }
+                
+                await delayTracker.trackAndDelay();
+                reopenProgress.update(index + 1);
+            } catch (error) {
+                reopenProgress.stop();
+                console.log('');
+                throw error;
             }
-            
-            await delayTracker.trackAndDelay();
-            reopenProgress.update(index + 1);
         }
         reopenProgress.stop();
         
@@ -172,11 +177,11 @@ class ApiMenu extends MenuBase {
             return;
         }
 
-        try {
-            await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
+        const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
+        if (result) {
             console.log('\nDirect message reopened successfully!');
-        } catch (error) {
-            console.error('\nFailed to reopen direct message:', error.message);
+        } else {
+            console.log('\nCould not reopen direct message (user may not exist or be inaccessible).');
         }
     }
 

@@ -147,15 +147,17 @@ get options() { return this.configManager.config; }
    - Tracked via ApiDelayTracker singleton
 
 ### User Validation
-**Always validate before reopening** to handle deleted accounts:
+**Validation is now integrated into `reopenDM()`**:
 ```javascript
-// validateUser() returns false for:
-// - 404: User not found
-// - 400: Invalid user ID
-// - 403: Access forbidden (likely deleted)
+// reopenDM() handles validation inline and returns:
+// - null for expected failures (404: user not found, 400: invalid ID, 403: access forbidden)
+// - channel object for successful reopen
+// - Retries only for auth/network errors (401, 429, 5xx)
 
 const result = await reopenDM(token, userId);
-// Returns null if validation fails, channel object if successful
+if (result === null) {
+    // User doesn't exist or is inaccessible
+}
 ```
 
 ### DRY_RUN Mode
@@ -176,11 +178,33 @@ await rateLimiter.waitForSlot(); // Only throttle real calls
 
 ### API Functions
 - `getCurrentOpenDMs(authToken)` - Fetches all open DM channels
-- `validateUser(authToken, userId)` - Validates user exists/accessible
-- `reopenDM(authToken, userId)` - Opens DM (validates first, returns null if invalid)
+- `validateUser(authToken, userId)` - Validates user exists/accessible (exported for testing, prefer using reopenDM)
+- `reopenDM(authToken, userId)` - Opens DM with inline validation (returns null for invalid users)
 - `closeDM(authToken, channelId)` - Closes DM channel
 
 All use retry logic with exponential backoff for 429 rate limits.
+
+### Error Handling Standards
+**Consistent error output across all menu operations:**
+- All API operations use `withRetry()` wrapper for consistent retry attempts (1/3, 2/3, 3/3)
+- Progress bars must be stopped before error output: `progress.stop(); console.log('');`
+- Error messages have newline before output for readability
+- Menu base class handles final error display with newline prefix
+- Batch operations wrap progress bar loops in try-catch to clean up on errors
+
+**Error format pattern:**
+```javascript
+try {
+    // Operation with progress bar
+    progress.start(total, 0);
+    // ... work ...
+    progress.stop();
+} catch (error) {
+    progress.stop();
+    console.log(''); // Newline before error
+    throw error;
+}
+```
 
 ## Logging System
 
@@ -264,12 +288,11 @@ tail -f logs/$(date +%Y-%m-%d).log
 
 1. **Missing DRY_RUN check**: Always check before API calls
 2. **Direct axios calls**: Use discord-api.js functions (includes rate limiting + retry)
-3. **Skipping user validation**: Call validateUser() to avoid 403 errors on deleted accounts
-4. **Hardcoded paths**: Use configManager.get() for all paths
-5. **ConfigManager not initialized**: Call `await configManager.init()` before access
-6. **Stale config reference**: Use `get options()` getter in menu classes, not constructor assignment
-7. **Missing atomic writes**: Use writeJsonFile() for config files (prevents corruption)
-8. **Incorrect channel type filtering**: Data package uses strings ("DM"), API uses numbers (1)
+3. **Hardcoded paths**: Use configManager.get() for all paths
+4. **ConfigManager not initialized**: Call `await configManager.init()` before access
+5. **Stale config reference**: Use `get options()` getter in menu classes, not constructor assignment
+6. **Missing atomic writes**: Use writeJsonFile() for config files (prevents corruption)
+7. **Incorrect channel type filtering**: Data package uses strings ("DM"), API uses numbers (1)
 
 ## Key Dependencies
 

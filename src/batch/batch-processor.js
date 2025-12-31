@@ -34,7 +34,7 @@ async function initializeBatchProcessing(typeFilter = null) {
     }
     
     if (isDryRun()) {
-        console.log('Running in DRY RUN mode - no actual API calls will be made');
+        console.log('Running in DRY RUN mode - no modifications will be made');
         console.log(`Would process ${allDmIds.length} direct message recipients`);
         return null;
     }
@@ -104,7 +104,17 @@ async function closeAllOpenDMs() {
         
         return closedUserIds;
     } catch (error) {
-        console.error(`Failed to close all open direct messages: ${error.message}`);
+        console.log('');
+        const status = error.response?.status;
+        if (status === 401 || status === 403) {
+            console.error(`Failed: ${error.message} - Check your AUTHORIZATION_TOKEN in .env`);
+        } else if (status === 429) {
+            console.error(`Failed: ${error.message} - Rate limited, try again later or increase delays`);
+        } else if (status >= 500) {
+            console.error(`Failed: ${error.message} - Discord server error, try again later`);
+        } else {
+            console.error(`Failed to close all open direct messages: ${error.message}`);
+        }
         throw error;
     }
 }
@@ -128,21 +138,27 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     let processedUsers = 0;
     const successfullyReopened = [];
     
-    for (const [index, userId] of userIds.entries()) {
-        const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId);
-        if (result === null) {
-            skippedUsers++;
-        } else {
-            processedUsers++;
-            successfullyReopened.push(userId);
+    try {
+        for (const [index, userId] of userIds.entries()) {
+            const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId);
+            if (result === null) {
+                skippedUsers++;
+            } else {
+                processedUsers++;
+                successfullyReopened.push(userId);
+            }
+            
+            await delayTracker.trackAndDelay();
+            batchProgress.update(index + 1);
         }
+        batchProgress.stop();
         
-        await delayTracker.trackAndDelay();
-        batchProgress.update(index + 1);
+        return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };
+    } catch (error) {
+        batchProgress.stop();
+        console.log('');
+        throw error;
     }
-    batchProgress.stop();
-    
-    return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };
 }
 
 async function closeBatchDMs() {

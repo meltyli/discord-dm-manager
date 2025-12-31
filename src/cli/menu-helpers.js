@@ -3,7 +3,6 @@
  */
 
 function displaySettings(options) {
-    // Intentionally left blank: Dry run status moved to top-level title
 }
 
 function displayDetailedConfig(options) {

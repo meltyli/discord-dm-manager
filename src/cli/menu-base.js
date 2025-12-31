@@ -1,5 +1,5 @@
 const { getLogger } = require('../logger');
-const { clearScreen, getMenuChoice, waitForKeyPress } = require('../lib/cli-helpers');
+const { clearScreen, getMenuChoice, safeWaitForKeyPress } = require('../lib/cli-helpers');
 
 /**
  * Base class for CLI menus with common display and interaction patterns
@@ -42,20 +42,20 @@ class MenuBase {
         clearScreen();
         getLogger().logOnly(`[ACTION] ${actionName}`);
         
-        // Show action header
         console.log(`\n${actionName}`);
         console.log('='.repeat(actionName.length));
         
         try {
             await actionFn();
             if (waitAfter) {
-                await waitForKeyPress(this.rl);
+                await safeWaitForKeyPress(this.rl);
             }
             return true;
         } catch (error) {
-            console.error('\nError:', error.message);
+            console.log('');
+            console.error('Error:', error.message);
             if (waitAfter) {
-                await waitForKeyPress(this.rl);
+                await safeWaitForKeyPress(this.rl);
             }
             return true;
         }

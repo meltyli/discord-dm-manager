@@ -163,9 +163,7 @@ describe('reopenDM', () => {
     test('should reopen DM successfully when user is valid', async () => {
         const mockChannel = { id: '123', recipients: ['456'] };
 
-        // Mock validateUser response
-        axios.post.mockResolvedValueOnce({ data: { id: '123' } });
-        // Mock reopenDM response
+        // Mock reopenDM response (now handles validation inline)
         axios.post.mockResolvedValueOnce({ data: mockChannel });
 
         const result = await reopenDM('test-token', '456');
@@ -183,7 +181,7 @@ describe('reopenDM', () => {
     });
 
     test('should return null when user is invalid', async () => {
-        // Mock validateUser to return false
+        // Mock API to return 404 (handled inline by reopenDM, returns null without retry)
         axios.post.mockRejectedValueOnce({
             response: { status: 404 }
         });
@@ -191,7 +189,7 @@ describe('reopenDM', () => {
         const result = await reopenDM('test-token', 'invalid-user');
 
         expect(result).toBeNull();
-        expect(axios.post).toHaveBeenCalledTimes(1);
+        expect(axios.post).toHaveBeenCalledTimes(1); // No retry for expected errors
     });
 
     test('should return mock data in DRY_RUN mode without making API call', async () => {

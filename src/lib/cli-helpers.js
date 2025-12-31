@@ -27,6 +27,22 @@ async function waitForKeyPress(readlineInterface, message = '\nPress Enter to co
     });
 }
 
+// Safe wrapper that handles closed readline gracefully
+async function safeWaitForKeyPress(readlineInterface, message = '\nPress Enter to continue...') {
+    if (!readlineInterface || readlineInterface.closed) {
+        return;
+    }
+    
+    try {
+        await waitForKeyPress(readlineInterface, message);
+    } catch (error) {
+        if (error && error.message && error.message.includes('readline was closed')) {
+            return;
+        }
+        throw error;
+    }
+}
+
 async function getMenuChoice(readlineInterface, prompt = '\nSelect an option: ') {
     const choice = await promptUser(prompt, readlineInterface);
     return choice.trim().toLowerCase();
@@ -117,6 +133,7 @@ module.exports = {
     promptUser,
     promptConfirmation,
     waitForKeyPress,
+    safeWaitForKeyPress,
     getMenuChoice,
     clearScreen,
     cleanInput,

@@ -10,23 +10,26 @@ const configManager = getConfigManager();
 async function withRetry(operation, description) {
     for (let attempt = 1; attempt <= configManager.get('MAX_RETRIES'); attempt++) {
         try {
-            return await operation();
-        } catch (error) {
-            if (attempt === configManager.get('MAX_RETRIES')) {
-                throw error;
+                return await operation();
+            } catch (error) {
+                let delayMs = configManager.get('RETRY_DELAY_MS');
+                let msg;
+                if (error.response && error.response.status === 429) {
+                    const retryAfter = error.response.headers['retry-after'];
+                    delayMs = retryAfter ? parseInt(retryAfter) * 1000 : 10000;
+                    msg = `${description} rate limited, waiting ${delayMs}ms before retry ${attempt}/${configManager.get('MAX_RETRIES')}`;
+                } else {
+                    msg = `${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`;
+                }
+
+                console.warn(msg);
+
+                if (attempt === configManager.get('MAX_RETRIES')) {
+                    throw error;
+                }
+
+                await delay(delayMs);
             }
-            
-            let delayMs = configManager.get('RETRY_DELAY_MS');
-            if (error.response && error.response.status === 429) {
-                const retryAfter = error.response.headers['retry-after'];
-                delayMs = retryAfter ? parseInt(retryAfter) * 1000 : 10000;
-                console.warn(`${description} rate limited, waiting ${delayMs}ms before retry ${attempt}/${configManager.get('MAX_RETRIES')}`);
-            } else {
-                console.warn(`${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`);
-            }
-            
-            await delay(delayMs);
-        }
     }
 }
 
@@ -56,35 +59,38 @@ async function validateUser(authToken, userId) {
     }
 
     await rateLimiter.waitForSlot();
-    try {
-        await axios.post('https://discord.com/api/v9/users/@me/channels', 
-            { recipients: [userId] },
-            {
-                headers: {
-                    'Authorization': authToken,
-                    'Content-Type': 'application/json'
+    
+    return await withRetry(async () => {
+        try {
+            await axios.post('https://discord.com/api/v9/users/@me/channels', 
+                { recipients: [userId] },
+                {
+                    headers: {
+                        'Authorization': authToken,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            return true;
+        } catch (error) {
+            if (error.response) {
+                const status = error.response.status;
+                if (status === 404) {
+                    console.log(`User ${userId} not found, skipping`);
+                    return false;
+                }
+                if (status === 400) {
+                    console.log(`Invalid user ID ${userId}, skipping`);
+                    return false;
+                }
+                if (status === 403) {
+                    console.log(`User ${userId} access forbidden (likely deleted), skipping`);
+                    return false;
                 }
             }
-        );
-        return true;
-    } catch (error) {
-        if (error.response) {
-            const status = error.response.status;
-            if (status === 404) {
-                console.log(`User ${userId} not found, skipping`);
-                return false;
-            }
-            if (status === 400) {
-                console.log(`Invalid user ID ${userId}, skipping`);
-                return false;
-            }
-            if (status === 403) {
-                console.log(`User ${userId} access forbidden (likely deleted), skipping`);
-                return false;
-            }
+            throw error;
         }
-        throw error;
-    }
+    }, `Validating user ${userId}`);
 }
 
 async function reopenDM(authToken, userId) {
@@ -92,14 +98,9 @@ async function reopenDM(authToken, userId) {
         console.log(`[DRY RUN] Would reopen DM with user ${userId}`);
         return { id: 'dry-run-id' };
     }
-
-    const isValid = await validateUser(authToken, userId);
-    if (!isValid) {
-        return null;
-    }
     
-    try {
-        return await withRetry(async () => {
+    return await withRetry(async () => {
+        try {
             const response = await axios.post('https://discord.com/api/v9/users/@me/channels', 
                 { recipients: [userId] }, 
                 {
@@ -110,14 +111,27 @@ async function reopenDM(authToken, userId) {
                 }
             );
             return response.data;
-        }, `Reopening DM with user ${userId}`);
-    } catch (error) {
-        if (error.response && [400, 403, 404].includes(error.response.status)) {
-            console.log(`Failed to reopen DM with user ${userId}: ${error.message}`);
-            return null;
+        } catch (error) {
+            if (error.response) {
+                const status = error.response.status;
+                // Handle expected error cases that shouldn't be retried
+                if (status === 404) {
+                    console.log(`User ${userId} not found, skipping`);
+                    return null;
+                }
+                if (status === 400) {
+                    console.log(`Invalid user ID ${userId}, skipping`);
+                    return null;
+                }
+                if (status === 403) {
+                    console.log(`User ${userId} access forbidden (likely deleted), skipping`);
+                    return null;
+                }
+            }
+            // Throw other errors (401, 429, 5xx) to trigger retry
+            throw error;
         }
-        throw error;
-    }
+    }, `Reopening DM with user ${userId}`);
 }
 
 async function closeDM(authToken, channelId) {
