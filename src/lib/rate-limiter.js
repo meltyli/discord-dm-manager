@@ -30,11 +30,15 @@ function resetRandomDelaySchedule() {
 /**
  * Delays execution for a random time with periodic longer pauses
  * @param {number} callCount - Current API call count
+ * @param {number} totalCalls - Total expected API calls (optional, if > 50 enables long pauses)
  * @returns {Promise<void>}
  */
-async function randomDelay(callCount) {
+async function randomDelay(callCount, totalCalls = 0) {
+    // Only do long pauses if total calls > 50
+    const shouldDoLongPauses = totalCalls > 50;
+    
     // Check if it's time for a longer pause
-    if (callCount >= nextLongPauseAt) {
+    if (shouldDoLongPauses && callCount >= nextLongPauseAt) {
         // Long pause: 5-20 seconds
         const longPauseMs = randomInt(5000, 20000);
         console.log(`\nTaking a ${(longPauseMs / 1000).toFixed(1)}s pause after ${callCount} API calls...`);

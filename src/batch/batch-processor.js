@@ -4,8 +4,13 @@ const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('../discord-api'
 const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile, updateIdHistory } = require('../lib/file-utils');
 const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('../lib/cli-helpers');
 const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-state');
+const { randomDelay } = require('../lib/rate-limiter');
 
 const configManager = getConfigManager();
+
+// Track API call count for random delays
+let apiCallCount = 0;
+let totalApiCalls = 0;
 
 /**
  * Close all currently open DMs and save their channel information
@@ -27,9 +32,18 @@ async function closeAllOpenDMs() {
 
         console.log(`Closing ${currentDMs.length} open direct messages...`);
         
-        // Prepare file path
+        // Reset API call counter for this operation
+        apiCallCount = 0;
+        totalApiCalls = currentDMs.filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0).length;
+        
+        // Prepare file path and save channel data BEFORE closing anything
+        // This ensures we have a backup in case the program crashes during closure
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
         const filePath = path.join(dataPackagePath, 'messages', 'id-history.json');
+        
+        console.log('Saving channel data to id-history.json before closing...');
+        updateIdHistory(filePath, currentDMs);
+        console.log('Channel data saved. Now closing DMs...');
         
         const closedUserIds = [];
         
@@ -40,9 +54,9 @@ async function closeAllOpenDMs() {
             if (dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0) {
             await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
             
-            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
             apiCallCount++;
-            await randomDelay(apiCallCount);
+            await randomDelay(apiCallCount, totalApiCalls);
 
             // collect all recipient ids
             const recipientIds = dm.recipients
@@ -55,10 +69,7 @@ async function closeAllOpenDMs() {
         }
         closeProgress.stop();
         
-        // Update id-history.json with full channel data
-        updateIdHistory(filePath, currentDMs);
-        
-        console.log(`Successfully closed ${closedUserIds.length} direct messages. Channel info saved to ${filePath}`);
+        console.log(`Successfully closed ${closedUserIds.length} direct messages. Channel info was saved to ${filePath}`);
         
         return closedUserIds;
     } catch (error) {
@@ -82,6 +93,10 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
 
     console.log(`Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} direct messages)...`);
     
+    // Reset API call counter for this batch
+    apiCallCount = 0;
+    totalApiCalls = userIds.length;
+    
     const batchProgress = createDMProgressBar();
     batchProgress.start(userIds.length, 0);
     
@@ -96,9 +111,9 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
             processedUsers++;
         }
         
-        // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+        // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
         apiCallCount++;
-        await randomDelay(apiCallCount);
+        await randomDelay(apiCallCount, totalApiCalls);
         
         batchProgress.update(index + 1);
     }
@@ -120,13 +135,17 @@ async function closeBatchDMs() {
     console.log('Closing current batch direct messages...');
     const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
     
+    // Reset API call counter for this operation
+    apiCallCount = 0;
+    totalApiCalls = batchDMs.filter(dm => dm.type === 1).length;
+    
     for (const dm of batchDMs) {
         if (dm.type === 1) {
             await closeDM(configManager.getEnv('AUTHORIZATION_TOKEN'), dm.id);
             
-            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
             apiCallCount++;
-            await randomDelay(apiCallCount);
+            await randomDelay(apiCallCount, totalApiCalls);
         }
     }
     console.log(`Closed ${batchDMs.length} batch direct messages`);

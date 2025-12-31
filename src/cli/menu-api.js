@@ -125,6 +125,10 @@ class ApiMenu {
             return;
         }
         
+        // Reset API call counter for this operation
+        apiCallCount = 0;
+        const totalCalls = closedIds.length;
+        
         const reopenProgress = createDMProgressBar();
         reopenProgress.start(closedIds.length, 0);
         
@@ -139,9 +143,9 @@ class ApiMenu {
                 reopened++;
             }
             
-            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls
+            // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
             apiCallCount++;
-            await randomDelay(apiCallCount);
+            await randomDelay(apiCallCount, totalCalls);
             
             reopenProgress.update(index + 1);
         }
