@@ -63,10 +63,12 @@ function cleanInput(input) {
     return trimmed;
 }
 
+const DCE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default timeout for DCE
+
 async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown', afterTimestamp = null) {
     return new Promise((resolve, reject) => {
         const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
-        
+
         const args = [
             'export',
             '-t', token,
@@ -81,7 +83,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
             '--markdown false',
             '--fuck-russia'
         ];
-        
+
         if (afterTimestamp) {
             args.push('--after', afterTimestamp);
         }
@@ -89,27 +91,52 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
         const dceProcess = spawn(dceExecutable, args, {
             stdio: ['ignore', 'pipe', 'pipe']
         });
-        
-        let lastOutput = '';
-        
+
+        let stdoutBuf = '';
+        let stderrBuf = '';
+        let finished = false;
+
+        const onFinish = (fn) => {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timeout);
+            fn();
+        };
+
+        const timeout = setTimeout(() => {
+            onFinish(() => {
+                try {
+                    dceProcess.kill('SIGKILL');
+                } catch (e) {}
+                const last = (stderrBuf || stdoutBuf).slice(-2000);
+                reject(new Error(`DCE timed out after ${DCE_TIMEOUT_MS}ms for ${channelName}. Last output: ${last}`));
+            });
+        }, DCE_TIMEOUT_MS);
+
         dceProcess.stdout.on('data', (data) => {
-            lastOutput = data.toString();
+            stdoutBuf += data.toString();
         });
-        
+
         dceProcess.stderr.on('data', (data) => {
-            lastOutput = data.toString();
+            stderrBuf += data.toString();
         });
-        
+
         dceProcess.on('close', (code) => {
-            if (code === 0) {
-                resolve({ success: true, channelId, channelName });
-            } else {
-                reject(new Error(`DCE exited with code ${code} for ${channelName}`));
-            }
+            onFinish(() => {
+                if (code === 0) {
+                    resolve({ success: true, channelId, channelName });
+                } else {
+                    const last = (stderrBuf || stdoutBuf).slice(-2000);
+                    reject(new Error(`DCE exited with code ${code} for ${channelName}. Last output: ${last}`));
+                }
+            });
         });
-        
+
         dceProcess.on('error', (error) => {
-            reject(new Error(`Failed to start DCE for ${channelName}: ${error.message}`));
+            onFinish(() => {
+                const last = (stderrBuf || stdoutBuf).slice(-2000);
+                reject(new Error(`Failed to start DCE for ${channelName}: ${error.message}. Last output: ${last}`));
+            });
         });
     });
 }
@@ -118,7 +145,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
     const results = [];
     let completed = 0;
     let activeCount = 0;
-    const maxActive = 2;
+    const maxActive = concurrency || 2;
     
     const { getExportStatus, updateExportStatus } = require('./file-utils');
     const exportStatuses = idHistoryPath ? getExportStatus(idHistoryPath) : {};
