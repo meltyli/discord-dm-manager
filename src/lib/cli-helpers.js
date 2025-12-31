@@ -70,7 +70,8 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
             '--media',
             '--reuse-media',
             '--parallel', '4',
-            '--respect-rate-limits'
+            '--respect-rate-limits',
+            '--fuck-russia'
         ];
 
         const dceProcess = spawn(dceExecutable, args);
@@ -97,7 +98,7 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
     });
 }
 
-async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 'HtmlDark']) {
+async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json']) {
     const results = [];
     
     for (const format of formats) {

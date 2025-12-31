@@ -246,11 +246,12 @@ class ApiMenu extends MenuBase {
 
         // Create export callback using centralized helper
         const exportCallback = async () => {
-            await exportDMs(
+            return await exportDMs(
                 process.env.AUTHORIZATION_TOKEN,
                 this.options.EXPORT_PATH,
                 this.options.DCE_PATH,
-                process.env.USER_DISCORD_ID
+                process.env.USER_DISCORD_ID,
+                ['Json']  // Only export Json format
             );
         };
 
