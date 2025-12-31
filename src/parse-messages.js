@@ -117,9 +117,17 @@ class MessageParser {
         const channels = fs.readdirSync(messagesPath);
 
         for (const channel of channels) {
+            if (channel.startsWith('._') || channel.startsWith('.')) {
+                continue;
+            }
+
             const channelPath = path.join(messagesPath, channel);
-            if (fs.statSync(channelPath).isDirectory()) {
-                this.processChannel(channelPath);
+            try {
+                if (fs.statSync(channelPath).isDirectory()) {
+                    this.processChannel(channelPath);
+                }
+            } catch (err) {
+                continue;
             }
         }
 

@@ -9,12 +9,16 @@ function traverseDataPackage(packagePath) {
         try {
             const files = fs.readdirSync(currentPath);
             files.forEach(file => {
+                if (file.startsWith('._') || file === '.DS_Store' || file === 'Thumbs.db') {
+                    return;
+                }
+
                 const fullPath = path.join(currentPath, file);
                 const fileStat = fs.statSync(fullPath);
-                
-                if (fileStat.isFile() && fullPath.includes('channel.json')) {
+
+                if (fileStat.isFile() && file === 'channel.json') {
                     channelJsonPaths.push(fullPath);
-                } else if (fileStat.isDirectory()) {
+                } else if (fileStat.isDirectory() && !file.startsWith('.')) {
                     traverse(fullPath);
                 }
             });
