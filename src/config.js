@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', 'config', '.env') })
 const { initializeLogger } = require('./logger');
 const { ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile } = require('./lib/file-utils');
 const { validatePathExists, validateDataPackage } = require('./lib/validators');
-const { promptUser, cleanInput } = require('./lib/cli-helpers');
+const { promptUser, cleanInput, promptPassword } = require('./lib/cli-helpers');
 const { verifyUserId, validateConfigPaths } = require('./lib/config-validators');
 const { resolveExportPath, promptForConfigValue } = require('./lib/config-defaults');
 
@@ -158,7 +158,12 @@ class ConfigManager {
             }
             
             if (!process.env[key]) {
-                const value = await promptUser(`Enter value for ${key}: `, this.rl);
+                let value;
+                if (key === 'AUTHORIZATION_TOKEN') {
+                    value = await promptPassword(`Enter value for ${key} (hidden): `, this.rl);
+                } else {
+                    value = await promptUser(`Enter value for ${key}: `, this.rl);
+                }
                 const cleanValue = cleanInput(value);
                 this.env[key] = cleanValue;
                 process.env[key] = cleanValue;
