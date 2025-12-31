@@ -48,7 +48,7 @@ class ApiMenu extends MenuBase {
                 case 'q':
                     return false;
                 default:
-                    console.log('Invalid option. Please try again.');
+                    console.log('\nInvalid option. Please try again.');
                     await waitForKeyPress(this.rl);
                     return true;
             }
@@ -62,11 +62,11 @@ class ApiMenu extends MenuBase {
         const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
         
         if (!validatePathExists(idHistoryPath, 'id-history.json')) {
-            console.log('\nNo id-history.json file found. Nothing to reopen.');
+            console.log('No id-history.json file found. Nothing to reopen.');
             return;
         }
         
-        console.log(`\nReading from ${idHistoryPath}`);
+        console.log(`Reading from ${idHistoryPath}`);
         const idHistoryData = readJsonFile(idHistoryPath);
         if (!idHistoryData) {
             console.log('Could not read id-history.json. Nothing to reopen.');
@@ -127,7 +127,7 @@ class ApiMenu extends MenuBase {
     async viewOpenDMs() {
         await this.ensureConfigured();
 
-        console.log('\nFetching open direct messages...');
+        console.log('Fetching open direct messages...');
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
         await delayTracker.trackAndDelay();
         
@@ -151,7 +151,7 @@ class ApiMenu extends MenuBase {
         await this.ensureConfigured();
         
         if (isDryRun()) {
-            console.log('\n[DRY RUN] Fetching open direct messages...');
+            console.log('[DRY RUN] Fetching open direct messages...');
         }
 
         await closeAllOpenDMs();
@@ -164,18 +164,18 @@ class ApiMenu extends MenuBase {
     async reopenSpecificDM() {
         await this.ensureConfigured();
         
-        const userId = cleanInput(await promptUser('\nEnter Discord User ID: ', this.rl));
+        const userId = cleanInput(await promptUser('Enter Discord User ID: ', this.rl));
         
         if (isDryRun()) {
-            console.log(`[DRY RUN] Would reopen direct message with user ${userId}`);
+            console.log(`\n[DRY RUN] Would reopen direct message with user ${userId}`);
             return;
         }
 
         try {
             await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
-            console.log('Direct message reopened successfully!');
+            console.log('\nDirect message reopened successfully!');
         } catch (error) {
-            console.error('Failed to reopen direct message:', error.message);
+            console.error('\nFailed to reopen direct message:', error.message);
         }
     }
 
@@ -187,15 +187,16 @@ class ApiMenu extends MenuBase {
             validateDCEPath(this.options.DCE_PATH);
             validateRequired(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
         } catch (error) {
-            console.error(`\nError: ${error.message}`);
+            console.error(`Error: ${error.message}`);
             return;
         }
 
         // Prompt for DM type filter
-        console.log('\nWhich type of conversations would you like to export?');
+        console.log('Which type of conversations would you like to export?');
         console.log('1. DM only (1-on-1 conversations)');
         console.log('2. GROUP_DM only (group conversations)');
         console.log('3. Both DM and GROUP_DM');
+        console.log('');
         
         const typeChoice = cleanInput(await promptUser('Enter your choice (1-3): ', this.rl));
         

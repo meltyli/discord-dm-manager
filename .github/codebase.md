@@ -1,274 +1,306 @@
 # Discord DM Manager - AI Coding Agent Instructions
 
 ## Project Overview
-A Node.js CLI tool for managing Discord Direct Messages at scale. Works in tandem with Discord Chat Exporter to process and batch-manage DMs from Discord data packages. The tool can reopen DMs based on message recency, allowing systematic review and archival; reopening is an explicit action (either as part of the batch-processing export flow or via the "Reset DM State" menu option).
+Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes Discord data packages to systematically close, reopen, and export DMs using Discord Chat Exporter integration. Supports filtering by channel type (DM/GROUP_DM), safe rate limiting with random delays, and DRY_RUN testing mode.
 
 ## Architecture & Key Components
 
 ### Module Organization
-Project uses modular architecture with focused files across 4 directories:
+**Entry Points:**
+- `src/cli/menu-main.js` - Interactive CLI menu (npm start)
+- `src/batch/batch-entry.js` - Direct batch processing (npm run batch)
 
-**Core Entry Points:**
-- **`src/cli/menu-main.js`**: Main interactive CLI entry point with app initialization
-- **`src/batch/batch-entry.js`**: Direct batch processing entry point
+**Core Services:**
+- `src/discord-api.js` - Discord API v9 client (rate limiting, retry logic, user validation)
+- `src/config.js` - ConfigManager singleton (.env + config.json)
+- `src/logger.js` - Automatic console capture to dated log files
 
-**API Layer:**
-- **`src/discord-api.js`**: Discord API with rate limiting, retry logic, user validation
-- **`src/parse-messages.js`**: Binary search message parser for recent DM extraction
+**Menu System (src/cli/):**
+- `menu-main.js` - Main menu orchestration
+- `menu-config.js` - Configuration submenu
+- `menu-api.js` - API operations (export, close/reopen DMs, reset state)
+- `menu-base.js` - Shared menu base class
+- `menu-helpers.js` - Display utilities
 
-**Menu System (`src/cli/`):**
-- **`menu-main.js`**: Main menu orchestration, app initialization
-- **`menu-config.js`**: Configuration submenu
-- **`menu-api.js`**: Discord API operations submenu
-- **`menu-helpers.js`**: Shared display utilities
+**Batch Processing (src/batch/):**
+- `batch-processor.js` - Core DM processing:
+  - `closeAllOpenDMs()` - Closes all open DMs, saves channel data to id-history.json
+  - `processAndExportAllDMs(exportCallback, rlInterface, typeFilter)` - Main export workflow
+  - `initializeBatchProcessing(typeFilter)` - Setup with channel type filtering
+- `batch-state.js` - Persistent state for interrupted sessions
 
-**Batch Processing (`src/batch/`):**
-- **`batch-processor.js`**: Core DM processing loops
-  - `closeAllOpenDMs()`, `openBatchDMs()`, `closeBatchDMs()`
-  - `processDMsInBatches()`, `processAndExportAllDMs()`
-- **`batch-entry.js`**: Entry point for direct batch execution
-- **`batch-state.js`**: State persistence
-  - `saveBatchState()`, `loadBatchState()`, `clearBatchState()`, `hasIncompleteBatchSession()`
-
-**Utilities (`src/lib/`):**
-- **`cli-helpers.js`**: User input, prompts, progress bars, DCE export functions
-  - `exportDMs()`, `runDCEExport()` - Export via exportdm command
-- **`file-utils.js`**: Path validation, JSON operations, file traversal
-- **`config-validators.js`**: Config path/user ID validation
-- **`config-defaults.js`**: Export path defaulting logic
-- **`rate-limiter.js`**: API throttling class
-
-**Configuration & Logging:**
-- **`src/config.js`**: ConfigManager singleton for `.env` and `config.json`
-- **`src/logger.js`**: Automatic console capture to dated log files
+**Utilities (src/lib/):**
+- `cli-helpers.js` - Input prompts, progress bars, DCE spawn wrapper
+  - `exportDMs(token, exportPath, dcePath, userId)` - Exports DMs in Json and HtmlDark
+  - `runDCEExport()` - Spawns DiscordChatExporter.Cli with proper args
+- `file-utils.js` - File operations, JSON atomic writes
+  - `traverseDataPackage()` - Finds all channel.json files
+  - `getRecipients(paths, userId, typeFilter)` - Extracts recipient IDs by channel type
+  - `updateIdHistory()` - Maintains originalState/latest/uniqueChannels structure
+- `config-validators.js` - Path validation, user ID verification
+- `config-defaults.js` - Export path resolution
+- `rate-limiter.js` - RateLimiter class + randomDelay()
+- `api-delay-tracker.js` - Singleton for tracking API calls with random delays
+- `dry-run-helper.js` - DRY_RUN mode utilities
+- `validators.js` - Path and DCE validation
 
 ### Critical Data Flow
-1. Parse Discord data package → extract DM recipients from `channel.json` files
-2. Close all currently open DMs (does NOT automatically reopen them — reopening is an explicit step)
-3. Batch reopen DMs (default: 100 at a time) with rate limiting — performed when running the batch-processing export flow or explicitly via the "Reset DM State" menu option
-4. **Manual Mode**: User reviews batch, presses key to continue, batch closed, next batch opened
-5. **Automated Mode**: Export batch automatically, close batch, open next batch, repeat
+**Main Export Workflow:**
+1. Parse Discord data package → extract DM recipients from channel.json files (filter by DM/GROUP_DM type)
+2. Close all currently open DMs → save channel data to id-history.json
+3. Initialize batch processing with typeFilter
+4. **Automated Mode**: For each batch:
+   - Reopen batch (default: 30 at a time) with user validation
+   - Export via Discord Chat Exporter (Json + HtmlDark formats)
+   - Close batch
+   - Apply random delays (0-2s regular, 5-20s pause every 40-50 calls)
+   - Repeat until complete
+
+**Reset DM State:**
+- Reads id-history.json (latest field)
+- Reopens all previously closed DMs
+- Used to restore DM state after batch export
+
+**Channel Type Filtering:**
+- DM (type=1): 1-on-1 conversations
+- GROUP_DM (type=3): Group conversations
+- Filter applied during recipient extraction from data package
+- User selects filter when exporting (DM only, GROUP_DM only, or Both)
 
 ## Configuration System
 
-### Dual Configuration Pattern
-The project uses **both** `.env` (secrets) and `config.json` (settings), both stored in the `/config` directory:
+### File Structure
+All configuration stored in `/config/` directory:
+- `.env` - Secrets (AUTHORIZATION_TOKEN, USER_DISCORD_ID)
+- `config.json` - Application settings
+- `batch-state.json` - Auto-managed batch processing state
+- Data package stores `{DATA_PACKAGE_FOLDER}/messages/id-history.json`
 
+### config.json Settings
 ```javascript
-// config/.env - Secrets only
-AUTHORIZATION_TOKEN=your_discord_token
-USER_DISCORD_ID=your_user_id
-
-// config/config.json - Application settings
 {
-  "BATCH_SIZE": 30,
-  "API_DELAY_MS": 100,
-  "RATE_LIMIT_REQUESTS": 50,
-  "RATE_LIMIT_INTERVAL_MS": 60000,
-  "DRY_RUN": true  // Always verify this before API calls
+  "BATCH_SIZE": 30,              // DMs per batch (default: 30)
+  "API_DELAY_MS": 100,           // Deprecated - use randomDelay instead
+  "MAX_RETRIES": 3,              // API retry attempts
+  "RETRY_DELAY_MS": 5000,        // Delay between retries
+  "RATE_LIMIT_REQUESTS": 30,     // Max requests per interval
+  "RATE_LIMIT_INTERVAL_MS": 60000, // Rate limit window (60s)
+  "DATA_PACKAGE_FOLDER": "",     // Path to Discord data package
+  "EXPORT_PATH": "export",       // DCE output directory
+  "DCE_PATH": "",                // DiscordChatExporter.Cli directory
+  "DRY_RUN": false               // Test mode (no API calls)
 }
 ```
 
-**File Locations**: Configuration files are stored in `/config/` directory:
-- `config/.env` - Environment variables (secrets)
-- `config/config.json` - Application settings
-- `config/lastopened.json` - Last opened DM user IDs
-- `config/batch-state.json` - Batch processing state (auto-managed)
+### .env Variables
+```bash
+AUTHORIZATION_TOKEN=your_discord_token_here
+USER_DISCORD_ID=your_user_id_here
+```
 
-ID History is stored in the data package:
-- `DATA_PACKAGE_FOLDER/messages/id-history.json` - Contains channel information from Discord API with three keys:
-  - `originalState`: Channel objects from first capture (when closeAllOpenDMs is first run)
-  - `latest`: Channel objects from most recent close operation (only type=1 DMs)
-  - `uniqueChannels`: All unique channels ever seen (unique based on channel.id)
-  - Each channel object contains full data from getCurrentOpenDMs API response
-  - Channel types: type=1 (DM), type=3 (GROUP_DM) - numeric values from Discord API
+### id-history.json Structure
+Located at `{DATA_PACKAGE_FOLDER}/messages/id-history.json`:
+```javascript
+{
+  "originalState": [...],     // First capture from closeAllOpenDMs
+  "latest": [...],            // Most recent close (type=1 DMs only)
+  "uniqueChannels": [...]     // All unique channels ever seen
+}
+```
+Each channel object contains full Discord API response data (id, type, recipients array with username/id).
 
-**Note**: Discord data package `channel.json` files use string types ("DM", "GROUP_DM") while Discord API responses use numeric types (1, 3).
+**Channel Types:**
+- Discord data package channel.json: String types ("DM", "GROUP_DM")
+- Discord API responses: Numeric types (1=DM, 3=GROUP_DM)
 
-**Critical**: Access config via singleton: `const configManager = getConfigManager();`
-- Use `configManager.get('KEY')` for config.json values
-- Use `configManager.getEnv('KEY')` or `process.env.KEY` for .env values
-- **Menu classes must use getter**: Always access config via `get options() { return this.configManager.config; }` to ensure live updates when config reloads
+### ConfigManager Usage
+```javascript
+const { getConfigManager } = require('./config');
+const configManager = getConfigManager();
+await configManager.init(); // Must call before first use
 
-### Configuration Setup Flow
-Handled by `config.js` using helpers from `config-validators.js` and `config-defaults.js`:
+// Access values
+configManager.get('BATCH_SIZE')
+configManager.getEnv('AUTHORIZATION_TOKEN')
+process.env.AUTHORIZATION_TOKEN // Also works for .env
 
-1. **Data Package Directory**: Validate with `validateDataPackage()` (checks `messages/` folder exists)
-2. **User ID Verification**: `verifyUserId()` reads `user.json`, prompts for confirmation, handles mismatches
-3. **Remaining Config**: `promptForConfigValue()` handles prompts with automatic EXPORT_PATH defaulting via `resolveExportPath()`
-4. **Path Validation**: `validateConfigPaths()` checks and repairs invalid paths
+// Menu classes: Use getter for live updates
+get options() { return this.configManager.config; }
+```
 
-### Channel Filtering
-**Process only DM and GROUP_DM types** - exclude GUILD_TEXT and all other channel types in `src/parse-messages.js`.
+### Setup Flow
+1. Validates DATA_PACKAGE_FOLDER (checks for messages/ directory)
+2. Reads user.json, prompts for USER_DISCORD_ID confirmation
+3. Prompts for remaining config (auto-defaults EXPORT_PATH)
+4. Validates and repairs invalid paths
+5. Creates atomic writes to both .env and config.json
 
 ## Discord API Patterns
 
-### Rate Limiting Implementation
-All Discord API calls go through `RateLimiter` class in `discord-api.js`:
-```javascript
-await rateLimiter.waitForSlot(); // Always called before axios requests
-```
-Default: 50 requests per 60 seconds (`RATE_LIMIT_REQUESTS`/`RATE_LIMIT_INTERVAL_MS`)
+### Rate Limiting
+**Two-Layer Protection:**
+1. **RateLimiter class**: Token bucket (30 req/60s default)
+   - `await rateLimiter.waitForSlot()` before axios calls
+2. **Random delays**: Prevent pattern detection
+   - Regular: 0-2s random delay per call
+   - Long pause: 5-20s every 40-50 calls (for operations >50 total)
+   - Tracked via ApiDelayTracker singleton
 
-### User Validation Pattern
-**Always validate users before reopening DMs** to handle deleted/invalid accounts:
-- `validateUser()`: POSTs to `/users/@me/channels` to validate by attempting DM channel creation
-- Returns `false` for 404 (not found), 400 (invalid ID), 403 (likely deleted)
-- Logs validation failures without log level parameter (console.log doesn't support levels)
-- `reopenDM()`: Returns `null` for invalid users
-- Batch processing counts skipped vs processed users in summary
+### User Validation
+**Always validate before reopening** to handle deleted accounts:
+```javascript
+// validateUser() returns false for:
+// - 404: User not found
+// - 400: Invalid user ID
+// - 403: Access forbidden (likely deleted)
+
+const result = await reopenDM(token, userId);
+// Returns null if validation fails, channel object if successful
+```
 
 ### DRY_RUN Mode
-**Critical**: Check `configManager.get('DRY_RUN')` **BEFORE** making API calls or rate limiting:
+**Critical**: Check `configManager.get('DRY_RUN')` BEFORE making API calls:
 ```javascript
-// CORRECT: Check DRY_RUN first to prevent all API calls
-if (configManager.get('DRY_RUN')) {
-    logger(`[DRY RUN] Would perform action`, 'info');
+if (isDryRun()) {
+    console.log('[DRY RUN] Would perform action');
     return mockResponse;
 }
-await rateLimiter.waitForSlot(); // Only throttle real API calls
+await rateLimiter.waitForSlot(); // Only throttle real calls
 ```
 
-**Pattern Applied To All API Functions**:
-- `reopenDM()`: DRY_RUN check before rate limiter (returns mock data)
-- `closeDM()`: DRY_RUN check before rate limiter (returns early)
-- `getCurrentOpenDMs()`: DRY_RUN check before rate limiter (returns empty array)
-- `validateUser()`: Only called from reopenDM when not in dry run
-- All menu operations check DRY_RUN before calling API functions
+**Applied in all API functions:**
+- `getCurrentOpenDMs()` - Returns empty array
+- `reopenDM()` - Returns mock data, skips validation
+- `closeDM()` - Returns early
+- All batch operations log actions without execution
 
-## Message Parsing Algorithm
+### API Functions
+- `getCurrentOpenDMs(authToken)` - Fetches all open DM channels
+- `validateUser(authToken, userId)` - Validates user exists/accessible
+- `reopenDM(authToken, userId)` - Opens DM (validates first, returns null if invalid)
+- `closeDM(authToken, channelId)` - Closes DM channel
 
-### Binary Search for Recent Messages
-`MessageParser` maintains a sorted stack of N most recent messages using binary insertion:
-- `findInsertPosition()`: O(log n) binary search on timestamps
-- `insertMessage()`: Removes oldest if at capacity, inserts in sorted order
-- Processes `messages.json` from Discord data package (NDJSON format)
+All use retry logic with exponential backoff for 429 rate limits.
+
+## Logging System
+
+### Automatic Console Capture
+All console output automatically logged to `./logs/YYYY-MM-DD.log`:
+- Intercepts: console.log/error/warn/info/debug
+- Log rotation: Keeps 10 most recent files
+- Format: `[2025-12-31T10:30:45.123Z] [INFO] Message`
+- Must call `initializeLogger('./logs', 10)` at entry points
+
+### Usage
+```javascript
+const { initializeLogger, getLogger } = require('./logger');
+initializeLogger('./logs', 10); // Once per entry point
+
+console.log('Auto-logged message'); // Standard usage
+
+// Log-only (no console output) for tracking markers
+getLogger().logOnly('[MENU] Main Menu', 'info');
+getLogger().logOnly('[ACTION] User action', 'info');
+
+// Pause/resume for clean menu display
+getLogger().pause();
+console.log('Menu display (not logged)');
+getLogger().resume();
+```
 
 ## Development Workflows
 
 ### Running the Application
 ```bash
-npm start             # Interactive CLI menu (runs src/cli/menu-main.js)
-npm run batch         # Direct batch processing (runs src/batch/batch-entry.js)
+npm start             # Interactive CLI menu
+npm run batch         # Direct batch processing (bypasses menu)
 npm test              # Run Jest tests
 ```
 
-### Testing Discord API Calls
-Use `tests/curl command.sh` as template for manual API testing:
+### Discord Chat Exporter Integration
+**Workflow:**
+1. Menu: "1. Export All Direct Messages"
+2. Select channel type filter (DM only / GROUP_DM only / Both)
+3. Validate DCE_PATH and EXPORT_PATH
+4. Batch process with typeFilter
+5. Export each batch via `exportdm` command (Json + HtmlDark formats)
+
+**DCE Arguments:**
+- Token: `-t {AUTHORIZATION_TOKEN}`
+- Output: `-o {EXPORT_PATH}/{USER_ID}/%G/%c/%C - %d/`
+- Partition: `--partition 10MB`
+- Media: `--media --media-dir {EXPORT_PATH}/media --reuse-media`
+- Parallel: `--parallel 4 --respect-rate-limits`
+
+**Output Structure:**
+```
+export/
+  {USER_DISCORD_ID}/
+    Direct Messages/
+      {CHANNEL_ID}/
+        {USERNAME} - {DATE}/
+          messages.json
+          messages.html
+  media/
+    {shared media files}
+```
+
+### Testing
 ```bash
-curl -X POST 'https://discord.com/api/v9/users/@me/channels' \
-  -H 'Authorization: TOKEN' \
-  -H 'Content-Type: application/json' \
-  -d '{"recipients": ["USER_ID"]}'
-```
+# Test with DRY_RUN mode
+echo "DRY_RUN: true" # in config.json
 
-### Exporting DMs
-Discord Chat Exporter integration via `exportdm` command:
-- Menu option "1. Export All Direct Messages"
-- Uses DCE's `exportdm` command to export all open DMs
-- Validates DCE_PATH and EXPORT_PATH before execution
-- Exports in Json and HtmlDark formats
-- Uses Node.js `spawn` to call DiscordChatExporter.Cli
-- Shows real-time progress output from DCE
-- DCE arguments: partition 10MB, media download, reuse-media, parallel 4
-- Export path includes user ID: `{EXPORT_PATH}/{USER_ID}/%G/%c/%C - %d/`
-- Media directory shared: `{EXPORT_PATH}/media`
-- Comprehensive error handling
+# Manual API testing
+tests/curl command.sh  # Template for Discord API calls
 
-## Logging System
-
-### Centralized Logger
-All console output is automatically captured to log files via `src/logger.js`:
-- **Automatic Capture**: Intercepts all `console.log()`, `console.error()`, `console.warn()`, `console.info()`, `console.debug()` calls
-- **Log Location**: `./logs/YYYY-MM-DD.log` (filenames use local timezone, timestamps use UTC)
-- **Log Rotation**: Automatically maintains maximum of 10 log files (configurable), removing oldest logs first
-- **Initialization**: Must call `initializeLogger('./logs', 10)` at entry points (menu-main.js, batch-entry.js, parse-messages.js, config.js)
-- **Log-Only Output**: Use `getLogger().logOnly(message, level)` to write to log without console display (used for `[MENU]` and `[ACTION]` markers)
-
-### Usage Pattern
-```javascript
-const { initializeLogger, getLogger } = require('./logger');
-initializeLogger('./logs', 10); // Initialize once per entry point
-
-// All standard console calls are automatically logged
-console.log('Info message');
-console.error('Error message');
-console.warn('Warning message');
-
-// Log without console output (for tracking/metadata)
-getLogger().logOnly('[MENU] Main Menu', 'info');
-getLogger().logOnly('[ACTION] User selected option 1', 'info');
-```
-
-### Log Format
-```
-[2025-10-12T10:30:45.123Z] [INFO] Info message
-[2025-10-12T10:30:46.456Z] [ERROR] Error message
-[2025-10-12T10:30:47.789Z] [WARN] Warning message
-[2025-10-12T20:11:41.172Z] [INFO] [MENU] Main Menu
-[2025-10-12T20:11:45.231Z] [INFO] [ACTION] Configuration Menu Selected
-```
-
-### Testing Without Direct Execution
-To test the application without running it interactively:
-```bash
-# Simple quit test
-echo "q" | npm start 2>&1
-
-# Navigate through menus (1=Config, 2=API, q=quit)
+# Menu navigation test
 printf "1\nq\nq\n" | npm start 2>&1
 
-# Multi-step navigation with timeouts
-timeout 3 npm start 2>&1 | grep "pattern" || true
-
-# Verify logging by checking log file
-grep '\[MENU\]\|\[ACTION\]' logs/YYYY-MM-DD.log | tail -10
+# Check logs
+tail -f logs/$(date +%Y-%m-%d).log
 ```
 
 ## Common Pitfalls
 
-1. **Forgotten DRY_RUN check**: Always gate API calls with DRY_RUN check
-2. **Direct axios without rate limiting**: All Discord API calls must use `discord-api.js` functions
-3. **Missing user validation**: Call `validateUser()` before `reopenDM()` to avoid 403 errors
-4. **Hardcoded paths**: Use `configManager.get()` for all paths (DATA_PACKAGE_FOLDER, EXPORT_PATH, DCE_PATH)
-5. **ConfigManager not initialized**: Call `await configManager.init()` before accessing config values
-6. **Cached config reference**: Menu classes must use getters for `options` property, not direct assignment in constructor, to avoid stale config references after reload
+1. **Missing DRY_RUN check**: Always check before API calls
+2. **Direct axios calls**: Use discord-api.js functions (includes rate limiting + retry)
+3. **Skipping user validation**: Call validateUser() to avoid 403 errors on deleted accounts
+4. **Hardcoded paths**: Use configManager.get() for all paths
+5. **ConfigManager not initialized**: Call `await configManager.init()` before access
+6. **Stale config reference**: Use `get options()` getter in menu classes, not constructor assignment
+7. **Missing atomic writes**: Use writeJsonFile() for config files (prevents corruption)
+8. **Incorrect channel type filtering**: Data package uses strings ("DM"), API uses numbers (1)
 
-## External Dependencies
+## Key Dependencies
 
-- **Discord Chat Exporter**: Required for initial DM export (not included, user-installed)
-- **Discord Data Package**: User's Discord data export containing `messages/` folder with `channel.json` and `messages.json` files
-- **axios**: HTTP client for Discord API (v9)
-- **cli-progress**: Progress bars for batch operations
-- **dotenv**: Environment variable management
+**Runtime:**
+- axios@^1.7.9 - Discord API HTTP client
+- cli-progress@^3.12.0 - Progress bars
+- dotenv@^16.4.7 - Environment variables
 
-## Testing Approach
+**Dev:**
+- jest@^29.7.0 - Testing framework
 
-- Jest configured but minimal tests currently
-- Manual testing workflow: Set `DRY_RUN: true`, verify logs, then set `false`
-- Use `tests/curl command.sh` for API endpoint verification
-- **Dry run throttling test**: Run `node test-dry-run-throttle.js` to verify DRY_RUN mode skips rate limiting (should complete in <1ms for 10 operations)
+**External:**
+- Discord Chat Exporter - Required for DM export (user-installed)
+- Discord Data Package - User's data export from Discord
 
-## Publishing & Release
+## Version Management
 
-### Automated NPM Publishing
-GitHub Action (`.github/workflows/publish.yml`) automatically publishes to npm when version changes:
-- Triggers on push to `master` with `package.json` changes
-- Validates version increment (skips if unchanged)
-- Runs tests before publishing
-- Creates git tag for release (e.g., `v1.5.0`)
-- Requires `NPM_TOKEN` secret in GitHub repository settings
+Current: 1.5.11
 
-### Version Management
-Update version in `package.json` using semver pattern `X.Y.Z`:
-- **X (MAJOR)**: Breaking changes
-- **Y (MINOR)**: New features, backward compatible
-- **Z (PATCH)**: Bug fixes, backward compatible
+**Automated Publishing:**
+GitHub Action `.github/workflows/publish.yml` publishes to npm on version change:
+1. Push to master with package.json version change
+2. Validates version increment
+3. Runs tests
+4. Creates git tag (e.g., v1.5.11)
+5. Publishes to npm
 
-Use `npm version` or manually edit:
+**Update version:**
 ```bash
-npm version patch  # 1.5.0 → 1.5.1
-npm version minor  # 1.5.0 → 1.6.0
-npm version major  # 1.5.0 → 2.0.0
-git push origin master  # Triggers publish workflow
+npm version patch  # Bug fixes (1.5.11 → 1.5.12)
+npm version minor  # New features (1.5.11 → 1.6.0)
+npm version major  # Breaking changes (1.5.11 → 2.0.0)
+git push origin master
 ```

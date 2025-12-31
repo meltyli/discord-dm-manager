@@ -39,7 +39,12 @@ class MenuBase {
      * @returns {Promise<boolean>} True if should continue menu loop, false to exit
      */
     async executeMenuAction(actionName, actionFn, waitAfter = true) {
+        clearScreen();
         getLogger().logOnly(`[ACTION] ${actionName}`);
+        
+        // Show action header
+        console.log(`\n${actionName}`);
+        console.log('='.repeat(actionName.length));
         
         try {
             await actionFn();
@@ -48,7 +53,7 @@ class MenuBase {
             }
             return true;
         } catch (error) {
-            console.error('Error:', error.message);
+            console.error('\nError:', error.message);
             if (waitAfter) {
                 await waitForKeyPress(this.rl);
             }

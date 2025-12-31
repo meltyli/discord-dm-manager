@@ -47,52 +47,58 @@ class ConfigurationMenu extends MenuBase {
                 case 'q':
                     return false;
                 default:
-                    console.log('Invalid option. Please try again.');
+                    console.log('\nInvalid option. Please try again.');
+                    await waitForKeyPress(this.rl);
                     return true;
             }
         });
     }
 
     async editDataPackageFolder() {
-        const newValue = cleanInput(await promptUser(`\nData Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `, this.rl));
+        const newValue = cleanInput(await promptUser(`Data Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `, this.rl));
         if (newValue) {
             this.options.DATA_PACKAGE_FOLDER = newValue;
             this.configManager.saveConfig();
-            console.log('Data package folder updated!');
+            console.log('\nData package folder updated!');
         }
+        await waitForKeyPress(this.rl);
     }
 
     async editExportPath() {
-        const newValue = cleanInput(await promptUser(`\nExport Path (current: ${this.options.EXPORT_PATH}): `, this.rl));
+        const newValue = cleanInput(await promptUser(`Export Path (current: ${this.options.EXPORT_PATH}): `, this.rl));
         this.options.EXPORT_PATH = ensureExportPath(newValue);
         this.configManager.saveConfig();
-        console.log(`Export path set to ${this.options.EXPORT_PATH}`);
+        console.log(`\nExport path set to ${this.options.EXPORT_PATH}`);
+        await waitForKeyPress(this.rl);
     }
 
     async editDCEPath() {
-        const newValue = cleanInput(await promptUser(`\nDiscord Chat Exporter Path (current: ${this.options.DCE_PATH}): `, this.rl));
+        const newValue = cleanInput(await promptUser(`Discord Chat Exporter Path (current: ${this.options.DCE_PATH}): `, this.rl));
         if (newValue) {
             this.options.DCE_PATH = newValue;
             this.configManager.saveConfig();
-            console.log('Discord Chat Exporter path updated!');
+            console.log('\nDiscord Chat Exporter path updated!');
         }
+        await waitForKeyPress(this.rl);
     }
 
     async resetToDefault() {
-        console.log('\nWARNING: This will delete all configuration and reset to defaults.');
+        console.log('WARNING: This will delete all configuration and reset to defaults.');
         console.log('This includes:');
         console.log('  - All path settings');
         console.log('  - Advanced settings (will reset to defaults)');
         console.log('  - Environment variables (AUTHORIZATION_TOKEN, USER_DISCORD_ID)');
+        console.log('');
         
-        if (await promptConfirmation('\nAre you sure you want to continue? (yes/no): ', this.rl)) {
+        if (await promptConfirmation('Are you sure you want to continue? (yes/no): ', this.rl)) {
             this.configManager.resetToDefault();
             this.options = this.configManager.config;
             console.log('\n✓ Configuration reset successfully!');
             console.log('You will need to reconfigure before using the application.');
             await waitForKeyPress(this.rl);
         } else {
-            console.log('Reset cancelled.');
+            console.log('\nReset cancelled.');
+            await waitForKeyPress(this.rl);
         }
     }
 
@@ -121,7 +127,8 @@ class ConfigurationMenu extends MenuBase {
                 case 'q':
                     return false;
                 default:
-                    console.log('Invalid option. Please try again.');
+                    console.log('\nInvalid option. Please try again.');
+                    await waitForKeyPress(this.rl);
                     return true;
             }
         });
@@ -132,8 +139,9 @@ class ConfigurationMenu extends MenuBase {
         if (newValue) {
             this.options.BATCH_SIZE = Number(newValue);
             this.configManager.saveConfig();
-            console.log(`Batch size updated to ${this.options.BATCH_SIZE}`);
+            console.log(`\nBatch size updated to ${this.options.BATCH_SIZE}`);
         }
+        await waitForKeyPress(this.rl);
     }
 
     async setApiDelay() {
@@ -141,12 +149,13 @@ class ConfigurationMenu extends MenuBase {
         if (newValue) {
             this.options.API_DELAY_MS = Number(newValue);
             this.configManager.saveConfig();
-            console.log(`API delay updated to ${this.options.API_DELAY_MS}ms`);
+            console.log(`\nAPI delay updated to ${this.options.API_DELAY_MS}ms`);
         }
+        await waitForKeyPress(this.rl);
     }
 
     async setRateLimit() {
-        console.log('\nRate Limit Configuration');
+        console.log('Rate Limit Configuration');
         const requests = cleanInput(await promptUser(`Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `, this.rl));
         const interval = cleanInput(await promptUser(`Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `, this.rl));
         
@@ -158,13 +167,15 @@ class ConfigurationMenu extends MenuBase {
         }
         
         this.configManager.saveConfig();
-        console.log(`Rate limit updated to ${this.options.RATE_LIMIT_REQUESTS} requests per ${this.options.RATE_LIMIT_INTERVAL_MS}ms`);
+        console.log(`\nRate limit updated to ${this.options.RATE_LIMIT_REQUESTS} requests per ${this.options.RATE_LIMIT_INTERVAL_MS}ms`);
+        await waitForKeyPress(this.rl);
     }
 
-    toggleDryRun() {
+    async toggleDryRun() {
         this.options.DRY_RUN = !this.options.DRY_RUN;
         this.configManager.saveConfig();
-        console.log(`Dry Run Mode ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+        console.log(`\nDry Run Mode ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+        await waitForKeyPress(this.rl);
     }
 }
 

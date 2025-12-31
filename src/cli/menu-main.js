@@ -57,17 +57,17 @@ class DiscordDMApp {
                         await this.apiMenu.show();
                         break;
                     case 'q':
-                        console.log('Goodbye!');
+                        console.log('\nGoodbye!');
                         this.rl.close();
                         return;
                     default:
-                        console.log('Invalid option. Please try again.');
+                        console.log('\nInvalid option. Please try again.');
                         await waitForKeyPress(this.rl);
                 }
             } catch (error) {
                 // Don't show error if it's just config completion
                 if (error.message !== 'CONFIG_COMPLETE') {
-                    console.error('Error:', error.message);
+                    console.error('\nError:', error.message);
                     await waitForKeyPress(this.rl);
                 }
             }
