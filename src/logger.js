@@ -72,18 +72,9 @@ class Logger {
         }
     }
     
-    /**
-     * Writes a message to the configured log stream if it exists and is not destroyed.
-     *
-     * Called whenever the logger needs to append a log entry; the write occurs only
-     * when this.logStream is truthy and not destroyed.
-     *
-     * @param {string|Buffer} message - The message or data to write to the log stream.
-     * @returns {void}
-     */
     writeToLog(message) {
         if (this.logStream && !this.logStream.destroyed) {
-            this.logStream.write(message);
+            this.logStream.write(message + '\n');
         }
     }
     
