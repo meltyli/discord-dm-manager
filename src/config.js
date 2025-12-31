@@ -28,7 +28,8 @@ const defaultConfig = {
     DATA_PACKAGE_FOLDER: '',
     EXPORT_PATH: 'export',
     DCE_PATH: '',
-    DRY_RUN: false
+    DRY_RUN: false,
+    SUPPRESS_MENU_ERRORS: false
 };
 
 // Required environment variables template

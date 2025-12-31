@@ -32,7 +32,7 @@ class ApiMenu extends MenuBase {
             switch (choice) {
                 case '1':
                     return await this.executeMenuAction('Export All Direct Messages', 
-                        () => this.processAndExportAllDMs());
+                        () => this.processAndExportAllDMs(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
                 case '2':
                     return await this.executeMenuAction('List Current Open Direct Messages', 
                         () => this.viewOpenDMs());

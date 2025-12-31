@@ -38,7 +38,7 @@ class MenuBase {
      * @param {boolean} waitAfter - Whether to wait for key press after (default: true)
      * @returns {Promise<boolean>} True if should continue menu loop, false to exit
      */
-    async executeMenuAction(actionName, actionFn, waitAfter = true) {
+    async executeMenuAction(actionName, actionFn, waitAfter = true, options = {}) {
         clearScreen();
         getLogger().logOnly(`[ACTION] ${actionName}`);
         
@@ -52,8 +52,11 @@ class MenuBase {
             }
             return true;
         } catch (error) {
-            console.log('');
-            console.error('Error:', error.message);
+            // Allow callers to suppress generic menu-level error output
+            if (!options.suppressErrorOutput) {
+                console.log('');
+                console.error('Error:', error.message);
+            }
             if (waitAfter) {
                 await safeWaitForKeyPress(this.rl);
             }

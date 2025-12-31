@@ -104,17 +104,6 @@ async function closeAllOpenDMs() {
         
         return closedUserIds;
     } catch (error) {
-        console.log('');
-        const status = error.response?.status;
-        if (status === 401 || status === 403) {
-            console.error(`Failed: ${error.message} - Check your AUTHORIZATION_TOKEN in .env`);
-        } else if (status === 429) {
-            console.error(`Failed: ${error.message} - Rate limited, try again later or increase delays`);
-        } else if (status >= 500) {
-            console.error(`Failed: ${error.message} - Discord server error, try again later`);
-        } else {
-            console.error(`Failed to close all open direct messages: ${error.message}`);
-        }
         throw error;
     }
 }
@@ -245,7 +234,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
         saveBatchState(batchState);
         clearBatchState();
     } catch (error) {
-        console.error(`Fatal error in main process: ${error.message}`);
+        // Let the caller handle final error presentation.
         throw error;
     }
 }
@@ -315,7 +304,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
         saveBatchState(batchState);
         clearBatchState();
     } catch (error) {
-        console.error(`Fatal error in main process: ${error.message}`);
+        // Let the caller handle final error presentation.
         throw error;
     }
 }

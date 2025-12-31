@@ -109,6 +109,7 @@ class ConfigurationMenu extends MenuBase {
             console.log('2. Set Batch Size');
             console.log('3. Set API Delay');
             console.log('4. Set Rate Limit');
+            console.log('5. Toggle Suppress Menu Errors');
             console.log('q. Back to Configuration Menu');
         }, async (choice) => {
             switch (choice) {
@@ -124,6 +125,9 @@ class ConfigurationMenu extends MenuBase {
                 case '4':
                     return await this.executeMenuAction('Set Rate Limit', 
                         () => this.setRateLimit(), false);
+                case '5':
+                    return await this.executeMenuAction('Toggle Suppress Menu Errors', 
+                        () => this.toggleSuppressMenuErrors(), false);
                 case 'q':
                     return false;
                 default:
@@ -175,6 +179,14 @@ class ConfigurationMenu extends MenuBase {
         this.options.DRY_RUN = !this.options.DRY_RUN;
         this.configManager.saveConfig();
         console.log(`\nDry Run Mode ${this.options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
+        await waitForKeyPress(this.rl);
+    }
+
+    async toggleSuppressMenuErrors() {
+        this.options.SUPPRESS_MENU_ERRORS = !this.options.SUPPRESS_MENU_ERRORS;
+        this.configManager.saveConfig();
+        console.log(`\nSuppress Menu Errors ${this.options.SUPPRESS_MENU_ERRORS ? 'Enabled' : 'Disabled'}`);
+        console.log('(Reduces duplicate error messages in menu output)');
         await waitForKeyPress(this.rl);
     }
 }

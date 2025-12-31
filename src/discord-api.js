@@ -22,7 +22,7 @@ async function withRetry(operation, description) {
                     msg = `${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`;
                 }
 
-                console.warn(msg);
+                console.warn('\n' + msg);
 
                 if (attempt === configManager.get('MAX_RETRIES')) {
                     throw error;
