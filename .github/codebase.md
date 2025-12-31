@@ -31,7 +31,7 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 
 **Utilities (src/lib/):**
 - `cli-helpers.js` - Input prompts, progress bars, DCE spawn wrapper
-  - `exportDMs(token, exportPath, dcePath, userId)` - Exports DMs in Json and HtmlDark, returns {success, results}
+  - `exportDMs(token, exportPath, dcePath, userId)` - Exports DMs in JSON (messages.json) and returns {success, results}
   - `runDCEExport()` - Spawns DiscordChatExporter.Cli with proper args
 - `file-utils.js` - File operations, JSON atomic writes
   - `traverseDataPackage()` - Finds all channel.json files
@@ -55,9 +55,9 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 3. Check export status → skip already completed exports (resume functionality)
 4. Initialize batch processing with typeFilter
 5. **Automated Mode**: For each batch:
-   - Reopen batch (default: 30 at a time) with user validation
-   - Mark channels as 'in-progress' in exportStatus
-   - Export via Discord Chat Exporter (Json + HtmlDark formats)
+  - Reopen batch (default: 20 at a time) with user validation
+  - Mark channels as 'in-progress' in exportStatus
+  - Export via Discord Chat Exporter (JSON only - messages.json)
    - Mark channels as 'completed' or 'failed' based on export result
    - Close batch
    - Apply random delays (0-2s regular, 5-20s pause every 40-50 calls)
@@ -86,7 +86,7 @@ All configuration stored in `/config/` directory:
 ### config.json Settings
 ```javascript
 {
-  "BATCH_SIZE": 30,              // DMs per batch (default: 30)
+  "BATCH_SIZE": 20,              // DMs per batch (default: 20)
   "API_DELAY_MS": 100,           // Deprecated - use randomDelay instead
   "MAX_RETRIES": 3,              // API retry attempts
   "RETRY_DELAY_MS": 5000,        // Delay between retries
@@ -278,7 +278,7 @@ npm test              # Run Jest tests
 2. Select channel type filter (DM only / GROUP_DM only / Both)
 3. Validate DCE_PATH and EXPORT_PATH
 4. Batch process with typeFilter
-5. Export each batch via `exportdm` command (Json + HtmlDark formats)
+5. Export each batch via `exportdm` command (JSON only - messages.json)
 
 **DCE Arguments:**
 - Token: `-t {AUTHORIZATION_TOKEN}`
@@ -295,7 +295,6 @@ export/
       {CHANNEL_ID}/
         {USERNAME} - {DATE}/
           messages.json
-          messages.html
   media/
     {shared media files}
 ```
@@ -341,20 +340,20 @@ tail -f logs/$(date +%Y-%m-%d).log
 
 ## Version Management
 
-Current: 1.5.11
+Current: 1.6.2
 
 **Automated Publishing:**
 GitHub Action `.github/workflows/publish.yml` publishes to npm on version change:
 1. Push to master with package.json version change
 2. Validates version increment
 3. Runs tests
-4. Creates git tag (e.g., v1.5.11)
+4. Creates git tag (e.g., v1.6.2)
 5. Publishes to npm
 
 **Update version:**
 ```bash
-npm version patch  # Bug fixes (1.5.11 → 1.5.12)
-npm version minor  # New features (1.5.11 → 1.6.0)
-npm version major  # Breaking changes (1.5.11 → 2.0.0)
+npm version patch  # Bug fixes (1.6.2 → 1.6.3)
+npm version minor  # New features (1.6.2 → 1.7.0)
+npm version major  # Breaking changes (1.6.2 → 2.0.0)
 git push origin master
 ```

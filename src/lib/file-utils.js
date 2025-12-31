@@ -162,7 +162,7 @@ function getExportStatus(idHistoryPath) {
     return data.exportStatus;
 }
 
-function updateExportStatus(idHistoryPath, channelId, status) {
+function updateExportStatus(idHistoryPath, channelId, status, username = null) {
     const data = readJsonFile(idHistoryPath, null);
     if (!data) {
         throw new Error('id-history.json does not exist. Run closeAllOpenDMs first.');
@@ -172,10 +172,16 @@ function updateExportStatus(idHistoryPath, channelId, status) {
         data.exportStatus = {};
     }
     
-    data.exportStatus[channelId] = {
+    const statusEntry = {
         status: status,
         timestamp: new Date().toISOString()
     };
+    
+    if (username) {
+        statusEntry.username = username;
+    }
+    
+    data.exportStatus[channelId] = statusEntry;
     
     writeJsonFile(idHistoryPath, data);
 }

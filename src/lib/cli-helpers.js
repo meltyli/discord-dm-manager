@@ -53,7 +53,14 @@ function clearScreen() {
 }
 
 function cleanInput(input) {
-    return input.trim().replace(/^['"]|['"]$/g, '');
+    const trimmed = input.trim();
+    // If the input is fully quoted, extract the quoted content
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || 
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        return trimmed.slice(1, -1).trim();
+    }
+    // Otherwise just trim whitespace
+    return trimmed;
 }
 
 async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown', afterTimestamp = null) {
@@ -135,7 +142,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                 const afterTimestamp = channelStatus?.status === 'completed' ? channelStatus.timestamp : null;
                 
                 if (idHistoryPath) {
-                    updateExportStatus(idHistoryPath, recipientId, 'in-progress');
+                    updateExportStatus(idHistoryPath, recipientId, 'in-progress', username);
                 }
                 
                 const result = await runDCEExportChannel(
@@ -154,7 +161,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                 results.push(result);
                 
                 if (idHistoryPath) {
-                    updateExportStatus(idHistoryPath, recipientId, 'completed');
+                    updateExportStatus(idHistoryPath, recipientId, 'completed', username);
                 }
             } catch (error) {
                 completed++;
@@ -162,7 +169,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                 results.push({ success: false, channelId: channel.id, channelName: displayName, error: error.message });
                 
                 if (idHistoryPath) {
-                    updateExportStatus(idHistoryPath, recipientId, 'failed');
+                    updateExportStatus(idHistoryPath, recipientId, 'failed', username);
                 }
             } finally {
                 activeCount--;

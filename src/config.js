@@ -111,16 +111,15 @@ class ConfigManager {
         if (!this.config.DATA_PACKAGE_FOLDER || this.config.DATA_PACKAGE_FOLDER === '') {
             const packagePath = await promptUser('Enter Discord data package directory path: ', this.rl);
             this.config.DATA_PACKAGE_FOLDER = cleanInput(packagePath);
-            
-            // Verify data package structure
-            validateDataPackage(this.config.DATA_PACKAGE_FOLDER);
         }
 
-        // Step 2: Read user.json and verify user ID
-        const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl);
-        if (verifiedUserId) {
-            this.env.USER_DISCORD_ID = verifiedUserId;
-            process.env.USER_DISCORD_ID = verifiedUserId;
+        // Step 2: Read user.json and verify user ID (if data package exists)
+        if (validatePathExists(this.config.DATA_PACKAGE_FOLDER)) {
+            const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl);
+            if (verifiedUserId) {
+                this.env.USER_DISCORD_ID = verifiedUserId;
+                process.env.USER_DISCORD_ID = verifiedUserId;
+            }
         }
 
         // Step 3: Fill in remaining config values

@@ -37,34 +37,59 @@ async function verifyUserId(dataPackagePath, rlInterface) {
 }
 
 /**
- * Validates and repairs configuration paths
+ * Validates and creates missing configuration paths
  * @param {Object} config - Configuration object to validate
  * @param {string[]} pathKeys - Array of path keys to validate
  * @param {readline.Interface} rlInterface - Readline interface for prompts
  * @param {Function} ensureExportPathFn - Function to handle EXPORT_PATH defaulting
- * @returns {Promise<boolean>} True if any paths were updated
+ * @returns {Promise<boolean>} True if any paths were created
  */
 async function validateConfigPaths(config, pathKeys, rlInterface, ensureExportPathFn) {
-    let updated = false;
+    const fs = require('fs');
+    const missingPaths = [];
     
     for (const pathKey of pathKeys) {
         const pathValue = config[pathKey];
-        if (!validatePathExists(pathValue, pathKey)) {
-            console.warn(`Path ${pathKey} (${pathValue}) does not exist`);
-            const newPath = await promptUser(`Enter valid path for ${pathKey}: `, rlInterface);
-            const cleaned = cleanInput(newPath);
-            
-            // Handle EXPORT_PATH defaulting if provided function exists
-            if (pathKey === 'EXPORT_PATH' && ensureExportPathFn) {
-                config[pathKey] = ensureExportPathFn(cleaned);
-            } else {
-                config[pathKey] = cleaned;
-            }
-            updated = true;
+        if (pathValue && !validatePathExists(pathValue)) {
+            missingPaths.push({ key: pathKey, path: pathValue });
         }
     }
     
-    return updated;
+    if (missingPaths.length === 0) {
+        return false;
+    }
+    
+    console.log('\n' + '='.repeat(60));
+    console.log('The following directories do not exist:');
+    missingPaths.forEach(({ key, path }) => {
+        console.log(`  ${key}: ${path}`);
+    });
+    console.log('='.repeat(60));
+    
+    const shouldCreate = await promptConfirmation(
+        missingPaths.length === 1 
+            ? 'Would you like to create this directory? (y/n): '
+            : 'Would you like to create these directories? (y/n): ',
+        rlInterface
+    );
+    
+    if (!shouldCreate) {
+        throw new Error('Cannot proceed without valid directories. Setup cancelled.');
+    }
+    
+    // Create directories
+    const { ensureDirectory } = require('./file-utils');
+    for (const { key, path: dirPath } of missingPaths) {
+        try {
+            ensureDirectory(dirPath);
+            console.log(`✓ Created: ${dirPath}`);
+        } catch (error) {
+            console.error(`✗ Failed to create ${key} (${dirPath}): ${error.message}`);
+            throw new Error(`Could not create directory: ${dirPath}`);
+        }
+    }
+    
+    return true;
 }
 
 module.exports = {
