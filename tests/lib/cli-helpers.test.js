@@ -1,6 +1,5 @@
 const { 
     cleanInput, 
-    formatPath, 
     clearScreen,
     createDMProgressBar
 } = require('../../src/lib/cli-helpers');
@@ -33,12 +32,6 @@ describe('cli-helpers', () => {
 
         test('handles mixed quote types', () => {
             expect(cleanInput('\'"test"\'')).toBe('"test"');
-        });
-    });
-
-    describe('formatPath', () => {
-        test('is an alias for cleanInput', () => {
-            expect(formatPath('  "/path/to/file"  ')).toBe('/path/to/file');
         });
     });
 

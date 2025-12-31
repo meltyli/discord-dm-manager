@@ -1,5 +1,6 @@
 const path = require('path');
-const { validatePathExists, readJsonFile } = require('./file-utils');
+const { validatePathExists, validateUserJson, validateDataPackage } = require('./validators');
+const { readJsonFile } = require('./file-utils');
 const { promptUser, promptConfirmation, cleanInput } = require('./cli-helpers');
 
 /**
@@ -10,46 +11,29 @@ const { promptUser, promptConfirmation, cleanInput } = require('./cli-helpers');
  */
 async function verifyUserId(dataPackagePath, rlInterface) {
     const userJsonPath = path.join(dataPackagePath, 'account', 'user.json');
+    const validation = validateUserJson(userJsonPath);
     
-    if (!validatePathExists(userJsonPath, 'user.json')) {
-        console.warn(`Warning: user.json not found at ${userJsonPath}`);
+    if (!validation.valid) {
+        console.warn(`Warning: ${validation.error}`);
         return null;
     }
 
-    try {
-        const userData = readJsonFile(userJsonPath);
-        if (!userData) {
-            console.warn(`Could not read user.json at ${userJsonPath}`);
-            return null;
+    const { userId: packageUserId, username: packageUsername } = validation;
+    console.log(`\nFound user in data package: ${packageUsername} (ID: ${packageUserId})`);
+    
+    const providedUserId = cleanInput(await promptUser(`Provide user ID for user ${packageUsername}: `, rlInterface));
+    
+    if (providedUserId !== packageUserId) {
+        console.warn(`\nWARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
+        
+        if (!await promptConfirmation('Are you sure you want to proceed? (yes/no): ', rlInterface)) {
+            throw new Error('User ID verification failed. Setup cancelled.');
         }
-        
-        const packageUserId = userData.id;
-        const packageUsername = userData.username;
-        
-        console.log(`\nFound user in data package: ${packageUsername} (ID: ${packageUserId})`);
-        
-        // Prompt for user ID
-        const providedUserId = cleanInput(await promptUser(`Provide user ID for user ${packageUsername}: `, rlInterface));
-        
-        // Compare IDs
-        if (providedUserId !== packageUserId) {
-            console.warn(`\nWARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
-            
-            if (!await promptConfirmation('Are you sure you want to proceed? (yes/no): ', rlInterface)) {
-                throw new Error('User ID verification failed. Setup cancelled.');
-            }
-        } else {
-            console.log('✓ User ID verified successfully!');
-        }
-        
-        return providedUserId;
-    } catch (error) {
-        if (error.message.includes('Setup cancelled')) {
-            throw error;
-        }
-        console.error(`Error reading user.json: ${error.message}`);
-        return null;
+    } else {
+        console.log('✓ User ID verified successfully!');
     }
+    
+    return providedUserId;
 }
 
 /**
@@ -83,28 +67,7 @@ async function validateConfigPaths(config, pathKeys, rlInterface, ensureExportPa
     return updated;
 }
 
-/**
- * Validates data package directory structure
- * @param {string} packagePath - Path to data package directory
- * @returns {boolean} True if valid
- */
-function validateDataPackage(packagePath) {
-    // Verify path exists
-    if (!validatePathExists(packagePath, 'Data package directory', true)) {
-        return false;
-    }
-    
-    // Verify it has messages folder
-    const messagesPath = path.join(packagePath, 'messages');
-    if (!validatePathExists(messagesPath, 'Messages folder', true)) {
-        return false;
-    }
-    
-    return true;
-}
-
 module.exports = {
     verifyUserId,
-    validateConfigPaths,
-    validateDataPackage
+    validateConfigPaths
 };

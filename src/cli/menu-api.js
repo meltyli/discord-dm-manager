@@ -1,7 +1,8 @@
 const path = require('path');
 const { getCurrentOpenDMs, reopenDM } = require('../discord-api');
 const { processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
-const { readJsonFile, validatePathExists, validateRequiredConfig, validateDCEPath } = require('../lib/file-utils');
+const { readJsonFile } = require('../lib/file-utils');
+const { validateRequired, validateDCEPath, validatePathExists } = require('../lib/validators');
 const { promptUser, waitForKeyPress, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { displaySettings } = require('./menu-helpers');
 const { isDryRun } = require('../lib/dry-run-helper');
@@ -184,7 +185,7 @@ class ApiMenu extends MenuBase {
         // Validate DCE_PATH and EXPORT_PATH
         try {
             validateDCEPath(this.options.DCE_PATH);
-            validateRequiredConfig(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
+            validateRequired(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
         } catch (error) {
             console.error(`\nError: ${error.message}`);
             return;

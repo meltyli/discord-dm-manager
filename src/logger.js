@@ -97,58 +97,33 @@ class Logger {
         return `[${timestamp}] [${level.toUpperCase()}] ${message}`;
     }
     
-    /**
-     * Check if message should be logged (skip empty/whitespace-only messages)
-     */
     shouldLog(args) {
         if (!args || args.length === 0) return false;
-        
-        // Join all args and check if result is just whitespace
         const combined = args.map(arg => String(arg)).join('').trim();
         return combined.length > 0;
     }
     
     interceptConsole() {
-        const originalLog = console.log;
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        const originalInfo = console.info;
-        const originalDebug = console.debug;
+        const originalMethods = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info,
+            debug: console.debug
+        };
         
-        console.log = (...args) => {
-            originalLog.apply(console, args);
+        const createInterceptor = (originalFn, level) => (...args) => {
+            originalFn.apply(console, args);
             if (this.loggingEnabled && this.shouldLog(args)) {
-                this.writeToLog(this.formatMessage('info', args));
+                this.writeToLog(this.formatMessage(level, args));
             }
         };
         
-        console.error = (...args) => {
-            originalError.apply(console, args);
-            if (this.loggingEnabled && this.shouldLog(args)) {
-                this.writeToLog(this.formatMessage('error', args));
-            }
-        };
-        
-        console.warn = (...args) => {
-            originalWarn.apply(console, args);
-            if (this.loggingEnabled && this.shouldLog(args)) {
-                this.writeToLog(this.formatMessage('warn', args));
-            }
-        };
-        
-        console.info = (...args) => {
-            originalInfo.apply(console, args);
-            if (this.loggingEnabled && this.shouldLog(args)) {
-                this.writeToLog(this.formatMessage('info', args));
-            }
-        };
-        
-        console.debug = (...args) => {
-            originalDebug.apply(console, args);
-            if (this.loggingEnabled && this.shouldLog(args)) {
-                this.writeToLog(this.formatMessage('debug', args));
-            }
-        };
+        console.log = createInterceptor(originalMethods.log, 'info');
+        console.error = createInterceptor(originalMethods.error, 'error');
+        console.warn = createInterceptor(originalMethods.warn, 'warn');
+        console.info = createInterceptor(originalMethods.info, 'info');
+        console.debug = createInterceptor(originalMethods.debug, 'debug');
         
         // Handle process exit to close log stream
         process.on('exit', () => this.close());
@@ -162,27 +137,16 @@ class Logger {
         });
     }
     
-    /**
-     * Write to log file only (without console output)
-     * @param {string} message - Message to log
-     * @param {string} level - Log level (info, error, warn, debug)
-     */
     logOnly(message, level = 'info') {
         const timestamp = new Date().toISOString();
         const formattedMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
         this.writeToLog(formattedMessage);
     }
 
-    /**
-     * Temporarily pause logging to file
-     */
     pause() {
         this.loggingEnabled = false;
     }
 
-    /**
-     * Resume logging to file
-     */
     resume() {
         this.loggingEnabled = true;
     }

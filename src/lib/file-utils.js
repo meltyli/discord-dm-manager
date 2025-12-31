@@ -1,12 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { validateRequired, validatePathExists, validateDCEPath } = require('./validators');
 
-/**
- * Recursively traverses Discord data package to find all channel.json files
- * @param {string} packagePath - Path to Discord data package root
- * @returns {string[]} Array of absolute paths to channel.json files
- * @throws {Error} If directory cannot be accessed
- */
 function traverseDataPackage(packagePath) {
     const channelJsonPaths = [];
     
@@ -32,13 +27,6 @@ function traverseDataPackage(packagePath) {
     return channelJsonPaths;
 }
 
-/**
- * Extracts unique recipient IDs from channel.json files (DM and GROUP_DM only)
- * @param {string[]} channelJsonPaths - Array of paths to channel.json files
- * @param {string} myDiscordId - Current user's Discord ID to exclude
- * @param {string[]} [typeFilter] - Optional array of channel types to include (e.g., ['DM'], ['GROUP_DM'], or ['DM', 'GROUP_DM'])
- * @returns {string[]} Array of unique recipient Discord IDs
- */
 function getRecipients(channelJsonPaths, myDiscordId, typeFilter = ['DM', 'GROUP_DM']) {
     const recipientIds = new Set();
     
@@ -64,49 +52,16 @@ function getRecipients(channelJsonPaths, myDiscordId, typeFilter = ['DM', 'GROUP
     return Array.from(recipientIds);
 }
 
-/**
- * Creates directory if it doesn't exist (recursive)
- * @param {string} dirPath - Directory path to create
- * @throws {Error} If directory cannot be created
- */
 function ensureDirectory(dirPath) {
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
     }
 }
 
-/**
- * Validates that a path exists
- * @param {string} pathValue - Path to validate
- * @param {string} pathName - Name of path for error messages
- * @param {boolean} throwOnError - Whether to throw or return boolean
- * @returns {boolean} True if path exists (when not throwing)
- * @throws {Error} If path doesn't exist and throwOnError is true
- */
-function validatePathExists(pathValue, pathName, throwOnError = false) {
-    const exists = fs.existsSync(pathValue);
-    
-    if (!exists && throwOnError) {
-        throw new Error(`${pathName} does not exist: ${pathValue}`);
-    }
-    
-    return exists;
-}
-
-/**
- * Resolves absolute path to config directory file
- * @param {string} filename - Filename in config directory
- * @returns {string} Absolute path to config file
- */
 function resolveConfigPath(filename) {
     return path.join(__dirname, '..', '..', 'config', filename);
 }
 
-/**
- * Ensures export path exists, defaulting to 'export' if empty
- * @param {string} pathValue - Export path value
- * @returns {string} Cleaned and validated export path
- */
 function ensureExportPath(pathValue) {
     const cleaned = pathValue.trim().replace(/^['"]|['"]$/g, '');
     const finalPath = cleaned || 'export';
@@ -124,12 +79,6 @@ function ensureExportPath(pathValue) {
     return finalPath;
 }
 
-/**
- * Safely reads and parses JSON file
- * @param {string} filePath - Path to JSON file
- * @param {*} defaultValue - Default value if file doesn't exist or parse fails
- * @returns {*} Parsed JSON or defaultValue
- */
 function readJsonFile(filePath, defaultValue = null) {
     try {
         if (!fs.existsSync(filePath)) {
@@ -143,13 +92,6 @@ function readJsonFile(filePath, defaultValue = null) {
     }
 }
 
-/**
- * Writes data to JSON file with formatting (atomic write using temp file)
- * @param {string} filePath - Path to JSON file
- * @param {*} data - Data to write
- * @param {number} indent - Indentation spaces
- * @throws {Error} If write fails
- */
 function writeJsonFile(filePath, data, indent = 2) {
     const dirPath = path.dirname(filePath);
     ensureDirectory(dirPath);
@@ -168,44 +110,6 @@ function writeJsonFile(filePath, data, indent = 2) {
     }
 }
 
-/**
- * Validates that a required configuration value exists
- * @param {*} value - Configuration value to validate
- * @param {string} configKey - Configuration key name (e.g., 'DCE_PATH')
- * @param {string} friendlyName - User-friendly name for error messages
- * @throws {Error} If value is undefined, null, or empty string
- */
-function validateRequiredConfig(value, configKey, friendlyName) {
-    if (!value) {
-        throw new Error(`${configKey} not configured. Please configure ${friendlyName} in Configuration menu.`);
-    }
-}
-
-/**
- * Validates DCE (Discord Chat Exporter) path and executable
- * @param {string} dcePath - Path to DCE installation directory
- * @returns {string} Full path to DCE executable
- * @throws {Error} If dcePath is invalid or executable not found
- */
-function validateDCEPath(dcePath) {
-    validateRequiredConfig(dcePath, 'DCE_PATH', 'Discord Chat Exporter path');
-    
-    const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
-    
-    // Check for executable with or without .exe extension
-    if (!fs.existsSync(dceExecutable) && !fs.existsSync(dceExecutable + '.exe')) {
-        throw new Error(`Discord Chat Exporter not found at: ${dceExecutable}. Please verify DCE_PATH in Configuration menu.`);
-    }
-    
-    return dceExecutable;
-}
-
-/**
- * Updates id-history.json with channel information from getCurrentOpenDMs
- * Preserves originalState from first run, updates latest and uniqueChannels
- * @param {string} idHistoryPath - Path to id-history.json
- * @param {Array} currentChannels - Array of channel objects from getCurrentOpenDMs
- */
 function updateIdHistory(idHistoryPath, currentChannels) {
     const existing = readJsonFile(idHistoryPath, null);
     
@@ -248,12 +152,9 @@ module.exports = {
     traverseDataPackage,
     getRecipients,
     ensureDirectory,
-    validatePathExists,
     resolveConfigPath,
     ensureExportPath,
     readJsonFile,
     writeJsonFile,
-    validateRequiredConfig,
-    validateDCEPath,
     updateIdHistory
 };

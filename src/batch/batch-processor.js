@@ -10,10 +10,6 @@ const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const configManager = getConfigManager();
 const delayTracker = getApiDelayTracker();
 
-/**
- * Close all currently open DMs and save their channel information
- * @returns {Promise<string[]>} Array of closed DM user IDs (for backward compatibility)
- */
 async function closeAllOpenDMs() {
     try {
         const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
@@ -76,13 +72,6 @@ async function closeAllOpenDMs() {
     }
 }
 
-/**
- * Open a batch of DMs
- * @param {string[]} userIds - Array of user IDs to open DMs with
- * @param {number} batchNum - Current batch number (0-indexed)
- * @param {number} totalBatches - Total number of batches
- * @returns {Promise<Object>} Statistics object with processed and skipped counts
- */
 async function openBatchDMs(userIds, batchNum, totalBatches) {
     if (isDryRun()) {
         console.log(`[DRY RUN] Would open batch ${batchNum + 1}/${totalBatches} with ${userIds.length} direct messages`);
@@ -119,10 +108,6 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };
 }
 
-/**
- * Close current batch of DMs
- * @returns {Promise<void>}
- */
 async function closeBatchDMs() {
     if (isDryRun()) {
         console.log('[DRY RUN] Fetching current batch direct messages...');
@@ -155,12 +140,6 @@ async function closeBatchDMs() {
     console.log(`Closed ${batchDMs.length} batch direct messages`);
 }
 
-/**
- * Main processing function - processes DMs in batches with manual review
- * @param {number} startBatch - Batch number to start from (0-indexed)
- * @param {readline.Interface} rlInterface - Readline interface for user input
- * @returns {Promise<void>}
- */
 async function processDMsInBatches(startBatch = 0, rlInterface = null) {
     try {
         await configManager.init();
@@ -179,7 +158,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             return;
         }
 
-        // Close all currently open direct messages
+
         await closeAllOpenDMs();
 
         const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
@@ -244,13 +223,6 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
     }
 }
 
-/**
- * Process all DMs with automatic export after each batch
- * @param {Function} exportCallback - Callback function to export DMs
- * @param {readline.Interface} rlInterface - Readline interface for user input
- * @param {string[]} [typeFilter] - Optional array of channel types to include (e.g., ['DM'], ['GROUP_DM'], or ['DM', 'GROUP_DM'])
- * @returns {Promise<void>}
- */
 async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFilter = ['DM', 'GROUP_DM']) {
     try {
         await configManager.init();
@@ -295,7 +267,6 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             const endIdx = Math.min((batchNum + 1) * configManager.get('BATCH_SIZE'), allDmIds.length);
             const currentBatch = allDmIds.slice(startIdx, endIdx);
 
-            // Step 2: Open batch
             const stats = await openBatchDMs(currentBatch, batchNum, totalBatches);
             processedUsers += stats.processed;
             skippedUsers += stats.skipped;
@@ -308,7 +279,6 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             batchState.timestamp = new Date().toISOString();
             saveBatchState(batchState);
 
-            // Step 3: Export the batch
             console.log('\nExporting current batch...');
             try {
                 await exportCallback();
@@ -325,7 +295,6 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
                 }
             }
 
-            // Step 4: Close batch DMs
             await closeBatchDMs();
             
             // Small delay before next batch

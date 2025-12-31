@@ -15,7 +15,6 @@ class MessageParser {
         return new Date(timestamp).getTime();
     }
 
-    // Binary search to find insertion position
     findInsertPosition(timestamp) {
         let left = 0;
         let right = this.messageStack.length - 1;
@@ -37,7 +36,6 @@ class MessageParser {
         return left;
     }
 
-    // Insert new message in sorted order
     insertMessage(timestamp, recipientId) {
         const position = this.findInsertPosition(timestamp);
         
@@ -58,12 +56,10 @@ class MessageParser {
         }
     }
 
-    // Get the other user's ID from recipients array
     getOtherUserId(recipients) {
         return recipients.find(id => id !== this.myDiscordId);
     }
 
-    // Process a single channel
     processChannel(channelPath) {
         const channelJsonPath = path.join(channelPath, 'channel.json');
         const messagesJsonPath = path.join(channelPath, 'messages.json');
@@ -116,7 +112,6 @@ class MessageParser {
         }
     }
 
-    // Process all channels
     async processAllChannels() {
         const messagesPath = path.join(this.dataPackagePath, 'messages');
         const channels = fs.readdirSync(messagesPath);
@@ -131,7 +126,6 @@ class MessageParser {
         return this.messageStack;
     }
 
-    // Reopen DMs for processed messages
     async reopenDMs(authToken) {
         const processedUsers = new Set();
 
@@ -148,19 +142,6 @@ class MessageParser {
     }
 }
 
-// Usage example
-async function main() {
-    const parser = new MessageParser(process.env.DATA_PACKAGE_PATH);
-    const messages = await parser.processAllChannels();
-    await parser.reopenDMs(process.env.AUTHORIZATION_TOKEN);
-}
-
 module.exports = {
-    MessageParser,
-    main
+    MessageParser
 };
-
-if (require.main === module) {
-    initializeLogger('./logs', 10);
-    main().catch(console.error);
-}

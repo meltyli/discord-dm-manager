@@ -1,32 +1,33 @@
 const axios = require('axios');
-const { getCurrentOpenDMs, validateUser, reopenDM, closeDM } = require('../../src/discord-api');
 
 // Mock axios
 jest.mock('axios');
 
-// Store original mock implementation
-let configManagerMock;
+// Mock config - define before jest.mock to avoid hoisting issues
+const mockConfigState = {
+    get: jest.fn(),
+    getEnv: jest.fn()
+};
 
-// Mock config
 jest.mock('../../src/config', () => ({
-    getConfigManager: () => configManagerMock
+    getConfigManager: () => mockConfigState
 }));
+
+const { getCurrentOpenDMs, validateUser, reopenDM, closeDM } = require('../../src/discord-api');
 
 describe('getCurrentOpenDMs', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        configManagerMock = {
-            get: jest.fn((key) => {
-                const config = {
-                    'MAX_RETRIES': 3,
-                    'RETRY_DELAY_MS': 100,
-                    'RATE_LIMIT_REQUESTS': 50,
-                    'RATE_LIMIT_INTERVAL_MS': 60000,
-                    'DRY_RUN': false
-                };
-                return config[key];
-            })
-        };
+        mockConfigState.get = jest.fn((key) => {
+            const config = {
+                'MAX_RETRIES': 3,
+                'RETRY_DELAY_MS': 100,
+                'RATE_LIMIT_REQUESTS': 50,
+                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'DRY_RUN': false
+            };
+            return config[key];
+        });
     });
 
     test('should fetch open DMs successfully', async () => {
@@ -62,7 +63,7 @@ describe('getCurrentOpenDMs', () => {
     });
 
     test('should return empty array in DRY_RUN mode without making API call', async () => {
-        configManagerMock.get = jest.fn((key) => {
+        mockConfigState.get = jest.fn((key) => {
             const config = {
                 'DRY_RUN': true
             };
@@ -79,18 +80,16 @@ describe('getCurrentOpenDMs', () => {
 describe('validateUser', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        configManagerMock = {
-            get: jest.fn((key) => {
-                const config = {
-                    'MAX_RETRIES': 3,
-                    'RETRY_DELAY_MS': 100,
-                    'RATE_LIMIT_REQUESTS': 50,
-                    'RATE_LIMIT_INTERVAL_MS': 60000,
-                    'DRY_RUN': false
-                };
-                return config[key];
-            })
-        };
+        mockConfigState.get = jest.fn((key) => {
+            const config = {
+                'MAX_RETRIES': 3,
+                'RETRY_DELAY_MS': 100,
+                'RATE_LIMIT_REQUESTS': 50,
+                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'DRY_RUN': false
+            };
+            return config[key];
+        });
     });
 
     test('should return true for valid user', async () => {
@@ -132,7 +131,7 @@ describe('validateUser', () => {
     });
 
     test('should return true in DRY_RUN mode without making API call', async () => {
-        configManagerMock.get = jest.fn((key) => {
+        mockConfigState.get = jest.fn((key) => {
             const config = {
                 'DRY_RUN': true
             };
@@ -149,18 +148,16 @@ describe('validateUser', () => {
 describe('reopenDM', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        configManagerMock = {
-            get: jest.fn((key) => {
-                const config = {
-                    'MAX_RETRIES': 3,
-                    'RETRY_DELAY_MS': 100,
-                    'RATE_LIMIT_REQUESTS': 50,
-                    'RATE_LIMIT_INTERVAL_MS': 60000,
-                    'DRY_RUN': false
-                };
-                return config[key];
-            })
-        };
+        mockConfigState.get = jest.fn((key) => {
+            const config = {
+                'MAX_RETRIES': 3,
+                'RETRY_DELAY_MS': 100,
+                'RATE_LIMIT_REQUESTS': 50,
+                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'DRY_RUN': false
+            };
+            return config[key];
+        });
     });
 
     test('should reopen DM successfully when user is valid', async () => {
@@ -198,7 +195,7 @@ describe('reopenDM', () => {
     });
 
     test('should return mock data in DRY_RUN mode without making API call', async () => {
-        configManagerMock.get = jest.fn((key) => {
+        mockConfigState.get = jest.fn((key) => {
             const config = {
                 'DRY_RUN': true
             };
@@ -215,18 +212,16 @@ describe('reopenDM', () => {
 describe('closeDM', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        configManagerMock = {
-            get: jest.fn((key) => {
-                const config = {
-                    'MAX_RETRIES': 3,
-                    'RETRY_DELAY_MS': 100,
-                    'RATE_LIMIT_REQUESTS': 50,
-                    'RATE_LIMIT_INTERVAL_MS': 60000,
-                    'DRY_RUN': false
-                };
-                return config[key];
-            })
-        };
+        mockConfigState.get = jest.fn((key) => {
+            const config = {
+                'MAX_RETRIES': 3,
+                'RETRY_DELAY_MS': 100,
+                'RATE_LIMIT_REQUESTS': 50,
+                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'DRY_RUN': false
+            };
+            return config[key];
+        });
     });
 
     test('should close DM successfully', async () => {
@@ -255,7 +250,7 @@ describe('closeDM', () => {
     });
 
     test('should not make API call in DRY_RUN mode', async () => {
-        configManagerMock.get = jest.fn((key) => {
+        mockConfigState.get = jest.fn((key) => {
             const config = {
                 'DRY_RUN': true
             };

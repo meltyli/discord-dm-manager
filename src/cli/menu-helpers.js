@@ -2,19 +2,11 @@
  * Shared menu display utilities
  */
 
-/**
- * Display current settings summary
- * @param {Object} options - Configuration options
- */
 function displaySettings(options) {
     console.log('\nCurrent Settings:');
     console.log(`- Dry Run Mode: ${options.DRY_RUN ? 'Enabled' : 'Disabled'}`);
 }
 
-/**
- * Display detailed configuration
- * @param {Object} options - Configuration options
- */
 function displayDetailedConfig(options) {
     console.log('\nPath Settings:');
     console.log(`  DATA_PACKAGE_FOLDER: ${options.DATA_PACKAGE_FOLDER || 'Not set'}`);
@@ -30,10 +22,6 @@ function displayDetailedConfig(options) {
     console.log(`  USER_DISCORD_ID: ${process.env.USER_DISCORD_ID || 'Not set'}`);
 }
 
-/**
- * Display advanced settings
- * @param {Object} options - Configuration options
- */
 function displayAdvancedSettings(options) {
     console.log('\nAdvanced Settings');
     console.log('=================');

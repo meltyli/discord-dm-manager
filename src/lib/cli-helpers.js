@@ -3,25 +3,12 @@ const { spawn } = require('child_process');
 const path = require('path');
 const cliProgress = require('cli-progress');
 
-/**
- * Unified readline prompting wrapper
- * @param {string} question - The question to ask
- * @param {readline.Interface} readlineInterface - Readline interface to use
- * @returns {Promise<string>} User's answer
- */
 async function promptUser(question, readlineInterface) {
     return new Promise((resolve) => {
         readlineInterface.question(question, resolve);
     });
 }
 
-/**
- * Yes/no confirmation prompt
- * @param {string} message - Confirmation message
- * @param {readline.Interface} readlineInterface - Readline interface to use
- * @param {Object} options - Acceptance options
- * @returns {Promise<boolean>} True if confirmed
- */
 async function promptConfirmation(message, readlineInterface, options = { acceptY: true, acceptYes: true }) {
     const answer = await promptUser(message, readlineInterface);
     const cleaned = answer.trim().toLowerCase();
@@ -32,12 +19,6 @@ async function promptConfirmation(message, readlineInterface, options = { accept
     return false;
 }
 
-/**
- * Wait for user to press Enter
- * @param {readline.Interface} readlineInterface - Readline interface to use
- * @param {string} message - Message to display
- * @returns {Promise<void>}
- */
 async function waitForKeyPress(readlineInterface, message = '\nPress Enter to continue...') {
     return new Promise((resolve) => {
         readlineInterface.question(message, () => {
@@ -46,51 +27,19 @@ async function waitForKeyPress(readlineInterface, message = '\nPress Enter to co
     });
 }
 
-/**
- * Get menu choice input
- * @param {readline.Interface} readlineInterface - Readline interface to use
- * @param {string} prompt - Prompt message
- * @returns {Promise<string>} Trimmed lowercase choice
- */
 async function getMenuChoice(readlineInterface, prompt = '\nSelect an option: ') {
     const choice = await promptUser(prompt, readlineInterface);
     return choice.trim().toLowerCase();
 }
 
-/**
- * Clear the console screen
- */
 function clearScreen() {
     console.clear();
 }
 
-/**
- * Clean input by trimming and removing leading/trailing quotes
- * @param {string} input - Input string to clean
- * @returns {string} Cleaned string
- */
 function cleanInput(input) {
     return input.trim().replace(/^['"]|['"]$/g, '');
 }
 
-/**
- * Semantic alias for cleanInput in path contexts
- * @param {string} input - Path string to clean
- * @returns {string} Cleaned path string
- */
-function formatPath(input) {
-    return cleanInput(input);
-}
-
-/**
- * Execute Discord Chat Exporter for a specific format
- * @param {string} token - Discord authorization token
- * @param {string} exportPath - Base export directory path
- * @param {string} dcePath - Path to DCE installation directory
- * @param {string} format - Export format (e.g., 'Json', 'HtmlDark')
- * @param {string} userId - Discord user ID for path organization
- * @returns {Promise<void>} Resolves on success, rejects on error
- */
 async function runDCEExport(token, exportPath, dcePath, format, userId) {
     return new Promise((resolve, reject) => {
         const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
@@ -132,15 +81,6 @@ async function runDCEExport(token, exportPath, dcePath, format, userId) {
     });
 }
 
-/**
- * Export DMs in multiple formats using Discord Chat Exporter
- * @param {string} token - Discord authorization token
- * @param {string} exportPath - Base export directory path
- * @param {string} dcePath - Path to DCE installation directory
- * @param {string} userId - Discord user ID for path organization
- * @param {string[]} formats - Array of export formats (default: ['Json', 'HtmlDark'])
- * @returns {Promise<void>} Resolves when all formats exported, rejects on error
- */
 async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 'HtmlDark']) {
     for (const format of formats) {
         console.log(`\nExporting in ${format} format...`);
@@ -165,11 +105,6 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json', 
     }
 }
 
-/**
- * Create a standardized progress bar for DM operations
- * @param {string} label - Label for the items being tracked (default: 'DMs')
- * @returns {cliProgress.SingleBar} Configured progress bar instance
- */
 function createDMProgressBar(label = 'DMs') {
     return new cliProgress.SingleBar({
         format: `Progress |{bar}| {percentage}% || {value}/{total} ${label}`,
@@ -185,7 +120,6 @@ module.exports = {
     getMenuChoice,
     clearScreen,
     cleanInput,
-    formatPath,
     runDCEExport,
     exportDMs,
     createDMProgressBar

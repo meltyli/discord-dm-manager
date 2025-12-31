@@ -4,14 +4,16 @@ const {
     traverseDataPackage, 
     getRecipients,
     ensureDirectory,
-    validatePathExists,
     resolveConfigPath,
     ensureExportPath,
     readJsonFile,
-    writeJsonFile,
-    validateRequiredConfig,
-    validateDCEPath
+    writeJsonFile
 } = require('../../src/lib/file-utils');
+const {
+    validatePathExists,
+    validateRequired,
+    validateDCEPath
+} = require('../../src/lib/validators');
 
 describe('traverseDataPackage', () => {
     const mockDataPath = path.join(__dirname, '..', 'fixtures', 'mock_package_test');
@@ -258,34 +260,34 @@ describe('ensureExportPath', () => {
     });
 });
 
-describe('validateRequiredConfig', () => {
+describe('validateRequired', () => {
     test('does not throw for valid value', () => {
         expect(() => {
-            validateRequiredConfig('/valid/path', 'TEST_PATH', 'test path');
+            validateRequired('/valid/path', 'TEST_PATH', 'test path');
         }).not.toThrow();
     });
 
     test('throws for undefined value', () => {
         expect(() => {
-            validateRequiredConfig(undefined, 'TEST_PATH', 'test path');
+            validateRequired(undefined, 'TEST_PATH', 'test path');
         }).toThrow('TEST_PATH not configured');
     });
 
     test('throws for null value', () => {
         expect(() => {
-            validateRequiredConfig(null, 'TEST_PATH', 'test path');
+            validateRequired(null, 'TEST_PATH', 'test path');
         }).toThrow('TEST_PATH not configured');
     });
 
     test('throws for empty string', () => {
         expect(() => {
-            validateRequiredConfig('', 'TEST_PATH', 'test path');
+            validateRequired('', 'TEST_PATH', 'test path');
         }).toThrow('TEST_PATH not configured');
     });
 
     test('includes friendly name in error message', () => {
         expect(() => {
-            validateRequiredConfig(null, 'DCE_PATH', 'Discord Chat Exporter path');
+            validateRequired(null, 'DCE_PATH', 'Discord Chat Exporter path');
         }).toThrow('Please configure Discord Chat Exporter path in Configuration menu');
     });
 });

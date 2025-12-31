@@ -1,10 +1,6 @@
 const fs = require('fs');
 const { resolveConfigPath, readJsonFile, writeJsonFile } = require('../lib/file-utils');
 
-/**
- * Save batch processing state to file
- * @param {Object} state - Batch state object
- */
 function saveBatchState(state) {
     try {
         const filePath = resolveConfigPath('batch-state.json');
@@ -15,10 +11,6 @@ function saveBatchState(state) {
     }
 }
 
-/**
- * Load batch processing state from file
- * @returns {Object|null} Batch state object or null if not found
- */
 function loadBatchState() {
     try {
         const filePath = resolveConfigPath('batch-state.json');
@@ -29,26 +21,18 @@ function loadBatchState() {
     }
 }
 
-/**
- * Clear batch processing state file
- */
 function clearBatchState() {
     try {
         const filePath = resolveConfigPath('batch-state.json');
         fs.unlinkSync(filePath);
         console.log('Cleared batch state');
     } catch (error) {
-        // File may not exist, which is fine
         if (error.code !== 'ENOENT') {
             console.error(`Failed to clear batch state: ${error.message}`);
         }
     }
 }
 
-/**
- * Check if there's an incomplete batch session (within 7 days)
- * @returns {boolean} True if incomplete session exists
- */
 function hasIncompleteBatchSession() {
     const state = loadBatchState();
     if (!state) return false;

@@ -3,9 +3,10 @@ const path = require('path');
 const readline = require('readline');
 require('dotenv').config({ path: path.join(__dirname, '..', 'config', '.env') });
 const { initializeLogger } = require('./logger');
-const { ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile, validatePathExists } = require('./lib/file-utils');
+const { ensureDirectory, resolveConfigPath, readJsonFile, writeJsonFile } = require('./lib/file-utils');
+const { validatePathExists, validateDataPackage } = require('./lib/validators');
 const { promptUser, cleanInput } = require('./lib/cli-helpers');
-const { verifyUserId, validateConfigPaths, validateDataPackage } = require('./lib/config-validators');
+const { verifyUserId, validateConfigPaths } = require('./lib/config-validators');
 const { resolveExportPath, promptForConfigValue } = require('./lib/config-defaults');
 
 // Initialize logger early to capture all output
@@ -48,19 +49,11 @@ class ConfigManager {
         this.ownsReadline = false; // Track if we created it
     }
 
-    /**
-     * Sets an external readline interface (from menu-main.js)
-     * @param {readline.Interface} readlineInterface - Readline interface to use
-     */
     setReadline(readlineInterface) {
         this.rl = readlineInterface;
         this.ownsReadline = false;
     }
 
-    /**
-     * Initializes readline interface if not already set
-     * @returns {readline.Interface} Readline interface
-     */
     initReadline() {
         if (!this.rl) {
             this.rl = readline.createInterface({
@@ -72,11 +65,7 @@ class ConfigManager {
         return this.rl;
     }
 
-    /**
-     * Closes readline interface only if created by ConfigManager
-     */
     closeReadline() {
-        // Only close if we created it
         if (this.rl && this.ownsReadline) {
             this.rl.close();
             this.rl = null;
@@ -84,10 +73,6 @@ class ConfigManager {
         }
     }
 
-    /**
-     * Initializes configuration by loading files and prompting for missing values
-     * @returns {Promise<void>}
-     */
     async init() {
         if (this.initialized) return;
 
@@ -224,37 +209,19 @@ class ConfigManager {
         }
     }
 
-    /**
-     * Gets a configuration value from config.json
-     * @param {string} key - Configuration key
-     * @returns {any} Configuration value
-     */
     get(key) {
         return this.config[key];
     }
 
-    /**
-     * Gets an environment variable value from .env
-     * @param {string} key - Environment variable key
-     * @returns {string} Environment variable value
-     */
     getEnv(key) {
         return this.env[key];
     }
 
-    /**
-     * Sets a configuration value and saves to config.json
-     * @param {string} key - Configuration key
-     * @param {any} value - Value to set
-     */
     set(key, value) {
         this.config[key] = value;
         this.saveConfig();
     }
 
-    /**
-     * Resets configuration to default values and clears environment variables
-     */
     resetToDefault() {
         // Reset config to defaults
         this.config = { ...defaultConfig };
@@ -282,13 +249,8 @@ class ConfigManager {
     }
 }
 
-// only create the instance if not testing
 let configManagerInstance = null;
 
-/**
- * Gets singleton instance of ConfigManager
- * @returns {ConfigManager} ConfigManager instance
- */
 function getConfigManager() {
     if (!configManagerInstance) {
         configManagerInstance = new ConfigManager();
