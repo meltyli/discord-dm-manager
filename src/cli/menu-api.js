@@ -246,12 +246,18 @@ class ApiMenu extends MenuBase {
 
         // Create export callback using centralized helper
         const exportCallback = async () => {
+            const { getCurrentOpenDMs } = require('../discord-api');
+            const openDMs = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
+            const dmChannels = openDMs.filter(dm => dm.type === 1);
+            
             return await exportDMs(
                 process.env.AUTHORIZATION_TOKEN,
                 this.options.EXPORT_PATH,
                 this.options.DCE_PATH,
                 process.env.USER_DISCORD_ID,
-                ['Json']  // Only export Json format
+                ['Json'],
+                dmChannels,
+                2
             );
         };
 

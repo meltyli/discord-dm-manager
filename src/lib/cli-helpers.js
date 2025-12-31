@@ -56,71 +56,146 @@ function cleanInput(input) {
     return input.trim().replace(/^['"]|['"]$/g, '');
 }
 
-async function runDCEExport(token, exportPath, dcePath, format, userId) {
+async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown') {
     return new Promise((resolve, reject) => {
         const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
         
         const args = [
-            'exportdm',
+            'export',
             '-t', token,
-            '-o', `${exportPath}/${userId}/%G/%c/%C - %d/`,
+            '-c', channelId,
+            '-o', `${exportPath}/${userId}/Direct Messages/${channelId}/${channelName} - %d/`,
             '--partition', '10MB',
             '--format', format,
             '--media-dir', `${exportPath}/media`,
             '--media',
             '--reuse-media',
-            '--parallel', '4',
             '--respect-rate-limits',
             '--fuck-russia'
         ];
 
         const dceProcess = spawn(dceExecutable, args, {
-            stdio: ['ignore', 'inherit', 'inherit']
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+        
+        let lastOutput = '';
+        
+        dceProcess.stdout.on('data', (data) => {
+            lastOutput = data.toString();
+        });
+        
+        dceProcess.stderr.on('data', (data) => {
+            lastOutput = data.toString();
         });
         
         dceProcess.on('close', (code) => {
             if (code === 0) {
-                resolve();
+                resolve({ success: true, channelId, channelName });
             } else {
-                reject(new Error(`DCE exited with code ${code}`));
+                reject(new Error(`DCE exited with code ${code} for ${channelName}`));
             }
         });
         
         dceProcess.on('error', (error) => {
-            reject(new Error(`Failed to start DCE: ${error.message}`));
+            reject(new Error(`Failed to start DCE for ${channelName}: ${error.message}`));
         });
     });
 }
 
-async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json']) {
+async function exportChannelsInParallel(token, exportPath, dcePath, format, userId, channels, concurrency = 2) {
     const results = [];
+    let completed = 0;
+    let activeCount = 0;
+    const maxActive = 2;
     
-    for (const format of formats) {
-        console.log(`\nExporting in ${format} format...`);
-        console.log('═'.repeat(60));
-        console.log('Discord Chat Exporter Output:');
-        console.log('═'.repeat(60));
+    for (let i = 0; i < channels.length; i++) {
+        const channel = channels[i];
+        const recipient = channel.recipients && channel.recipients[0];
+        const username = recipient?.username || channel.name || 'Unknown';
+        const recipientId = recipient?.id || 'Unknown ID';
+        const displayName = `${username} (${recipientId})`;
         
-        try {
-            await runDCEExport(token, exportPath, dcePath, format, userId);
-            
-            console.log('═'.repeat(60));
-            console.log('Discord Chat Exporter Finished');
-            console.log('═'.repeat(60));
-            console.log(`${format} export completed.\n`);
-            results.push({ format, success: true });
-        } catch (error) {
-            console.log('═'.repeat(60));
-            console.log('Discord Chat Exporter Finished (with errors)');
-            console.log('═'.repeat(60));
-            console.error(`${format} export failed: ${error.message}`);
-            results.push({ format, success: false, error: error.message });
+        while (activeCount >= maxActive) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        activeCount++;
+        process.stdout.write(`\r\x1b[K⏳ ${displayName} (${completed + 1}/${channels.length})...`);
+        
+        (async () => {
+            try {
+                const result = await runDCEExportChannel(
+                    token, 
+                    exportPath, 
+                    dcePath, 
+                    format, 
+                    userId, 
+                    channel.id, 
+                    username
+                );
+                
+                completed++;
+                process.stdout.write(`\r\x1b[K✓ ${displayName} (${completed}/${channels.length})\n`);
+                results.push(result);
+            } catch (error) {
+                completed++;
+                process.stdout.write(`\r\x1b[K✗ ${displayName}: ${error.message} (${completed}/${channels.length})\n`);
+                results.push({ success: false, channelId: channel.id, channelName: displayName, error: error.message });
+            } finally {
+                activeCount--;
+            }
+        })();
+        
+        if (i < channels.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
     }
     
-    // Return overall success (all formats succeeded)
-    const allSucceeded = results.every(r => r.success);
-    return { success: allSucceeded, results };
+    while (activeCount > 0 || completed < channels.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return results;
+}
+
+async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'], channels = null, concurrency = 2) {
+    if (!channels) {
+        console.error('No channels provided for export');
+        return { success: false, results: [] };
+    }
+    
+    const allResults = [];
+    
+    for (const format of formats) {
+        console.log(`\nExporting ${channels.length} channel(s) in ${format} format...`);
+        console.log('═'.repeat(60));
+        
+        try {
+            const results = await exportChannelsInParallel(
+                token, 
+                exportPath, 
+                dcePath, 
+                format, 
+                userId, 
+                channels,
+                concurrency
+            );
+            
+            const successCount = results.filter(r => r.success).length;
+            const failCount = results.filter(r => !r.success).length;
+            
+            console.log('═'.repeat(60));
+            console.log(`${format} export completed: ${successCount} succeeded, ${failCount} failed\n`);
+            allResults.push({ format, success: failCount === 0, results });
+        } catch (error) {
+            console.log('═'.repeat(60));
+            console.error(`${format} export failed: ${error.message}`);
+            allResults.push({ format, success: false, error: error.message });
+        }
+    }
+    
+    const allSucceeded = allResults.every(r => r.success);
+    return { success: allSucceeded, results: allResults };
 }
 
 function createDMProgressBar(label = 'DMs') {
@@ -139,7 +214,8 @@ module.exports = {
     getMenuChoice,
     clearScreen,
     cleanInput,
-    runDCEExport,
+    runDCEExportChannel,
+    exportChannelsInParallel,
     exportDMs,
     createDMProgressBar
 };
