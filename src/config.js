@@ -168,17 +168,12 @@ class ConfigManager {
     updateEnvFile() {
         ensureDirectory(CONFIG_DIR);
 
-        const envLines = Object.entries(this.env)
-            .filter(([key, value]) => value !== undefined)
-            .map(([key, value]) => `${key}=${value}`);
-
         let existingEnv = {};
-        
         if (validatePathExists(ENV_FILE_PATH)) {
             existingEnv = fs.readFileSync(ENV_FILE_PATH, 'utf-8')
                 .split('\n')
                 .reduce((acc, line) => {
-                    if (line.trim()) {
+                    if (line.trim() && line.includes('=')) {
                         const [key, value] = line.split('=');
                         acc[key] = value;
                     }
@@ -186,22 +181,18 @@ class ConfigManager {
                 }, {});
         }
 
-        for (const [key, value] of Object.entries(this.env)) {
-            if (value !== undefined) {
-                existingEnv[key] = value;
-            }
-        }
+        Object.assign(existingEnv, this.env);
 
-        const updatedEnvLines = Object.entries(existingEnv)
-            .map(([key, value]) => `${key}=${value}`);
+        const envContent = Object.entries(existingEnv)
+            .filter(([_, value]) => value !== undefined)
+            .map(([key, value]) => `${key}=${value}`)
+            .join('\n');
         
-        // Atomic write: write to temp file first, then rename
         const tempFile = `${ENV_FILE_PATH}.tmp.${Date.now()}`;
         try {
-            fs.writeFileSync(tempFile, updatedEnvLines.join('\n'));
+            fs.writeFileSync(tempFile, envContent);
             fs.renameSync(tempFile, ENV_FILE_PATH);
         } catch (error) {
-            // Clean up temp file if it exists
             if (fs.existsSync(tempFile)) {
                 fs.unlinkSync(tempFile);
             }

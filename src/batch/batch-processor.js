@@ -10,6 +10,43 @@ const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const configManager = getConfigManager();
 const delayTracker = getApiDelayTracker();
 
+function createBatchState(allDmIds, totalBatches, currentBatch = 0) {
+    return {
+        allDmIds,
+        totalBatches,
+        currentBatch,
+        processedUsers: 0,
+        skippedUsers: 0,
+        timestamp: new Date().toISOString(),
+        inProgress: true
+    };
+}
+
+async function initializeBatchProcessing(typeFilter = null) {
+    await configManager.init();
+    
+    const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
+    const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'), typeFilter);
+    
+    if (allDmIds.length === 0) {
+        console.warn('No direct message recipients found. Please check your Discord ID and data package path.');
+        return null;
+    }
+    
+    if (isDryRun()) {
+        console.log('Running in DRY RUN mode - no actual API calls will be made');
+        console.log(`Would process ${allDmIds.length} direct message recipients`);
+        return null;
+    }
+    
+    await closeAllOpenDMs();
+    
+    const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
+    console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+    
+    return { allDmIds, totalBatches };
+}
+
 async function closeAllOpenDMs() {
     try {
         const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
@@ -142,27 +179,10 @@ async function closeBatchDMs() {
 
 async function processDMsInBatches(startBatch = 0, rlInterface = null) {
     try {
-        await configManager.init();
-
-        const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
-        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'));
-
-        if (allDmIds.length === 0) {
-            console.warn('No direct message recipients found. Please check your Discord ID and data package path.');
-            return;
-        }
-
-        if (configManager.get('DRY_RUN')) {
-            console.log('Running in DRY RUN mode - no actual API calls will be made');
-            console.log(`Would process ${allDmIds.length} direct message recipients`);
-            return;
-        }
-
-
-        await closeAllOpenDMs();
-
-        const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-        console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        const setup = await initializeBatchProcessing();
+        if (!setup) return;
+        
+        const { allDmIds, totalBatches } = setup;
         
         if (startBatch > 0) {
             console.log(`Resuming from batch ${startBatch + 1}/${totalBatches}`);
@@ -171,16 +191,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
         let skippedUsers = 0;
         let processedUsers = 0;
         
-        // Initialize batch state
-        const batchState = {
-            allDmIds: allDmIds,
-            totalBatches: totalBatches,
-            currentBatch: startBatch,
-            processedUsers: 0,
-            skippedUsers: 0,
-            timestamp: new Date().toISOString(),
-            inProgress: true
-        };
+        const batchState = createBatchState(allDmIds, totalBatches, startBatch);
         saveBatchState(batchState);
         
         for (let batchNum = startBatch; batchNum < totalBatches; batchNum++) {
@@ -225,41 +236,16 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
 
 async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFilter = ['DM', 'GROUP_DM']) {
     try {
-        await configManager.init();
-
-        const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
-        const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'), typeFilter);
-
-        if (allDmIds.length === 0) {
-            console.warn('No direct message recipients found. Please check your Discord ID and data package path.');
-            return;
-        }
-
-        if (isDryRun()) {
-            console.log('Running in DRY RUN mode - no actual API calls will be made');
-            console.log(`Would process ${allDmIds.length} direct message recipients`);
-            return;
-        }
-
-        await closeAllOpenDMs();
-
-        const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-        console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+        const setup = await initializeBatchProcessing(typeFilter);
+        if (!setup) return;
+        
+        const { allDmIds, totalBatches } = setup;
         console.log('Each batch will be automatically exported before moving to the next.');
         
         let skippedUsers = 0;
         let processedUsers = 0;
         
-        // Initialize batch state
-        const batchState = {
-            allDmIds: allDmIds,
-            totalBatches: totalBatches,
-            currentBatch: 0,
-            processedUsers: 0,
-            skippedUsers: 0,
-            timestamp: new Date().toISOString(),
-            inProgress: true
-        };
+        const batchState = createBatchState(allDmIds, totalBatches);
         saveBatchState(batchState);
         
         for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
