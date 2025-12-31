@@ -63,7 +63,7 @@ function cleanInput(input) {
     return trimmed;
 }
 
-const DCE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes default timeout for DCE
+const DCE_STALL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of no output = stalled
 
 async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown', afterTimestamp = null) {
     return new Promise((resolve, reject) => {
@@ -80,7 +80,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
             '--media',
             '--reuse-media',
             '--respect-rate-limits',
-            '--markdown false',
+            '--markdown', 'false',
             '--fuck-russia'
         ];
 
@@ -95,30 +95,43 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
         let stdoutBuf = '';
         let stderrBuf = '';
         let finished = false;
+        let lastOutputTime = Date.now();
 
         const onFinish = (fn) => {
             if (finished) return;
             finished = true;
-            clearTimeout(timeout);
+            clearInterval(stallCheck);
             fn();
         };
 
-        const timeout = setTimeout(() => {
-            onFinish(() => {
-                try {
-                    dceProcess.kill('SIGKILL');
-                } catch (e) {}
-                const last = (stderrBuf || stdoutBuf).slice(-2000);
-                reject(new Error(`DCE timed out after ${DCE_TIMEOUT_MS}ms for ${channelName}. Last output: ${last}`));
-            });
-        }, DCE_TIMEOUT_MS);
+        // Check for stalled progress every 5 minutes
+        const stallCheck = setInterval(() => {
+            const timeSinceLastOutput = Date.now() - lastOutputTime;
+            if (timeSinceLastOutput > DCE_STALL_TIMEOUT_MS) {
+                onFinish(() => {
+                    console.log(`\nDCE process stalled for ${channelName} (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes), terminating...`);
+                    try {
+                        dceProcess.kill('SIGTERM');
+                        setTimeout(() => {
+                            if (!dceProcess.killed) {
+                                dceProcess.kill('SIGKILL');
+                            }
+                        }, 5000);
+                    } catch (e) {}
+                    const last = (stderrBuf || stdoutBuf).slice(-2000);
+                    reject(new Error(`DCE stalled (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes) for ${channelName}. Last output: ${last}`));
+                });
+            }
+        }, 5 * 60 * 1000);
 
         dceProcess.stdout.on('data', (data) => {
             stdoutBuf += data.toString();
+            lastOutputTime = Date.now();
         });
 
         dceProcess.stderr.on('data', (data) => {
             stderrBuf += data.toString();
+            lastOutputTime = Date.now();
         });
 
         dceProcess.on('close', (code) => {
