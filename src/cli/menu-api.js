@@ -4,7 +4,7 @@ const { processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-proc
 const { readJsonFile } = require('../lib/file-utils');
 const { validateRequired, validateDCEPath, validatePathExists } = require('../lib/validators');
 const { promptUser, waitForKeyPress, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
-const { displaySettings } = require('./menu-helpers');
+const { displaySettings, getDryRunTitle } = require('./menu-helpers');
 const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const { MenuBase } = require('./menu-base');
@@ -19,7 +19,8 @@ class ApiMenu extends MenuBase {
 
     async show() {
         await this.runMenuLoop('Discord API Menu', () => {
-            console.log('\nDiscord API');
+            const dryTitle = getDryRunTitle(this.options);
+            console.log(`\nDiscord API${dryTitle ? ' ' + dryTitle : ''}`);
             console.log('===========');
             console.log('1. Export All Direct Messages');
             console.log('2. List Current Open Direct Messages');
@@ -27,7 +28,7 @@ class ApiMenu extends MenuBase {
             console.log('4. Reopen Direct Message (Specific User ID)');
             console.log('5. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
-            displaySettings(this.options);
+            // Dry run status is shown in the title when enabled
         }, async (choice) => {
             switch (choice) {
                 case '1':
