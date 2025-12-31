@@ -17,12 +17,11 @@ async function withRetry(operation, description) {
                 if (error.response && error.response.status === 429) {
                     const retryAfter = error.response.headers['retry-after'];
                     delayMs = retryAfter ? parseInt(retryAfter) * 1000 : 10000;
-                    msg = `${description} rate limited, waiting ${delayMs}ms before retry ${attempt}/${configManager.get('MAX_RETRIES')}`;
+                    msg = `${description} rate limited! waiting ${delayMs}ms before retry ${attempt}/${configManager.get('MAX_RETRIES')}`;
                 } else {
-                    msg = `${description} failed, attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`;
+                    msg = `${description} failed! attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`;
                 }
-
-                console.warn('\n' + msg);
+                console.warn(msg);
 
                 if (attempt === configManager.get('MAX_RETRIES')) {
                     throw error;

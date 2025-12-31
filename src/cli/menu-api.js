@@ -226,7 +226,8 @@ class ApiMenu extends MenuBase {
                 typeFilter = ['DM'];
                 typeDescription = 'DM only';
         }
-
+        // Clear the terminal before proceeding
+        console.clear();
         console.log('\nProcess and Export All Direct Messages');
         console.log('=======================================');
         console.log(`Filtering: ${typeDescription}`);
