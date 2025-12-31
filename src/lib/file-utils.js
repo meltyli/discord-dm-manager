@@ -144,7 +144,7 @@ function readJsonFile(filePath, defaultValue = null) {
 }
 
 /**
- * Writes data to JSON file with formatting
+ * Writes data to JSON file with formatting (atomic write using temp file)
  * @param {string} filePath - Path to JSON file
  * @param {*} data - Data to write
  * @param {number} indent - Indentation spaces
@@ -153,7 +153,19 @@ function readJsonFile(filePath, defaultValue = null) {
 function writeJsonFile(filePath, data, indent = 2) {
     const dirPath = path.dirname(filePath);
     ensureDirectory(dirPath);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, indent));
+    
+    // Atomic write: write to temp file first, then rename
+    const tempFile = `${filePath}.tmp.${Date.now()}`;
+    try {
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, indent));
+        fs.renameSync(tempFile, filePath);
+    } catch (error) {
+        // Clean up temp file if it exists
+        if (fs.existsSync(tempFile)) {
+            fs.unlinkSync(tempFile);
+        }
+        throw error;
+    }
 }
 
 /**

@@ -209,7 +209,19 @@ class ConfigManager {
 
         const updatedEnvLines = Object.entries(existingEnv)
             .map(([key, value]) => `${key}=${value}`);
-        fs.writeFileSync(ENV_FILE_PATH, updatedEnvLines.join('\n'));
+        
+        // Atomic write: write to temp file first, then rename
+        const tempFile = `${ENV_FILE_PATH}.tmp.${Date.now()}`;
+        try {
+            fs.writeFileSync(tempFile, updatedEnvLines.join('\n'));
+            fs.renameSync(tempFile, ENV_FILE_PATH);
+        } catch (error) {
+            // Clean up temp file if it exists
+            if (fs.existsSync(tempFile)) {
+                fs.unlinkSync(tempFile);
+            }
+            throw new Error(`Failed to update .env file: ${error.message}`);
+        }
     }
 
     /**

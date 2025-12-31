@@ -102,6 +102,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     
     let skippedUsers = 0;
     let processedUsers = 0;
+    const successfullyReopened = [];
     
     for (const [index, userId] of userIds.entries()) {
         const result = await reopenDM(configManager.getEnv('AUTHORIZATION_TOKEN'), userId);
@@ -109,6 +110,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
             skippedUsers++;
         } else {
             processedUsers++;
+            successfullyReopened.push(userId);
         }
         
         // Random delay between 0-2 seconds, with longer pauses every 40-50 calls if total > 50
@@ -119,7 +121,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     }
     batchProgress.stop();
     
-    return { processed: processedUsers, skipped: skippedUsers };
+    return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };
 }
 
 /**
@@ -210,10 +212,11 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
             processedUsers += stats.processed;
             skippedUsers += stats.skipped;
 
-            // Update state after completing batch
+            // Update and save state immediately after opening batch
             batchState.currentBatch = batchNum + 1;
             batchState.processedUsers = processedUsers;
             batchState.skippedUsers = skippedUsers;
+            batchState.reopenedInCurrentBatch = stats.reopenedIds || [];
             batchState.timestamp = new Date().toISOString();
             saveBatchState(batchState);
 
@@ -296,10 +299,11 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             processedUsers += stats.processed;
             skippedUsers += stats.skipped;
 
-            // Update state after completing batch
+            // Update and save state immediately after opening batch
             batchState.currentBatch = batchNum + 1;
             batchState.processedUsers = processedUsers;
             batchState.skippedUsers = skippedUsers;
+            batchState.reopenedInCurrentBatch = stats.reopenedIds || [];
             batchState.timestamp = new Date().toISOString();
             saveBatchState(batchState);
 
