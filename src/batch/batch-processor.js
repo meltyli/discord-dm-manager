@@ -133,9 +133,23 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     // Load id-history to get usernames
     const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
     const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
-    let idHistoryData = {};
+    let usernameMap = {};
     try {
-        idHistoryData = readJsonFile(idHistoryPath);
+        const idHistoryData = readJsonFile(idHistoryPath);
+        // Build a map of userId -> username from uniqueChannels and latest
+        ['uniqueChannels', 'latest'].forEach(field => {
+            if (idHistoryData?.[field]) {
+                idHistoryData[field].forEach(channel => {
+                    if (channel.recipients && Array.isArray(channel.recipients)) {
+                        channel.recipients.forEach(recipient => {
+                            if (recipient?.id && recipient?.username && !usernameMap[recipient.id]) {
+                                usernameMap[recipient.id] = recipient.username;
+                            }
+                        });
+                    }
+                });
+            }
+        });
     } catch (error) {
         // If we can't read id-history, continue without usernames
     }
@@ -149,7 +163,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     
     try {
         for (const [index, userId] of userIds.entries()) {
-            const username = idHistoryData[userId]?.username || userId;
+            const username = usernameMap[userId] || 'Unknown';
             const displayName = `${username} (${userId})`;
             batchProgress.update(index, { username: displayName });
             

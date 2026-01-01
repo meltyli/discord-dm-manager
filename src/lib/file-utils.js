@@ -40,17 +40,30 @@ function getRecipients(channelJsonPaths, myDiscordId, typeFilter = ['DM', 'GROUP
             const channelJson = JSON.parse(data.trim());
             
             if (typeFilter.includes(channelJson.type)) {
-                if (channelJson.recipients && Array.isArray(channelJson.recipients)) {
-                    channelJson.recipients.forEach(recipientId => {
-                        if (recipientId !== myDiscordId) {
-                            // Filter out invalid IDs like "Deleted User" - only accept numeric strings
-                            const isValidId = /^\d+$/.test(String(recipientId));
-                            if (isValidId) {
-                                recipientIds.add(recipientId);
-                            }
-                        }
-                    });
+                // Skip if recipients field is missing or not an array
+                if (!channelJson.recipients || !Array.isArray(channelJson.recipients)) {
+                    return;
                 }
+                
+                // Skip if recipients array is empty
+                if (channelJson.recipients.length === 0) {
+                    return;
+                }
+                
+                channelJson.recipients.forEach(recipientId => {
+                    // Skip if recipient is null, undefined, or the user's own ID
+                    if (!recipientId || recipientId === myDiscordId) {
+                        return;
+                    }
+                    
+                    // Filter out invalid IDs - only accept numeric strings/numbers
+                    const recipientStr = String(recipientId).trim();
+                    const isValidId = /^\d+$/.test(recipientStr);
+                    
+                    if (isValidId) {
+                        recipientIds.add(recipientStr);
+                    }
+                });
             }
         } catch (error) {
             console.error(`Error processing file ${filePath}: ${error.message}`);
