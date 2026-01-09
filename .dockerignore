@@ -1,0 +1,51 @@
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Logs
+logs/
+*.log
+
+# Export directory (user data)
+export/
+
+# Config files (sensitive)
+config/*.json
+config/.env
+.env
+
+# Coverage
+coverage/
+
+# Test files and fixtures
+tests/
+test_path/
+*.test.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in container)
+*.md
+!README.md
+
+# Scripts
+*.sh
+
+# Temporary files
+tmp/
+temp/

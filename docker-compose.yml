@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  discord-dm-manager:
+    build: .
+    image: discord-dm-manager:latest
+    container_name: discord-dm-manager
+    volumes:
+      # Mount config directory (contains config.json, .env, etc.)
+      - ./config:/app/config
+      # Mount export directory for exported DMs
+      - ./export:/app/export
+      # Mount logs directory
+      - ./logs:/app/logs
+      # Optional: Mount your Discord data package
+      # - /path/to/your/discord-package:/app/data-package:ro
+    environment:
+      # These can override values in config/.env
+      - NODE_ENV=production
+      # Optional: Set dry run mode
+      # - DRY_RUN=false
+    # Default command - override with docker-compose run args
+    command: ["--help"]
+    stdin_open: true
+    tty: true
+
+# Example usage:
+# 
+# 1. Interactive menu mode (for configuration):
+#    docker-compose run --rm discord-dm-manager interactive
+#
+# 2. Export specific users by username:
+#    docker-compose run --rm discord-dm-manager -s username1 username2 "user three"
+#
+# 3. Export specific user IDs:
+#    docker-compose run --rm discord-dm-manager -u 123456789 987654321
+#
+# 4. Export all DMs:
+#    docker-compose run --rm discord-dm-manager --all
+#
+# 5. Batch mode:
+#    docker-compose run --rm discord-dm-manager batch

@@ -6,11 +6,15 @@
   "scripts": {
     "start": "node src/cli/menu-main.js",
     "batch": "node src/batch/batch-entry.js",
-    "test": "jest"
+    "cli": "node src/cli/cli-runner.js",
+    "test": "jest",
+    "docker:build": "docker build -t discord-dm-manager .",
+    "docker:run": "docker-compose run --rm discord-dm-manager"
   },
   "bin": {
     "discord-dm-manager": "./src/cli/menu-main.js",
-    "discord-dm-batch": "./src/batch/batch-entry.js"
+    "discord-dm-batch": "./src/batch/batch-entry.js",
+    "discord-dm-cli": "./src/cli/cli-runner.js"
   },
   "repository": {
     "type": "git",
