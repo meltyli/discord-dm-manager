@@ -9,7 +9,7 @@ const { exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
 const { validateRequired, validateDCEPath } = require('../lib/validators');
 const { traverseDataPackage, getRecipients, updateIdHistory } = require('../lib/file-utils');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
-const configDefaults = require('../config-defaults');
+const configDefaults = require('../lib/config-defaults');
 
 const delayTracker = getApiDelayTracker();
 

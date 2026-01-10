@@ -1,11 +1,11 @@
 # Use Node.js LTS version
 FROM node:18-alpine
 
-# Install Discord Chat Exporter (DCE)
-# Note: This requires .NET runtime
+# Install dependencies for .NET and DCE
 RUN apk add --no-cache \
     bash \
     curl \
+    unzip \
     icu-libs \
     krb5-libs \
     libgcc \
@@ -14,8 +14,8 @@ RUN apk add --no-cache \
     libstdc++ \
     zlib
 
-# Install .NET runtime for Discord Chat Exporter
-RUN apk add --no-cache dotnet6-runtime
+# Install .NET 8 runtime for Discord Chat Exporter (latest LTS)
+RUN apk add --no-cache dotnet8-runtime
 
 # Set working directory
 WORKDIR /app
