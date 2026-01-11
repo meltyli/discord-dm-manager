@@ -1,6 +1,5 @@
-const { ensureExportPath } = require('../lib/file-utils');
 const { promptUser, waitForKeyPress, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
-const { displayDetailedConfig, displayAdvancedSettings } = require('./menu-helpers');
+const { displayDetailedConfig } = require('./menu-helpers');
 const { MenuBase } = require('./menu-base');
 
 class ConfigurationMenu extends MenuBase {
@@ -21,93 +20,13 @@ class ConfigurationMenu extends MenuBase {
             console.log('\nConfiguration');
             console.log('=============');
             displayDetailedConfig(this.options);
-            console.log('\n1. Edit Data Package Folder');
-            console.log('2. Edit Export Path');
-            console.log('3. Edit Discord Chat Exporter Path');
-            console.log('4. Advanced Settings');
-            console.log('q. Back to Main Menu');
-        }, async (choice) => {
-            switch (choice) {
-                case '1':
-                    return await this.executeMenuAction('Edit Data Package Folder', 
-                        () => this.editDataPackageFolder(), false);
-                case '2':
-                    return await this.executeMenuAction('Edit Export Path', 
-                        () => this.editExportPath(), false);
-                case '3':
-                    return await this.executeMenuAction('Edit Discord Chat Exporter Path', 
-                        () => this.editDCEPath(), false);
-                case '4':
-                    return await this.executeMenuAction('Advanced Settings', 
-                        () => this.advancedSettings(), false);
-                case 'q':
-                    return false;
-                default:
-                    console.log('\nInvalid option. Please try again.');
-                    await waitForKeyPress(this.rl);
-                    return true;
-            }
-        });
-    }
-
-    async editDataPackageFolder() {
-        const newValue = cleanInput(await promptUser(`Data Package Folder (current: ${this.options.DATA_PACKAGE_FOLDER}): `, this.rl));
-        if (newValue) {
-            this.options.DATA_PACKAGE_FOLDER = newValue;
-            this.configManager.saveConfig();
-            console.log('\nData package folder updated!');
-        }
-        await waitForKeyPress(this.rl);
-    }
-
-    async editExportPath() {
-        const newValue = cleanInput(await promptUser(`Export Path (current: ${this.options.EXPORT_PATH}): `, this.rl));
-        this.options.EXPORT_PATH = ensureExportPath(newValue);
-        this.configManager.saveConfig();
-        console.log(`\nExport path set to ${this.options.EXPORT_PATH}`);
-        await waitForKeyPress(this.rl);
-    }
-
-    async editDCEPath() {
-        const newValue = cleanInput(await promptUser(`Discord Chat Exporter Path (current: ${this.options.DCE_PATH}): `, this.rl));
-        if (newValue) {
-            this.options.DCE_PATH = newValue;
-            this.configManager.saveConfig();
-            console.log('\nDiscord Chat Exporter path updated!');
-        }
-        await waitForKeyPress(this.rl);
-    }
-
-    async resetToDefault() {
-        console.log('WARNING: This will delete all configuration and reset to defaults.');
-        console.log('This includes:');
-        console.log('  - All path settings');
-        console.log('  - Advanced settings (will reset to defaults)');
-        console.log('  - Environment variables (AUTHORIZATION_TOKEN, USER_DISCORD_ID)');
-        console.log('');
-        
-        if (await promptConfirmation('Are you sure you want to continue? (yes/no): ', this.rl)) {
-            this.configManager.resetToDefault();
-            this.options = this.configManager.config;
-            console.log('\n✓ Configuration reset successfully!');
-            console.log('You will need to reconfigure before using the application.');
-            await waitForKeyPress(this.rl);
-        } else {
-            console.log('\nReset cancelled.');
-            await waitForKeyPress(this.rl);
-        }
-    }
-
-    async advancedSettings() {
-        await this.runMenuLoop('Advanced Settings', () => {
-            displayAdvancedSettings(this.options);
             console.log('\n1. Toggle Dry Run Mode');
             console.log('2. Set Batch Size');
             console.log('3. Set API Delay');
             console.log('4. Set Rate Limit');
             console.log('5. Toggle Suppress Menu Errors');
             console.log('6. Reset to Default');
-            console.log('q. Back to Configuration Menu');
+            console.log('q. Back to Main Menu');
         }, async (choice) => {
             switch (choice) {
                 case '1':
@@ -136,6 +55,25 @@ class ConfigurationMenu extends MenuBase {
                     return true;
             }
         });
+    }
+
+    async resetToDefault() {
+        console.log('WARNING: This will delete all configuration and reset to defaults.');
+        console.log('This includes:');
+        console.log('  - Settings (will reset to defaults)');
+        console.log('  - Environment variables (AUTHORIZATION_TOKEN, USER_DISCORD_ID)');
+        console.log('');
+        
+        if (await promptConfirmation('Are you sure you want to continue? (yes/no): ', this.rl)) {
+            this.configManager.resetToDefault();
+            this.options = this.configManager.config;
+            console.log('\n✓ Configuration reset successfully!');
+            console.log('You will need to reconfigure before using the application.');
+            await waitForKeyPress(this.rl);
+        } else {
+            console.log('\nReset cancelled.');
+            await waitForKeyPress(this.rl);
+        }
     }
 
     async setBatchSize() {
