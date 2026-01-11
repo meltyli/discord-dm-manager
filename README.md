@@ -1,64 +1,97 @@
-[Discord Direct Message Manager](https://github.com/pironside44/discordreopenalldms) revamped by [melty](https://github.com/meltyli). 
+# Discord DM Manager
 
-A Docker-based wrapper tool for [Discord Chat Exporter (DCE)](https://github.com/Tyrrrz/DiscordChatExporter/) that simplifies exporting Discord DMs by managing channel state, batch processing, and rate limiting automatically.
+A Docker-based wrapper tool for Discord Chat Exporter that helps manage and export Discord DMs efficiently.
 
-**Notable recent changes**
-- **Docker-only deployment** - Simplified setup with pre-configured paths
-- **CLI mode** - Export DMs via command line with username/ID filters
-- **DM state management** - Saves and restores your open DMs after export
-- **DRY_RUN mode** - Validate operations before execution
+## Quick Start
 
-Note: Only 1-on-1 DMs (type 1) are currently supported. Group DMs are not exported.
+### Prerequisites
+- Docker and Docker Compose installed
+- Discord data package (download from Discord settings)
+- Discord authorization token
 
-## 🚀 Quick Start
+### Setup
 
-**Prerequisites:** Docker and Docker Compose
+1. **Clone and navigate to repository:**
+```bash
+git clone <repository-url>
+cd discord-dm-manager
+```
 
-1. **Edit docker-compose.yml** - Set your Discord data package path:
-   ```yaml
-   - /path/to/your/discord-package:/data/package:ro
-   ```
+2. **Edit docker-compose.yml to set your Discord data package path:**
+```yaml
+volumes:
+  - /path/to/your/discord-data-package:/data/package:ro
+```
 
-2. **Build the image:**
-   ```bash
-   docker-compose build
-   ```
+3. **Build the Docker image:**
+```bash
+docker-compose build
+```
 
-3. **Configure (first time):**
-   ```bash
-   docker-compose run --rm discord-dm-manager interactive
-   ```
-   You'll only need to provide:
-   - Discord authorization token
-   - Your Discord user ID
+4. **Configure authentication (first time only):**
+```bash
+docker-compose run --rm discord-dm-manager interactive
+```
+Follow prompts to enter your Discord authorization token and user ID.
 
-4. **Export DMs:**
-   ```bash
-   # By username
-   docker-compose run --rm discord-dm-manager -s username1 username2
-   
-   # By user ID
-   docker-compose run --rm discord-dm-manager -u 123456789
-   
-   # All DMs
-   docker-compose run --rm discord-dm-manager --all
-   ```
+### Usage
 
-See [DOCKER.md](DOCKER.md) for detailed setup and usage.
+**Export specific users by username:**
+```bash
+docker-compose run --rm discord-dm-manager -s username1 username2 "user three"
+```
 
-## 📋 Features
-## 📋 Features
+**Export by user ID:**
+```bash
+docker-compose run --rm discord-dm-manager -u 123456789 987654321
+```
 
-- **CLI & Interactive modes** - Command line exports or interactive menu
-- **DM state management** - Preserves your open DMs across exports
-- **Username resolution** - Export by Discord username, not just IDs
-- **Rate limiting** - Automatic throttling to avoid Discord API limits
-- **Batch processing** - Handles large numbers of DMs efficiently
-- **DRY_RUN mode** - Preview operations before execution
-- **Complete logging** - Track all operations and API calls
+**Export all DMs:**
+```bash
+docker-compose run --rm discord-dm-manager --all
+```
 
-## ⚠️ Documentation
+**Interactive menu:**
+```bash
+docker-compose run --rm discord-dm-manager interactive
+```
 
-For full usage instructions and examples, see the project wiki: https://github.com/meltyli/discord-dm-manager/wiki
+**Batch mode:**
+```bash
+docker-compose run --rm discord-dm-manager batch
+```
 
-Roadmap: https://github.com/meltyli/discord-dm-manager/wiki/roadmap
+**Show help:**
+```bash
+docker-compose run --rm discord-dm-manager --help
+```
+
+### Output
+
+Exported chat files appear in `./export/` directory on your host machine.
+
+## Configuration
+
+All paths are managed by Docker volumes. Configuration menu (interactive mode) allows you to adjust:
+- Batch size
+- API delays
+- Rate limits
+- Dry run mode
+
+Authentication credentials are stored in `./config/.env`.
+
+## Project Structure
+
+```
+discord-dm-manager/
+├── src/               # Source code
+├── config/            # Configuration files (mounted)
+├── export/            # Exported DMs (mounted)
+├── logs/              # Application logs (mounted)
+├── Dockerfile         # Docker image definition
+└── docker-compose.yml # Docker Compose configuration
+```
+
+## License
+
+MIT

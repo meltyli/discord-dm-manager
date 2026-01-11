@@ -6,15 +6,15 @@ services:
     image: discord-dm-manager:latest
     container_name: discord-dm-manager
     volumes:
+      # Mount your Discord data package (update path to your actual package)
+      # REQUIRED: Change this to your Discord data package location
+      - ~/Downloads/discord-data-package:/data/package:ro
       # Mount config directory (contains config.json, .env, etc.)
       - ./config:/app/config
       # Mount export directory for exported DMs
       - ./export:/app/export
       # Mount logs directory
       - ./logs:/app/logs
-      # Mount your Discord data package (update path to your actual package)
-      # REQUIRED: Change this to your Discord data package location
-      # - ~/Downloads/discord-data-package:/data/package:ro
     environment:
       # These can override values in config/.env
       - NODE_ENV=production
