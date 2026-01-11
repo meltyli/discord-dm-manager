@@ -17,7 +17,7 @@ const CONFIG_DIR = path.join(__dirname, '..', 'config');
 const CONFIG_FILE_PATH = resolveConfigPath('config.json');
 const ENV_FILE_PATH = resolveConfigPath('.env');
 
-// Default configurations
+// Default configurations (Docker paths)
 const defaultConfig = {
     BATCH_SIZE: 20,
     API_DELAY_MS: 100,
@@ -25,9 +25,9 @@ const defaultConfig = {
     RETRY_DELAY_MS: 5000,
     RATE_LIMIT_REQUESTS: 30,
     RATE_LIMIT_INTERVAL_MS: 60000,
-    DATA_PACKAGE_FOLDER: '',
-    EXPORT_PATH: 'export',
-    DCE_PATH: '',
+    DATA_PACKAGE_FOLDER: '/data/package',
+    EXPORT_PATH: '/app/export',
+    DCE_PATH: '/app/dce/DiscordChatExporter.Cli',
     DRY_RUN: false,
     SUPPRESS_MENU_ERRORS: false
 };
@@ -108,25 +108,10 @@ class ConfigManager {
 
     async createConfigFile() {
         console.log('\nSetting up configuration...');
-        console.log('='.repeat(60));
-        console.log('Step 1: Configure paths');
-        console.log('='.repeat(60));
-        
-        
-        if (!this.config.DATA_PACKAGE_FOLDER || this.config.DATA_PACKAGE_FOLDER === '') {
-            const packagePath = await promptUser('Enter Discord data package directory path: ', this.rl);
-            this.config.DATA_PACKAGE_FOLDER = cleanInput(packagePath);
-        }
-        
-        const exportPrompt = `Enter export directory path (default: ./export): `;
-        const exportPath = await promptUser(exportPrompt, this.rl);
-        const cleanedExport = cleanInput(exportPath);
-        this.config.EXPORT_PATH = cleanedExport || './export';
-        
-        if (!this.config.DCE_PATH || this.config.DCE_PATH === '') {
-            const dcePath = await promptUser('Enter Discord Chat Exporter directory path: ', this.rl);
-            this.config.DCE_PATH = cleanInput(dcePath);
-        }
+        console.log('\nPaths are pre-configured for Docker:');
+        console.log(`  Data Package: ${this.config.DATA_PACKAGE_FOLDER}`);
+        console.log(`  Export Path: ${this.config.EXPORT_PATH}`);
+        console.log(`  DCE Path: ${this.config.DCE_PATH}`);
         
         const pathKeys = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
         for (const [key, value] of Object.entries(this.config)) {
@@ -157,7 +142,7 @@ class ConfigManager {
 
     async ensureEnvValues() {
         console.log('\n' + '='.repeat(60));
-        console.log('Step 2: Configure authentication');
+        console.log('Configure authentication');
         console.log('='.repeat(60));
         
         for (const [key, defaultValue] of Object.entries(envTemplate)) {

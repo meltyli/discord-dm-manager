@@ -1,59 +1,64 @@
 [Discord Direct Message Manager](https://github.com/pironside44/discordreopenalldms) revamped by [melty](https://github.com/meltyli). 
 
-A wrapper tool for [Discord Chat Exporter (DCE)](https://github.com/Tyrrrz/DiscordChatExporter/) that simplifies exporting Discord DMs by managing channel state, batch processing, and rate limiting automatically.
+A Docker-based wrapper tool for [Discord Chat Exporter (DCE)](https://github.com/Tyrrrz/DiscordChatExporter/) that simplifies exporting Discord DMs by managing channel state, batch processing, and rate limiting automatically.
 
 **Notable recent changes**
-- **NEW: Docker support with CLI mode** - Run exports via command line with username/ID filters, config management
-- **NEW: Proper DM state management** - Saves and restores your open DMs after export
-- Added options to suppress menu errors, clear the terminal before processing DMs, enhance log/message formatting, integrate user validation into `reopenDM`, show `DRY_RUN` status in the menu title, and improve batch initialization.
-- Implemented `DRY_RUN` mode for validation and DM operations, added random delays and improved API delay tracking to reduce throttling, and added atomic writes for `.env` and JSON files.
-- Improved `closeAllOpenDMs` to save channel information and updated `id-history.json` structure, added DM state reset after export.
+- **Docker-only deployment** - Simplified setup with pre-configured paths
+- **CLI mode** - Export DMs via command line with username/ID filters
+- **DM state management** - Saves and restores your open DMs after export
+- **DRY_RUN mode** - Validate operations before execution
 
 Note: Only 1-on-1 DMs (type 1) are currently supported. Group DMs are not exported.
 
 ## 🚀 Quick Start
 
-### CLI Mode (New!)
+**Prerequisites:** Docker and Docker Compose
 
-Export DMs for specific users without the interactive menu:
+1. **Edit docker-compose.yml** - Set your Discord data package path:
+   ```yaml
+   - /path/to/your/discord-package:/data/package:ro
+   ```
 
-```bash
-# Export by Discord username
-npm run cli -- -s username1 username2 "user three"
+2. **Build the image:**
+   ```bash
+   docker-compose build
+   ```
 
-# Export by user ID
-npm run cli -- -u 123456789 987654321
+3. **Configure (first time):**
+   ```bash
+   docker-compose run --rm discord-dm-manager interactive
+   ```
+   You'll only need to provide:
+   - Discord authorization token
+   - Your Discord user ID
 
-# Export all DMs
-npm run cli -- --all
-```
+4. **Export DMs:**
+   ```bash
+   # By username
+   docker-compose run --rm discord-dm-manager -s username1 username2
+   
+   # By user ID
+   docker-compose run --rm discord-dm-manager -u 123456789
+   
+   # All DMs
+   docker-compose run --rm discord-dm-manager --all
+   ```
 
-### Docker Mode
+See [DOCKER.md](DOCKER.md) for detailed setup and usage.
 
-```bash
-# Build
-docker-compose build
+## 📋 Features
+## 📋 Features
 
-# Export specific users
-docker-compose run --rm discord-dm-manager -s username1 username2
+- **CLI & Interactive modes** - Command line exports or interactive menu
+- **DM state management** - Preserves your open DMs across exports
+- **Username resolution** - Export by Discord username, not just IDs
+- **Rate limiting** - Automatic throttling to avoid Discord API limits
+- **Batch processing** - Handles large numbers of DMs efficiently
+- **DRY_RUN mode** - Preview operations before execution
+- **Complete logging** - Track all operations and API calls
 
-# Interactive menu
-docker-compose run --rm discord-dm-manager interactive
-```
-
-See [DOCKER.md](DOCKER.md) for complete Docker setup instructions.
-
-### Interactive Menu Mode
-
-For configuration and advanced options:
-
-```bash
-npm start
-```
-
-### Roadmap / Current status
-Check out this project's roadmap and feature list: https://github.com/meltyli/discord-dm-manager/wiki/roadmap
-
-## ⚠️ Please visit the wiki to learn how to use this tool. ⚠️
+## ⚠️ Documentation
 
 For full usage instructions and examples, see the project wiki: https://github.com/meltyli/discord-dm-manager/wiki
+
+Roadmap: https://github.com/meltyli/discord-dm-manager/wiki/roadmap

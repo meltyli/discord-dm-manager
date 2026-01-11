@@ -12,8 +12,9 @@ services:
       - ./export:/app/export
       # Mount logs directory
       - ./logs:/app/logs
-      # Optional: Mount your Discord data package
-      # - /path/to/your/discord-package:/app/data-package:ro
+      # Mount your Discord data package (update path to your actual package)
+      # REQUIRED: Change this to your Discord data package location
+      # - ~/Downloads/discord-data-package:/data/package:ro
     environment:
       # These can override values in config/.env
       - NODE_ENV=production
