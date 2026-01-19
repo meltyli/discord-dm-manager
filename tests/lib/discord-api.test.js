@@ -22,8 +22,8 @@ describe('getCurrentOpenDMs', () => {
             const config = {
                 'MAX_RETRIES': 3,
                 'RETRY_DELAY_MS': 100,
-                'RATE_LIMIT_REQUESTS': 50,
-                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'RATE_LIMIT_REQUESTS': 45,
+                'RATE_LIMIT_INTERVAL_MS': 1000,
                 'DRY_RUN': false
             };
             return config[key];
@@ -84,8 +84,8 @@ describe('validateUser', () => {
             const config = {
                 'MAX_RETRIES': 3,
                 'RETRY_DELAY_MS': 100,
-                'RATE_LIMIT_REQUESTS': 50,
-                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'RATE_LIMIT_REQUESTS': 40,
+                'RATE_LIMIT_INTERVAL_MS': 1000,
                 'DRY_RUN': false
             };
             return config[key];
@@ -152,8 +152,8 @@ describe('reopenDM', () => {
             const config = {
                 'MAX_RETRIES': 3,
                 'RETRY_DELAY_MS': 100,
-                'RATE_LIMIT_REQUESTS': 50,
-                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'RATE_LIMIT_REQUESTS': 40,
+                'RATE_LIMIT_INTERVAL_MS': 1000,
                 'DRY_RUN': false
             };
             return config[key];
@@ -214,8 +214,8 @@ describe('closeDM', () => {
             const config = {
                 'MAX_RETRIES': 3,
                 'RETRY_DELAY_MS': 100,
-                'RATE_LIMIT_REQUESTS': 50,
-                'RATE_LIMIT_INTERVAL_MS': 60000,
+                'RATE_LIMIT_REQUESTS': 40,
+                'RATE_LIMIT_INTERVAL_MS': 1000,
                 'DRY_RUN': false
             };
             return config[key];

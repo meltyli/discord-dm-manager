@@ -21,7 +21,7 @@ function showUsage() {
 Discord DM Manager - CLI Mode
 
 Usage:
-  node src/cli/cli-runner.js [options]
+  docker-compose run --rm discord-dm-manager [options]
 
 Options:
   -s, --username <username...>         Export DMs for specific Discord username(s)
@@ -33,22 +33,17 @@ Options:
 
 Examples:
   # Export DMs for specific users by username
-  node src/cli/cli-runner.js -s username1 username2 "user three"
+  docker-compose run --rm discord-dm-manager -s username1 username2 "user three"
   
   # Export DMs for specific user IDs
-  node src/cli/cli-runner.js -u 123456789 987654321
+  docker-compose run --rm discord-dm-manager -u 123456789 987654321
   
   # Export all DMs
-  node src/cli/cli-runner.js --all
+  docker-compose run --rm discord-dm-manager --all
 
 Configuration:
-  To configure settings (token, paths, etc.), use the interactive menu:
-  npm start
-
-Docker Usage:
-  docker run -v $(pwd)/config:/app/config \\
-             -v $(pwd)/export:/app/export \\
-             discord-dm-manager -s username1 username2
+  To configure settings (token, auth, etc.), use the interactive menu:
+  docker-compose run --rm discord-dm-manager interactive
 
 Note: Only exports 1-on-1 DMs (type 1). Group DMs are not supported.
 `);

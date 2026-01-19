@@ -90,8 +90,8 @@ All configuration stored in `/config/` directory:
   "API_DELAY_MS": 100,           // Deprecated - use randomDelay instead
   "MAX_RETRIES": 3,              // API retry attempts
   "RETRY_DELAY_MS": 5000,        // Delay between retries
-  "RATE_LIMIT_REQUESTS": 30,     // Max requests per interval
-  "RATE_LIMIT_INTERVAL_MS": 60000, // Rate limit window (60s)
+  "RATE_LIMIT_REQUESTS": 40,     // Max requests per interval (Discord allows 50 req/sec, using 40 for 20% safety buffer)
+  "RATE_LIMIT_INTERVAL_MS": 1000, // Rate limit window (1 second)
   "DATA_PACKAGE_FOLDER": "",     // Path to Discord data package
   "EXPORT_PATH": "export",       // DCE output directory
   "DCE_PATH": "",                // DiscordChatExporter.Cli directory

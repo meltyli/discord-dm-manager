@@ -66,6 +66,20 @@ docker-compose run --rm discord-dm-manager batch
 docker-compose run --rm discord-dm-manager --help
 ```
 
+### CLI Options
+
+```
+Options:
+  -s, --username <username...>    Export DMs for specific Discord username(s)
+                                  Multiple usernames can be space-separated
+                                  Quote usernames with spaces: "User Name"
+  -u, --user-id <id...>          Export DMs for specific Discord user ID(s)
+  -a, --all                      Export all DMs (default behavior)
+  -h, --help                     Show this help message
+```
+
+**Note:** Only 1-on-1 DMs (type 1) are supported. Group DMs are not exported.
+
 ### Output
 
 Exported chat files appear in `./export/` directory on your host machine.
@@ -73,12 +87,43 @@ Exported chat files appear in `./export/` directory on your host machine.
 ## Configuration
 
 All paths are managed by Docker volumes. Configuration menu (interactive mode) allows you to adjust:
+- Dry run mode
 - Batch size
 - API delays
 - Rate limits
-- Dry run mode
+- Suppress menu errors
 
 Authentication credentials are stored in `./config/.env`.
+
+## Troubleshooting
+
+### Rebuild Container from Scratch
+
+If you encounter issues, rebuild the container:
+
+```bash
+# Remove containers and images
+docker-compose down
+docker rmi discord-dm-manager:latest
+
+# Rebuild without cache
+docker-compose build --no-cache
+
+# Test
+docker-compose run --rm discord-dm-manager --help
+```
+
+### Complete Docker Cleanup
+
+If problems persist:
+
+```bash
+# Remove all stopped containers and dangling images
+docker system prune -a
+
+# Rebuild
+docker-compose build
+```
 
 ## Project Structure
 

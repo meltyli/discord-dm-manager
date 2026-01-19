@@ -8,7 +8,7 @@ services:
     volumes:
       # Mount your Discord data package (update path to your actual package)
       # REQUIRED: Change this to your Discord data package location
-      - ~/Downloads/discord-data-package:/data/package:ro
+      - ~/Documents/Takeout/package:/data/package
       # Mount config directory (contains config.json, .env, etc.)
       - ./config:/app/config
       # Mount export directory for exported DMs
