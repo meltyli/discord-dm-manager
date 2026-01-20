@@ -6,6 +6,7 @@ const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('..
 const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-state');
 const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
+const { red, green, yellow, reset } = require('../lib/colors');
 
 const configManager = getConfigManager();
 const delayTracker = getApiDelayTracker();
@@ -25,8 +26,6 @@ function createBatchState(allDmIds, totalBatches, currentBatch = 0) {
 async function initializeBatchProcessing(typeFilter = null) {
     await configManager.init();
     
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
     console.log(`${yellow}Loading data package...${reset}`);
     const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
     console.log(`${yellow}Found ${channelJsonPaths.length} channel(s).${reset} Processing recipients...`);
@@ -81,8 +80,6 @@ async function closeAllOpenDMs() {
             return [];
         }
 
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`${yellow}Closing ${dmCount} open direct messages...${reset}`);
         delayTracker.reset(dmCount);
         
@@ -114,7 +111,6 @@ async function closeAllOpenDMs() {
         }
         closeProgress.stop();
         
-        const green = '\x1b[32m';
         console.log(`${green}Successfully closed ${closedUserIds.length} direct messages.${reset} Channel info was saved to ${filePath}`);
         
         return closedUserIds;

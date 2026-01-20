@@ -33,8 +33,7 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
     if (existingUserId) {
         providedUserId = existingUserId;
         if (providedUserId !== packageUserId) {
-            const yellow = '\x1b[33m';
-            const reset = '\x1b[0m';
+
             console.warn(`\n${yellow}⚠ WARNING:${reset} Your configured user ID (${providedUserId}) doesn't match the data package user ID (${packageUserId})`);
             console.warn(`  Package user: ${packageUsername}`);
             
@@ -45,8 +44,7 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
                 providedUserId = packageUserId;
             }
         } else {
-            const green = '\x1b[32m';
-            const reset = '\x1b[0m';
+
             console.log(`${green}✓ User ID matches data package!${reset}`);
         }
     } else {
@@ -58,8 +56,7 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
             providedUserId = packageUserId;
             console.log(`Using data package user ID: ${packageUserId}`);
         } else if (providedUserId !== packageUserId) {
-            const yellow = '\x1b[33m';
-            const reset = '\x1b[0m';
+
             console.warn(`\n${yellow}⚠ WARNING:${reset} The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
             
             const shouldContinue = await promptConfirmation('Are you sure you want to proceed? (y/n): ', rlInterface);
@@ -67,8 +64,7 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
                 throw new Error('User ID verification cancelled.');
             }
         } else {
-            const green = '\x1b[32m';
-            const reset = '\x1b[0m';
+
             console.log(`${green}✓ User ID verified successfully!${reset}`);
         }
     }

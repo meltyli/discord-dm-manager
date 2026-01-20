@@ -8,6 +8,7 @@ const { displaySettings, getDryRunTitle } = require('./menu-helpers');
 const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const { MenuBase } = require('./menu-base');
+const { red, green, yellow, reset } = require('../lib/colors');
 
 const delayTracker = getApiDelayTracker();
 
@@ -140,8 +141,6 @@ class ApiMenu extends MenuBase {
     async viewOpenDMs() {
         await this.ensureConfigured();
 
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`${yellow}Fetching open direct messages...${reset}`);
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
         await delayTracker.trackAndDelay();
@@ -177,8 +176,6 @@ class ApiMenu extends MenuBase {
         await closeAllOpenDMs();
 
         if (!isDryRun()) {
-            const green = '\x1b[32m';
-            const reset = '\x1b[0m';
             console.log(`\n${green}All direct messages closed successfully!${reset}`);
         }
     }
@@ -204,9 +201,6 @@ class ApiMenu extends MenuBase {
         }
 
         const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
-        const green = '\x1b[32m';
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         if (result) {
             console.log(`\n${green}Direct message reopened successfully!${reset}`);
         } else {
@@ -230,8 +224,6 @@ class ApiMenu extends MenuBase {
         const typeFilter = ['DM'];
 
         console.clear();
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`\n${yellow}Process and Export All Direct Messages${reset}`);
         console.log('=======================================');;
         console.log('This will:');
@@ -271,8 +263,6 @@ class ApiMenu extends MenuBase {
 
         try {
             await processAndExportAllDMs(exportCallback, this.rl, typeFilter);
-            const green = '\x1b[32m';
-            const reset = '\x1b[0m';
             console.log(`\n${green}All direct messages processed and exported successfully!${reset}`);
             console.log('\nResetting DM state...');
             await this.resetDMState();

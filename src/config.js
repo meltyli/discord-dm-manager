@@ -8,6 +8,7 @@ const { validatePathExists, validateDataPackage } = require('./lib/validators');
 const { promptUser, cleanInput } = require('./lib/cli-helpers');
 const { verifyUserId, validateConfigPaths } = require('./lib/config-validators');
 const { resolveExportPath, promptForConfigValue } = require('./lib/config-defaults');
+const { red, green, yellow, reset } = require('./lib/colors');
 
 // Initialize logger early to capture all output
 initializeLogger('./logs', 10);
@@ -104,8 +105,6 @@ class ConfigManager {
             if (fileConfig) {
                 this.config = { ...defaultConfig, ...fileConfig };
             } else {
-                const yellow = '\x1b[33m';
-                const reset = '\x1b[0m';
                 console.warn(`${yellow}No config.json found,${reset} creating with default values...`);
                 await this.createConfigFile();
             }
@@ -116,8 +115,6 @@ class ConfigManager {
     }
 
     async createConfigFile() {
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`\n${yellow}Setting up configuration...${reset}`);
         console.log(`\n${yellow}Paths are pre-configured for Docker:${reset}`);
         console.log(`  Data Package: ${this.config.DATA_PACKAGE_FOLDER}`);
@@ -169,16 +166,11 @@ class ConfigManager {
                 this.saveConfig();
                 return true;
             } catch (error) {
-                const yellow = '\x1b[33m';
-                const reset = '\x1b[0m';
                 console.warn(`\n${yellow}Warning:${reset} Data package at ${dataPackagePath} is invalid: ${error.message}`);
             }
         }
         
         // Show setup instructions if not valid
-        const red = '\x1b[31m';
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log('\n' + '='.repeat(60));
         console.log(`${red}Discord Data Package Not Found${reset}`);
         console.log('='.repeat(60));
@@ -211,8 +203,6 @@ class ConfigManager {
     }
 
     async ensureEnvValues() {
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log('\n' + '='.repeat(60));
         console.log(`${yellow}Configure authentication${reset}`);
         console.log('='.repeat(60));
@@ -235,7 +225,7 @@ class ConfigManager {
         }
         this.updateEnvFile();
         
-        const green = '\x1b[32m';
+
         console.log(`\n${green}✓ Configuration complete!${reset}\n`);
     }
 

@@ -162,8 +162,6 @@ async function manageDMState(configManager, targetUserIds) {
     const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
     
     // Step 1: Get currently open DMs
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
     console.log(`\n${yellow}Step 1: Saving current DM state...${reset}`);
     const currentlyOpenDMs = await getCurrentOpenDMs(token);
     await delayTracker.trackAndDelay();
@@ -197,8 +195,6 @@ async function manageDMState(configManager, targetUserIds) {
 async function exportCurrentDMs(configManager) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
     console.log(`\n${yellow}Step 4: Exporting opened DMs with Discord Chat Exporter...${reset}`);
     
     const currentDMs = await getCurrentOpenDMs(token);
@@ -228,8 +224,6 @@ async function restoreDMState(configManager, previouslyOpenDMs) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     
     // Step 5: Close exported DMs
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
     console.log(`\n${yellow}Step 5: Closing exported DMs...${reset}`);
     await closeAllOpenDMs();
     
@@ -320,13 +314,9 @@ async function runCLI() {
         // Restore DM state
         await restoreDMState(configManager, previouslyOpenDMs);
         
-        const green = '\x1b[32m';
-        const reset = '\x1b[0m';
-        console.log(`\n${green}✓ Export completed successfully!${reset}`);
+        console.log(`\n${green}\u2713 Export completed successfully!${reset}`);
         process.exit(0);
     } catch (error) {
-        const red = '\x1b[31m';
-        const reset = '\x1b[0m';
         console.error(`\n${red}✗ Export failed:${reset} ${error.message}`);
         getLogger().error('CLI Export Error:', error);
         process.exit(1);

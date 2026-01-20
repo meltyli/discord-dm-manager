@@ -1,9 +1,9 @@
+const { yellow, reset } = require('../lib/colors');
+
 function displaySettings(options) {
 }
 
 function displayDetailedConfig(options) {
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
     console.log('\nSettings:');
     console.log(`  DRY_RUN: ${yellow}${options.DRY_RUN}${reset}`);
     console.log(`  BATCH_SIZE: ${yellow}${options.BATCH_SIZE}${reset}`);

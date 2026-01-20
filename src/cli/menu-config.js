@@ -2,6 +2,7 @@ const { promptUser, waitForKeyPress, cleanInput, promptConfirmation } = require(
 const { displayDetailedConfig } = require('./menu-helpers');
 const { MenuBase } = require('./menu-base');
 const { validatePathExists, validateDataPackage, validateUserJson } = require('../lib/validators');
+const { red, green, yellow, reset } = require('../lib/colors');
 
 class ConfigurationMenu extends MenuBase {
     constructor(rl, configManager) {
@@ -63,8 +64,6 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async resetToDefault() {
-        const red = '\x1b[31m';
-        const reset = '\x1b[0m';
         console.log(`${red}WARNING:${reset} This will delete all configuration and reset to defaults.`);
         console.log('This includes:');
         console.log('  - Settings (will reset to defaults)');
@@ -86,8 +85,6 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async setBatchSize() {
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`${yellow}Batch Size Configuration${reset}`);
         const newValue = cleanInput(await promptUser(`Enter new batch size (current: ${yellow}${this.options.BATCH_SIZE}${reset}): `, this.rl));
         if (newValue) {
@@ -99,8 +96,6 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async setApiDelay() {
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`${yellow}API Delay Configuration${reset}`);
         const newValue = cleanInput(await promptUser(`Enter new API delay in ms (current: ${yellow}${this.options.API_DELAY_MS}${reset}): `, this.rl));
         if (newValue) {
@@ -112,8 +107,6 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async setRateLimit() {
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`${yellow}Rate Limit Configuration${reset}`);
         const requests = cleanInput(await promptUser(`Requests (current: ${yellow}${this.options.RATE_LIMIT_REQUESTS}${reset}): `, this.rl));
         const interval = cleanInput(await promptUser(`Interval in ms (current: ${yellow}${this.options.RATE_LIMIT_INTERVAL_MS}${reset}): `, this.rl));
@@ -146,10 +139,6 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async checkDataPackage() {
-        const yellow = '\x1b[33m';
-        const red = '\x1b[31m';
-        const green = '\x1b[32m';
-        const reset = '\x1b[0m';
         console.log('\n' + '='.repeat(60));
         console.log(`${yellow}Checking Data Package${reset}`);
         console.log('='.repeat(60));
