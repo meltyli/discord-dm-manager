@@ -39,11 +39,15 @@ volumes:
 3. **Build the Docker image:**
 ```bash
 docker-compose build
+# Or use the rebuild script for a clean build:
+./scripts/rebuild.sh
 ```
 
 4. **Configure authentication (first time only):**
 ```bash
 docker-compose run --rm discord-dm-manager interactive
+# Or use the launch script:
+./scripts/launch.sh
 ```
 The setup wizard will:
 - Verify your data package location (prompts if not found)

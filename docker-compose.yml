@@ -6,8 +6,11 @@ services:
     image: discord-dm-manager:latest
     container_name: discord-dm-manager
     volumes:
-      # Mount your Discord data package (default: ./datapackage)
-      # Place your Discord data package in ./datapackage or change path below
+      # Mount your Discord data package
+      # IMPORTANT: Place your extracted Discord data package in ./datapackage/
+      # It should contain: messages/, account/, servers/, etc.
+      # To use a different location, change the path before the colon:
+      # - /your/custom/path:/data/package
       - ./datapackage:/data/package
       # Mount config directory (contains config.json, .env, etc.)
       - ./config:/app/config

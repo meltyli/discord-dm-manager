@@ -16,7 +16,12 @@ initializeLogger('./logs', 10);
 const CONFIG_DIR = path.join(__dirname, '..', 'config');
 const CONFIG_FILE_PATH = resolveConfigPath('config.json');
 const ENV_FILE_PATH = resolveConfigPath('.env');
-const DEFAULT_DATA_PACKAGE_DIR = path.join(__dirname, '..', 'datapackage');
+
+// Detect if running in Docker and set appropriate default
+const IS_DOCKER = fs.existsSync('/.dockerenv');
+const DEFAULT_DATA_PACKAGE_DIR = IS_DOCKER 
+    ? '/data/package'  // Docker mounted path
+    : path.join(__dirname, '..', 'datapackage');  // Local development path
 
 // Default configurations (Docker paths)
 const defaultConfig = {
@@ -79,6 +84,7 @@ class ConfigManager {
         if (this.initialized) return;
 
         try {
+            this.initReadline(); // Initialize readline for prompts
             await this.loadConfig();
             await this.validatePaths();
             await this.ensureEnvValues();
@@ -149,60 +155,50 @@ class ConfigManager {
         // Ensure default directory exists
         ensureDirectory(DEFAULT_DATA_PACKAGE_DIR);
         
-        let dataPackagePath = this.config.DATA_PACKAGE_FOLDER;
-        let isValid = false;
+        const dataPackagePath = DEFAULT_DATA_PACKAGE_DIR;
         
-        // Check if current path exists and is valid
+        // Check if path exists and is valid
         if (validatePathExists(dataPackagePath)) {
             try {
                 validateDataPackage(dataPackagePath);
-                isValid = true;
+                this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
+                this.saveConfig();
+                return true;
             } catch (error) {
                 console.warn(`\n⚠ Data package at ${dataPackagePath} is invalid: ${error.message}`);
             }
         }
         
-        // If not valid, prompt user
-        if (!isValid) {
-            console.log('\n' + '='.repeat(60));
-            console.log('Discord Data Package Setup');
-            console.log('='.repeat(60));
-            console.log(`\nDefault location: ${DEFAULT_DATA_PACKAGE_DIR}`);
-            console.log('\nTo use the default location:');
+        // Show setup instructions if not valid
+        console.log('\n' + '='.repeat(60));
+        console.log('⚠️  Discord Data Package Not Found');
+        console.log('='.repeat(60));
+        console.log(`\nExpected location: ${dataPackagePath}`);
+        
+        if (IS_DOCKER) {
+            console.log('\n📦 Docker Setup Instructions:');
+            console.log('1. Extract your Discord data package on your host machine');
+            console.log('2. Place the contents in: ./datapackage/');
+            console.log('   (It should contain: messages/, account/, servers/, etc.)');
+            console.log('\n3. If using a custom location, edit docker-compose.yml:');
+            console.log('   volumes:');
+            console.log('     - /your/custom/path:/data/package');
+            console.log('4. Rebuild: docker-compose down && docker-compose build');
+            console.log('\n5. Use "Check Data Package" in Configuration menu to verify');
+        } else {
+            console.log('\n📦 Setup Instructions:');
             console.log('1. Download your Discord data package from Discord settings');
-            console.log('2. Extract it to the default location above');
-            console.log('3. Press Enter to use the default location');
-            console.log('\nOr provide a custom path to your Discord data package.');
-            
-            this.initReadline();
-            
-            while (!isValid) {
-                const input = await promptUser('\nEnter data package path (or press Enter for default): ', this.rl);
-                const cleanedInput = cleanInput(input);
-                
-                // Use default if empty
-                const pathToCheck = cleanedInput || DEFAULT_DATA_PACKAGE_DIR;
-                
-                if (validatePathExists(pathToCheck)) {
-                    try {
-                        validateDataPackage(pathToCheck);
-                        dataPackagePath = pathToCheck;
-                        isValid = true;
-                        console.log(`✓ Valid data package found at: ${pathToCheck}`);
-                    } catch (error) {
-                        console.error(`✗ Invalid data package: ${error.message}`);
-                        console.log('Please ensure the path contains a "messages" folder.');
-                    }
-                } else {
-                    console.error(`✗ Path does not exist: ${pathToCheck}`);
-                    console.log('Please check the path and try again.');
-                }
-            }
-            
-            // Update config with validated path
-            this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
-            this.saveConfig();
+            console.log('2. Extract it to: ' + dataPackagePath);
+            console.log('   (It should contain: messages/, account/, servers/, etc.)');
+            console.log('\n3. Use "Check Data Package" in Configuration menu to verify');
         }
+        
+        console.log('\n⚠️  You can still access Configuration menu, but');
+        console.log('    export functions will not work until the data package is found.');
+        
+        this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
+        this.saveConfig();
+        return false;
     }
 
     async ensureEnvValues() {

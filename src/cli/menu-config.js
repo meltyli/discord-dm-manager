@@ -1,6 +1,7 @@
 const { promptUser, waitForKeyPress, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
 const { displayDetailedConfig } = require('./menu-helpers');
 const { MenuBase } = require('./menu-base');
+const { validatePathExists, validateDataPackage } = require('../lib/validators');
 
 class ConfigurationMenu extends MenuBase {
     constructor(rl, configManager) {
@@ -20,31 +21,35 @@ class ConfigurationMenu extends MenuBase {
             console.log('\nConfiguration');
             console.log('=============');
             displayDetailedConfig(this.options);
-            console.log('\n1. Toggle Dry Run Mode');
-            console.log('2. Set Batch Size');
-            console.log('3. Set API Delay');
-            console.log('4. Set Rate Limit');
-            console.log('5. Toggle Suppress Menu Errors');
-            console.log('6. Reset to Default');
+            console.log('\n1. Check Data Package');
+            console.log('2. Toggle Dry Run Mode');
+            console.log('3. Set Batch Size');
+            console.log('4. Set API Delay');
+            console.log('5. Set Rate Limit');
+            console.log('6. Toggle Suppress Menu Errors');
+            console.log('7. Reset to Default');
             console.log('q. Back to Main Menu');
         }, async (choice) => {
             switch (choice) {
                 case '1':
+                    return await this.executeMenuAction('Check Data Package', 
+                        () => this.checkDataPackage(), false);
+                case '2':
                     return await this.executeMenuAction('Toggle Dry Run Mode', 
                         () => this.toggleDryRun(), false);
-                case '2':
+                case '3':
                     return await this.executeMenuAction('Set Batch Size', 
                         () => this.setBatchSize(), false);
-                case '3':
+                case '4':
                     return await this.executeMenuAction('Set API Delay', 
                         () => this.setApiDelay(), false);
-                case '4':
+                case '5':
                     return await this.executeMenuAction('Set Rate Limit', 
                         () => this.setRateLimit(), false);
-                case '5':
+                case '6':
                     return await this.executeMenuAction('Toggle Suppress Menu Errors', 
                         () => this.toggleSuppressMenuErrors(), false);
-                case '6':
+                case '7':
                     return await this.executeMenuAction('Reset to Default', 
                         () => this.resetToDefault(), false);
                 case 'q':
@@ -125,6 +130,65 @@ class ConfigurationMenu extends MenuBase {
         this.configManager.saveConfig();
         console.log(`\nSuppress Menu Errors ${this.options.SUPPRESS_MENU_ERRORS ? 'Enabled' : 'Disabled'}`);
         console.log('(Reduces duplicate error messages in menu output)');
+        await waitForKeyPress(this.rl);
+    }
+
+    async checkDataPackage() {
+        console.log('\n' + '='.repeat(60));
+        console.log('Checking Data Package');
+        console.log('='.repeat(60));
+        
+        const dataPackagePath = this.options.DATA_PACKAGE_FOLDER;
+        console.log(`\nChecking: ${dataPackagePath}`);
+        
+        if (!validatePathExists(dataPackagePath)) {
+            console.log('✗ Path does not exist');
+            console.log('\n📦 Setup Instructions:');
+            
+            const isDocker = require('fs').existsSync('/.dockerenv');
+            if (isDocker) {
+                console.log('1. Place your Discord data package in: ./datapackage/ (on host)');
+                console.log('   It should contain: messages/, account/, servers/, etc.');
+                console.log('2. Or edit docker-compose.yml to mount your custom path');
+                console.log('3. Rebuild: docker-compose down && docker-compose build');
+            } else {
+                console.log('1. Download your Discord data package from Discord settings');
+                console.log('2. Extract it to: ' + dataPackagePath);
+                console.log('   It should contain: messages/, account/, servers/, etc.');
+            }
+            await waitForKeyPress(this.rl);
+            return;
+        }
+        
+        try {
+            validateDataPackage(dataPackagePath);
+            console.log('✓ Valid data package found!');
+            console.log('\nPackage contains:');
+            
+            const fs = require('fs');
+            const path = require('path');
+            const messagesPath = path.join(dataPackagePath, 'messages');
+            if (fs.existsSync(messagesPath)) {
+                const channels = fs.readdirSync(messagesPath).filter(f => {
+                    const stat = fs.statSync(path.join(messagesPath, f));
+                    return stat.isDirectory() && f.startsWith('c');
+                });
+                console.log(`  - Messages: ${channels.length} channels found`);
+            }
+            
+            const accountPath = path.join(dataPackagePath, 'account');
+            if (fs.existsSync(accountPath)) {
+                console.log('  - Account: ✓');
+            }
+            
+            console.log('\n✓ Data package is ready to use!');
+        } catch (error) {
+            console.log(`✗ Invalid data package: ${error.message}`);
+            console.log('\nMake sure your data package contains:');
+            console.log('  - messages/ folder with channel data');
+            console.log('  - account/ folder (optional but recommended)');
+        }
+        
         await waitForKeyPress(this.rl);
     }
 }

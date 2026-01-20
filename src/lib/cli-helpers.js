@@ -1,6 +1,7 @@
 const readline = require('readline');
 const { spawn } = require('child_process');
 const path = require('path');
+const os = require('os');
 const cliProgress = require('cli-progress');
 
 async function promptUser(question, readlineInterface) {
@@ -53,13 +54,19 @@ function clearScreen() {
 }
 
 function cleanInput(input) {
-    const trimmed = input.trim();
+    let trimmed = input.trim();
+    
     // If the input is fully quoted, extract the quoted content
     if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || 
         (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-        return trimmed.slice(1, -1).trim();
+        trimmed = trimmed.slice(1, -1).trim();
     }
-    // Otherwise just trim whitespace
+    
+    // Expand tilde to home directory
+    if (trimmed.startsWith('~')) {
+        trimmed = path.join(os.homedir(), trimmed.slice(1));
+    }
+    
     return trimmed;
 }
 
