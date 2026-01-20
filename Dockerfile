@@ -42,7 +42,7 @@ RUN mkdir -p /app/dce && \
     chmod +x DiscordChatExporter.Cli
 
 # Set environment variables for Docker mode
-ENV DCE_PATH=/app/dce/DiscordChatExporter.Cli
+ENV DCE_PATH=/app/dce
 ENV RUNNING_IN_DOCKER=true
 
 # Create entrypoint script

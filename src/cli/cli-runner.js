@@ -331,4 +331,13 @@ if (require.main === module) {
     });
 }
 
-module.exports = { runCLI, parseArgs };
+module.exports = { 
+    runCLI, 
+    parseArgs,
+    getUserIdByUsername,
+    savePendingOpenDMs,
+    clearPendingOpenDMs,
+    manageDMState,
+    exportCurrentDMs,
+    restoreDMState
+};

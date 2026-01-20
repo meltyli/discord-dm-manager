@@ -53,6 +53,7 @@ jest.mock('../../src/lib/api-delay-tracker', () => ({
 const { openBatchDMs, closeAllOpenDMs } = require('../../src/batch/batch-processor');
 const { getCurrentOpenDMs, reopenDM, closeDM } = require('../../src/discord-api');
 const { readJsonFile, writeJsonFile, updateIdHistory } = require('../../src/lib/file-utils');
+const { createDMProgressBar } = require('../../src/lib/cli-helpers');
 
 describe('Batch Processor - DM State Management', () => {
     beforeEach(() => {
@@ -133,9 +134,10 @@ describe('Batch Processor - DM State Management', () => {
 
             await openBatchDMs(userIds, 2, 5); // batch 3 of 5
 
-            const progressBar = createDMProgressBar();
-            expect(progressBar.start).toHaveBeenCalled();
-            expect(progressBar.stop).toHaveBeenCalled();
+            expect(createDMProgressBar).toHaveBeenCalled();
+            const mockProgressBar = createDMProgressBar.mock.results[0].value;
+            expect(mockProgressBar.start).toHaveBeenCalled();
+            expect(mockProgressBar.stop).toHaveBeenCalled();
         });
 
         test('handles errors during opening', async () => {
@@ -245,11 +247,10 @@ describe('Batch Processor - DM State Management', () => {
 
             await closeAllOpenDMs();
 
-            const { createDMProgressBar } = require('../../src/lib/cli-helpers');
-            const progressBar = createDMProgressBar();
-            
-            expect(progressBar.start).toHaveBeenCalled();
-            expect(progressBar.stop).toHaveBeenCalled();
+            expect(createDMProgressBar).toHaveBeenCalled();
+            const mockProgressBar = createDMProgressBar.mock.results[0].value;
+            expect(mockProgressBar.start).toHaveBeenCalled();
+            expect(mockProgressBar.stop).toHaveBeenCalled();
         });
     });
 

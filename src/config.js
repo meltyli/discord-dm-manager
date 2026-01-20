@@ -34,7 +34,7 @@ const defaultConfig = {
     RATE_LIMIT_INTERVAL_MS: 1000,
     DATA_PACKAGE_FOLDER: '/data/package',
     EXPORT_PATH: '/app/export',
-    DCE_PATH: '/app/dce/DiscordChatExporter.Cli',
+    DCE_PATH: '/app/dce',
     DRY_RUN: false,
     SUPPRESS_MENU_ERRORS: false
 };

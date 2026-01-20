@@ -43,7 +43,7 @@ Example `config/config.json`:
 {
   "DATA_PACKAGE_FOLDER": "/app/data-package",
   "EXPORT_PATH": "/app/export",
-  "DCE_PATH": "/app/dce/DiscordChatExporter.Cli",
+  "DCE_PATH": "/app/dce",
   "BATCH_SIZE": 10,
   "EXPORT_FORMAT": "HtmlDark",
   "EXPORT_MEDIA_TOGGLE": false,
@@ -153,7 +153,7 @@ docker-compose run --rm discordmanager --all
 ## Troubleshooting
 
 ### Discord Chat Exporter Not Found
-The Dockerfile automatically downloads DCE. If you encounter issues, verify the DCE_PATH in config.json points to `/app/dce/DiscordChatExporter.Cli`.
+The Dockerfile automatically downloads DCE. If you encounter issues, verify the DCE_PATH in config.json points to `/app/dce`.
 
 ### Permission Issues
 Ensure your local config and export directories have appropriate permissions:
