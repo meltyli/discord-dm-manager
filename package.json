@@ -1,5 +1,5 @@
 {
-  "name": "discord-dm-manager",
+  "name": "discordmanager",
   "version": "1.5.11",
   "description": "Bulk Discord DM manager with DiscordChatExporter integration",
   "main": "src/cli/menu-main.js",
@@ -8,17 +8,17 @@
     "batch": "node src/batch/batch-entry.js",
     "cli": "node src/cli/cli-runner.js",
     "test": "jest",
-    "docker:build": "docker build -t discord-dm-manager .",
-    "docker:run": "docker-compose run --rm discord-dm-manager"
+    "docker:build": "docker build -t discordmanager .",
+    "docker:run": "docker-compose run --rm discordmanager"
   },
   "bin": {
-    "discord-dm-manager": "./src/cli/menu-main.js",
-    "discord-dm-batch": "./src/batch/batch-entry.js",
-    "discord-dm-cli": "./src/cli/cli-runner.js"
+    "discordmanager": "./src/cli/menu-main.js",
+    "discordmanager-batch": "./src/batch/batch-entry.js",
+    "discordmanager-cli": "./src/cli/cli-runner.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/meltyli/discord-dm-manager.git"
+    "url": "git+https://github.com/meltyli/discordmanager.git"
   },
   "keywords": [
     "discord",
@@ -31,9 +31,9 @@
   "author": "meltyli",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/meltyli/discord-dm-manager/issues"
+    "url": "https://github.com/meltyli/discordmanager/issues"
   },
-  "homepage": "https://github.com/meltyli/discord-dm-manager#readme",
+  "homepage": "https://github.com/meltyli/discordmanager#readme",
   "files": [
     "src/",
     "config/",

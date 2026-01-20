@@ -1,4 +1,4 @@
-# Discord DM Manager - AI Coding Agent Instructions
+# DiscorDManager - AI Coding Agent Instructions
 
 ## Project Overview
 Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes Discord data packages to systematically close, reopen, and export DMs using Discord Chat Exporter integration. Supports filtering by channel type (DM/GROUP_DM), safe rate limiting with random delays, and DRY_RUN testing mode.

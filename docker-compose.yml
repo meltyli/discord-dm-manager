@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  discord-dm-manager:
+  discordmanager:
     build: .
-    image: discord-dm-manager:latest
-    container_name: discord-dm-manager
+    image: discordmanager:latest
+    container_name: discordmanager
     volumes:
       # Mount your Discord data package
       # IMPORTANT: Place your extracted Discord data package in ./data/package/
@@ -31,16 +31,16 @@ services:
 # Example usage:
 # 
 # 1. Interactive menu mode (for configuration):
-#    docker-compose run --rm discord-dm-manager interactive
+#    docker-compose run --rm discordmanager interactive
 #
 # 2. Export specific users by username:
-#    docker-compose run --rm discord-dm-manager -s username1 username2 "user three"
+#    docker-compose run --rm discordmanager -s username1 username2 "user three"
 #
 # 3. Export specific user IDs:
-#    docker-compose run --rm discord-dm-manager -u 123456789 987654321
+#    docker-compose run --rm discordmanager -u 123456789 987654321
 #
 # 4. Export all DMs:
-#    docker-compose run --rm discord-dm-manager --all
+#    docker-compose run --rm discordmanager --all
 #
 # 5. Batch mode:
-#    docker-compose run --rm discord-dm-manager batch
+#    docker-compose run --rm discordmanager batch

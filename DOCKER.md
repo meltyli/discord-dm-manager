@@ -1,8 +1,8 @@
 # Docker Setup Guide
 
-This guide explains how to use Discord DM Manager with Docker.
+This guide explains how to use DiscorDManager with Docker.
 
-## What is Discord DM Manager?
+## What is DiscorDManager?
 
 This tool is a wrapper for [Discord Chat Exporter (DCE)](https://github.com/Tyrrrz/DiscordChatExporter/) that helps you:
 - Export 1-on-1 Discord DMs to various formats (HTML, JSON, etc.)
@@ -17,7 +17,7 @@ The tool automatically manages Discord's DM state, ensuring your previously open
 ### 1. Build the Docker Image
 
 ```bash
-docker build -t discord-dm-manager .
+docker build -t discordmanager .
 ```
 
 Or use npm script:
@@ -55,22 +55,22 @@ Example `config/config.json`:
 
 Export DMs for specific users by username:
 ```bash
-docker-compose run --rm discord-dm-manager -s username1 username2 "user three"
+docker-compose run --rm discordmanager -s username1 username2 "user three"
 ```
 
 Export by user IDs:
 ```bash
-docker-compose run --rm discord-dm-manager -u 123456789 987654321
+docker-compose run --rm discordmanager -u 123456789 987654321
 ```
 
 Export all DMs:
 ```bash
-docker-compose run --rm discord-dm-manager --all
+docker-compose run --rm discordmanager --all
 ```
 
 Interactive menu mode (for configuration and more options):
 ```bash
-docker-compose run --rm discord-dm-manager interactive
+docker-compose run --rm discordmanager interactive
 ```
 
 ## Direct Docker Usage
@@ -83,7 +83,7 @@ docker run -v $(pwd)/config:/app/config \
            -v $(pwd)/export:/app/export \
            -v $(pwd)/logs:/app/logs \
            -v /path/to/discord-package:/app/data-package:ro \
-           discord-dm-manager -s username1 username2
+           discordmanager -s username1 username2
 
 # Interactive mode
 docker run -it \
@@ -91,7 +91,7 @@ docker run -it \
            -v $(pwd)/export:/app/export \
            -v $(pwd)/logs:/app/logs \
            -v /path/to/discord-package:/app/data-package:ro \
-           discord-dm-manager interactive
+           discordmanager interactive
 ```
 
 ## CLI Options
@@ -129,25 +129,25 @@ environment:
 
 ### Example 1: Export Multiple Users
 ```bash
-docker-compose run --rm discord-dm-manager \
+docker-compose run --rm discordmanager \
   -s "user one" user2 user3
 ```
 
 ### Example 2: Export Specific User IDs
 ```bash
-docker-compose run --rm discord-dm-manager \
+docker-compose run --rm discordmanager \
   -u 123456789 987654321
 ```
 
 ### Example 3: Export All DMs
 ```bash
-docker-compose run --rm discord-dm-manager --all
+docker-compose run --rm discordmanager --all
 ```
 
 ### Example 4: Test Run (Dry Run)
 Edit docker-compose.yml to set `DRY_RUN=true` in environment, then:
 ```bash
-docker-compose run --rm discord-dm-manager --all
+docker-compose run --rm discordmanager --all
 ```
 
 ## Troubleshooting

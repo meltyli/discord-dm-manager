@@ -40,7 +40,7 @@ describe('End-to-End CLI Tests', () => {
             const result = await runCLI(['-h']);
             
             expect(result.code).toBe(0);
-            expect(result.stdout).toContain('Discord DM Manager - CLI Mode');
+            expect(result.stdout).toContain('DiscorDManager - CLI Mode');
             expect(result.stdout).toContain('Usage:');
             expect(result.stdout).toContain('Options:');
             expect(result.stdout).toContain('-s, --username');
@@ -53,7 +53,7 @@ describe('End-to-End CLI Tests', () => {
             const result = await runCLI(['--help']);
             
             expect(result.code).toBe(0);
-            expect(result.stdout).toContain('Discord DM Manager - CLI Mode');
+            expect(result.stdout).toContain('DiscorDManager - CLI Mode');
         }, TIMEOUT);
 
         test('help mentions configuration via npm start', async () => {

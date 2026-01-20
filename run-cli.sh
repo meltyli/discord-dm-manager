@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick start script for Discord DM Manager CLI
+# Quick start script for DiscorDManager CLI
 # This script helps you run the CLI tool easily
 
 set -e
@@ -11,7 +11,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Discord DM Manager - CLI Mode${NC}\n"
+echo -e "${GREEN}DiscorDManager - CLI Mode${NC}\n"
 
 # Check if config exists
 if [ ! -f "config/config.json" ]; then

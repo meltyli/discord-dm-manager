@@ -1,4 +1,4 @@
-# Discord DM Manager
+# DiscorDManager
 
 A Docker-based wrapper tool for Discord Chat Exporter that helps manage and export Discord DMs efficiently.
 
@@ -14,7 +14,7 @@ A Docker-based wrapper tool for Discord Chat Exporter that helps manage and expo
 1. **Clone and navigate to repository:**
 ```bash
 git clone <repository-url>
-cd discord-dm-manager
+cd discordmanager
 ```
 
 2. **Place your Discord data package:**
@@ -45,7 +45,7 @@ docker-compose build
 
 4. **Configure authentication (first time only):**
 ```bash
-docker-compose run --rm discord-dm-manager interactive
+docker-compose run --rm discordmanager interactive
 # Or use the launch script:
 ./scripts/launch.sh
 ```
@@ -59,32 +59,32 @@ The setup wizard will:
 
 **Export specific users by username:**
 ```bash
-docker-compose run --rm discord-dm-manager -s username1 username2 "user three"
+docker-compose run --rm discordmanager -s username1 username2 "user three"
 ```
 
 **Export by user ID:**
 ```bash
-docker-compose run --rm discord-dm-manager -u 123456789 987654321
+docker-compose run --rm discordmanager -u 123456789 987654321
 ```
 
 **Export all DMs:**
 ```bash
-docker-compose run --rm discord-dm-manager --all
+docker-compose run --rm discordmanager --all
 ```
 
 **Interactive menu:**
 ```bash
-docker-compose run --rm discord-dm-manager interactive
+docker-compose run --rm discordmanager interactive
 ```
 
 **Batch mode:**
 ```bash
-docker-compose run --rm discord-dm-manager batch
+docker-compose run --rm discordmanager batch
 ```
 
 **Show help:**
 ```bash
-docker-compose run --rm discord-dm-manager --help
+docker-compose run --rm discordmanager --help
 ```
 
 ### CLI Options
@@ -125,13 +125,13 @@ If you encounter issues, rebuild the container:
 ```bash
 # Remove containers and images
 docker-compose down
-docker rmi discord-dm-manager:latest
+docker rmi discordmanager:latest
 
 # Rebuild without cache
 docker-compose build --no-cache
 
 # Test
-docker-compose run --rm discord-dm-manager --help
+docker-compose run --rm discordmanager --help
 ```
 
 ### Complete Docker Cleanup
@@ -149,7 +149,7 @@ docker-compose build
 ## Project Structure
 
 ```
-discord-dm-manager/
+discordmanager/
 ├── src/               # Source code
 ├── config/            # Configuration files (mounted)
 ├── export/            # Exported DMs (mounted)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rebuild Discord DM Manager from scratch
+# Rebuild DiscorDManager from scratch
 
 set -e
 
@@ -9,7 +9,7 @@ echo "Cleaning up Docker containers and images..."
 docker-compose down 2>/dev/null || true
 
 # Remove image
-docker rmi discord-dm-manager:latest 2>/dev/null || true
+docker rmi discordmanager:latest 2>/dev/null || true
 
 echo "Building fresh Docker image..."
 docker-compose build --no-cache
@@ -17,7 +17,7 @@ docker-compose build --no-cache
 echo "Rebuild complete!"
 echo ""
 echo "Testing build..."
-docker-compose run --rm discord-dm-manager --help
+docker-compose run --rm discordmanager --help
 
 echo ""
 echo "To launch the application, run:"
