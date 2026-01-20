@@ -81,9 +81,13 @@ class DiscordDMApp {
             const envPath = resolveConfigPath('.env');
             if (fs.existsSync(configPath) && fs.existsSync(envPath)) {
                 await this.configManager.init();
-                console.log('Configuration loaded successfully.');
+                const green = '\x1b[32m';
+                const reset = '\x1b[0m';
+                console.log(`${green}Configuration loaded successfully.${reset}`);
             } else {
-                console.log('No configuration found. Please configure via menu option 1.');
+                const yellow = '\x1b[33m';
+                const reset = '\x1b[0m';
+                console.log(`${yellow}No configuration found.${reset} Please configure via menu option 1.`);
             }
         } catch (error) {
             console.error('Error during initialization:', error.message);
@@ -92,12 +96,16 @@ class DiscordDMApp {
 
     async ensureConfigured() {
         if (!this.configManager.initialized) {
-            console.log('\nConfiguration required before this operation.');
+            const yellow = '\x1b[33m';
+            const reset = '\x1b[0m';
+            console.log(`\n${yellow}Configuration required${reset} before this operation.`);
             if (await promptConfirmation('Would you like to configure now? (yes/no): ', this.rl)) {
                 await this.configManager.init();
                 
                 // Show the configuration after setup
-                console.log('\nConfiguration Complete!');
+                const green = '\x1b[32m';
+                const reset = '\x1b[0m';
+                console.log(`\n${green}Configuration Complete!${reset}`);
                 console.log('======================');
                 displayDetailedConfig(this.options);
                 console.log('\nReturning to main menu...');
@@ -111,7 +119,9 @@ class DiscordDMApp {
         
         // Check for AUTHORIZATION_TOKEN if not in DRY_RUN mode
         if (!this.options.DRY_RUN && !process.env.AUTHORIZATION_TOKEN) {
-            console.log('\nAUTHORIZATION_TOKEN is not set!');
+            const red = '\x1b[31m';
+            const reset = '\x1b[0m';
+            console.log(`\n${red}AUTHORIZATION_TOKEN is not set!${reset}`);
             console.log('You need to set your Discord authorization token before making API calls.');
             console.log('Please configure it in the Configuration menu (option 1) or enable DRY_RUN mode.');
             throw new Error('AUTHORIZATION_TOKEN required for API operations. Enable DRY_RUN mode or set token in configuration.');

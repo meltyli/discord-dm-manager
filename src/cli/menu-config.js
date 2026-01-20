@@ -63,7 +63,9 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async resetToDefault() {
-        console.log('WARNING: This will delete all configuration and reset to defaults.');
+        const red = '\x1b[31m';
+        const reset = '\x1b[0m';
+        console.log(`${red}WARNING:${reset} This will delete all configuration and reset to defaults.`);
         console.log('This includes:');
         console.log('  - Settings (will reset to defaults)');
         console.log('  - Environment variables (AUTHORIZATION_TOKEN, USER_DISCORD_ID)');
@@ -72,7 +74,9 @@ class ConfigurationMenu extends MenuBase {
         if (await promptConfirmation('Are you sure you want to continue? (yes/no): ', this.rl)) {
             this.configManager.resetToDefault();
             this.options = this.configManager.config;
-            console.log('\n✓ Configuration reset successfully!');
+            const green = '\x1b[32m';
+            const reset = '\x1b[0m';
+            console.log(`\n${green}✓ Configuration reset successfully!${reset}`);
             console.log('You will need to reconfigure before using the application.');
             await waitForKeyPress(this.rl);
         } else {
@@ -84,6 +88,7 @@ class ConfigurationMenu extends MenuBase {
     async setBatchSize() {
         const yellow = '\x1b[33m';
         const reset = '\x1b[0m';
+        console.log(`${yellow}Batch Size Configuration${reset}`);
         const newValue = cleanInput(await promptUser(`Enter new batch size (current: ${yellow}${this.options.BATCH_SIZE}${reset}): `, this.rl));
         if (newValue) {
             this.options.BATCH_SIZE = Number(newValue);
@@ -96,6 +101,7 @@ class ConfigurationMenu extends MenuBase {
     async setApiDelay() {
         const yellow = '\x1b[33m';
         const reset = '\x1b[0m';
+        console.log(`${yellow}API Delay Configuration${reset}`);
         const newValue = cleanInput(await promptUser(`Enter new API delay in ms (current: ${yellow}${this.options.API_DELAY_MS}${reset}): `, this.rl));
         if (newValue) {
             this.options.API_DELAY_MS = Number(newValue);
@@ -108,7 +114,7 @@ class ConfigurationMenu extends MenuBase {
     async setRateLimit() {
         const yellow = '\x1b[33m';
         const reset = '\x1b[0m';
-        console.log('Rate Limit Configuration');
+        console.log(`${yellow}Rate Limit Configuration${reset}`);
         const requests = cleanInput(await promptUser(`Requests (current: ${yellow}${this.options.RATE_LIMIT_REQUESTS}${reset}): `, this.rl));
         const interval = cleanInput(await promptUser(`Interval in ms (current: ${yellow}${this.options.RATE_LIMIT_INTERVAL_MS}${reset}): `, this.rl));
         
@@ -140,18 +146,20 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async checkDataPackage() {
+        const yellow = '\x1b[33m';
+        const red = '\x1b[31m';
+        const green = '\x1b[32m';
+        const reset = '\x1b[0m';
         console.log('\n' + '='.repeat(60));
-        console.log('Checking Data Package');
+        console.log(`${yellow}Checking Data Package${reset}`);
         console.log('='.repeat(60));
         
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         const dataPackagePath = this.options.DATA_PACKAGE_FOLDER;
         console.log(`\nChecking: ${yellow}${dataPackagePath}${reset}`);
         
         if (!validatePathExists(dataPackagePath)) {
             console.log('✗ Path does not exist');
-            console.log('\nSetup Instructions:');
+            console.log(`\n${yellow}Setup Instructions:${reset}`);
             
             const isDocker = require('fs').existsSync('/.dockerenv');
             if (isDocker) {
@@ -170,8 +178,8 @@ class ConfigurationMenu extends MenuBase {
         
         try {
             validateDataPackage(dataPackagePath);
-            console.log('✓ Valid data package found!');
-            console.log('\nPackage contains:');
+            console.log(`${green}✓ Valid data package found!${reset}`);
+            console.log(`\n${yellow}Package contains:${reset}`);
             
             const fs = require('fs');
             const path = require('path');
@@ -190,18 +198,18 @@ class ConfigurationMenu extends MenuBase {
             }
             
             // Check user ID match
-            console.log('\nUser ID Verification:');
+            console.log(`\n${yellow}User ID Verification:${reset}`);
             const configuredUserId = process.env.USER_DISCORD_ID;
             
             if (!configuredUserId) {
-                console.log('  Warning: No user ID configured yet');
+                console.log(`  ${red}Warning:${reset} No user ID configured yet`);
                 console.log('  Run configuration setup to set your user ID');
             } else {
                 const userJsonPath = path.join(dataPackagePath, 'account', 'user.json');
                 const validation = validateUserJson(userJsonPath);
                 
                 if (!validation.valid) {
-                    console.log(`  Warning: ${validation.error}`);
+                    console.log(`  ${red}Warning:${reset} ${validation.error}`);
                     console.log(`  Configured ID: ${yellow}${configuredUserId}${reset}`);
                 } else {
                     const { userId: packageUserId, username: packageUsername } = validation;
@@ -209,19 +217,19 @@ class ConfigurationMenu extends MenuBase {
                     console.log(`  Configured ID: ${yellow}${configuredUserId}${reset}`);
                     
                     if (configuredUserId === packageUserId) {
-                        console.log('  ✓ User ID matches!');
+                        console.log(`  ${green}✓ User ID matches!${reset}`);
                     } else {
-                        console.log('  ✗ Warning: User ID mismatch!');
+                        console.log(`  ${red}✗ Warning:${reset} User ID mismatch!`);
                         console.log('  This may cause issues with DM exports.');
                         console.log('  Consider resetting configuration to update user ID.');
                     }
                 }
             }
             
-            console.log('\n✓ Data package is ready to use!');
+            console.log(`\n${green}✓ Data package is ready to use!${reset}`);
         } catch (error) {
-            console.log(`✗ Invalid data package: ${error.message}`);
-            console.log('\nMake sure your data package contains:');
+            console.log(`${red}✗ Invalid data package:${reset} ${error.message}`);
+            console.log(`\n${yellow}Make sure your data package contains:${reset}`);
             console.log('  - messages/ folder with channel data');
             console.log('  - account/ folder (optional but recommended)');
         }

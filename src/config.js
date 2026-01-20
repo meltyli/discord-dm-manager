@@ -104,7 +104,9 @@ class ConfigManager {
             if (fileConfig) {
                 this.config = { ...defaultConfig, ...fileConfig };
             } else {
-                console.warn('No config.json found, creating with default values...');
+                const yellow = '\x1b[33m';
+                const reset = '\x1b[0m';
+                console.warn(`${yellow}No config.json found,${reset} creating with default values...`);
                 await this.createConfigFile();
             }
         } catch (error) {
@@ -114,8 +116,10 @@ class ConfigManager {
     }
 
     async createConfigFile() {
-        console.log('\nSetting up configuration...');
-        console.log('\nPaths are pre-configured for Docker:');
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
+        console.log(`\n${yellow}Setting up configuration...${reset}`);
+        console.log(`\n${yellow}Paths are pre-configured for Docker:${reset}`);
         console.log(`  Data Package: ${this.config.DATA_PACKAGE_FOLDER}`);
         console.log(`  Export Path: ${this.config.EXPORT_PATH}`);
         console.log(`  DCE Path: ${this.config.DCE_PATH}`);
@@ -165,18 +169,23 @@ class ConfigManager {
                 this.saveConfig();
                 return true;
             } catch (error) {
-                console.warn(`\nWarning: Data package at ${dataPackagePath} is invalid: ${error.message}`);
+                const yellow = '\x1b[33m';
+                const reset = '\x1b[0m';
+                console.warn(`\n${yellow}Warning:${reset} Data package at ${dataPackagePath} is invalid: ${error.message}`);
             }
         }
         
         // Show setup instructions if not valid
+        const red = '\x1b[31m';
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
         console.log('\n' + '='.repeat(60));
-        console.log('Discord Data Package Not Found');
+        console.log(`${red}Discord Data Package Not Found${reset}`);
         console.log('='.repeat(60));
         console.log(`\nExpected location: ${dataPackagePath}`);
         
         if (IS_DOCKER) {
-            console.log('\nDocker Setup Instructions:');
+            console.log(`\n${yellow}Docker Setup Instructions:${reset}`);
             console.log('1. Extract your Discord data package on your host machine');
             console.log('2. Place the contents in: ./data/package/');
             console.log('   (It should contain: messages/, account/, servers/, etc.)');
@@ -186,14 +195,14 @@ class ConfigManager {
             console.log('4. Rebuild: docker-compose down && docker-compose build');
             console.log('\n5. Use "Check Data Package" in Configuration menu to verify');
         } else {
-            console.log('\nSetup Instructions:');
+            console.log(`\n${yellow}Setup Instructions:${reset}`);
             console.log('1. Download your Discord data package from Discord settings');
             console.log('2. Extract it to: ' + dataPackagePath);
             console.log('   (It should contain: messages/, account/, servers/, etc.)');
             console.log('\n3. Use "Check Data Package" in Configuration menu to verify');
         }
         
-        console.log('\nNote: You can still access Configuration menu, but');
+        console.log(`\n${yellow}Note:${reset} You can still access Configuration menu, but`);
         console.log('      export functions will not work until the data package is found.');
         
         this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
@@ -202,8 +211,10 @@ class ConfigManager {
     }
 
     async ensureEnvValues() {
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
         console.log('\n' + '='.repeat(60));
-        console.log('Configure authentication');
+        console.log(`${yellow}Configure authentication${reset}`);
         console.log('='.repeat(60));
         
         for (const [key, defaultValue] of Object.entries(envTemplate)) {
@@ -224,7 +235,8 @@ class ConfigManager {
         }
         this.updateEnvFile();
         
-        console.log('\n✓ Configuration complete!\n');
+        const green = '\x1b[32m';
+        console.log(`\n${green}✓ Configuration complete!${reset}\n`);
     }
 
     saveConfig() {

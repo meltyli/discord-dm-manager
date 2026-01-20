@@ -33,7 +33,9 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
     if (existingUserId) {
         providedUserId = existingUserId;
         if (providedUserId !== packageUserId) {
-            console.warn(`\n⚠ WARNING: Your configured user ID (${providedUserId}) doesn't match the data package user ID (${packageUserId})`);
+            const yellow = '\x1b[33m';
+            const reset = '\x1b[0m';
+            console.warn(`\n${yellow}⚠ WARNING:${reset} Your configured user ID (${providedUserId}) doesn't match the data package user ID (${packageUserId})`);
             console.warn(`  Package user: ${packageUsername}`);
             
             const shouldContinue = await promptConfirmation('\nDo you want to continue with the configured ID? (y/n): ', rlInterface);
@@ -43,7 +45,9 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
                 providedUserId = packageUserId;
             }
         } else {
-            console.log('✓ User ID matches data package!');
+            const green = '\x1b[32m';
+            const reset = '\x1b[0m';
+            console.log(`${green}✓ User ID matches data package!${reset}`);
         }
     } else {
         // No existing ID, prompt for it
@@ -54,14 +58,18 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
             providedUserId = packageUserId;
             console.log(`Using data package user ID: ${packageUserId}`);
         } else if (providedUserId !== packageUserId) {
-            console.warn(`\n⚠ WARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
+            const yellow = '\x1b[33m';
+            const reset = '\x1b[0m';
+            console.warn(`\n${yellow}⚠ WARNING:${reset} The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
             
             const shouldContinue = await promptConfirmation('Are you sure you want to proceed? (y/n): ', rlInterface);
             if (!shouldContinue) {
                 throw new Error('User ID verification cancelled.');
             }
         } else {
-            console.log('✓ User ID verified successfully!');
+            const green = '\x1b[32m';
+            const reset = '\x1b[0m';
+            console.log(`${green}✓ User ID verified successfully!${reset}`);
         }
     }
     

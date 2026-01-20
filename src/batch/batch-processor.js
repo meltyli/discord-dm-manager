@@ -25,9 +25,11 @@ function createBatchState(allDmIds, totalBatches, currentBatch = 0) {
 async function initializeBatchProcessing(typeFilter = null) {
     await configManager.init();
     
-    console.log('Loading data package...');
+    const yellow = '\x1b[33m';
+    const reset = '\x1b[0m';
+    console.log(`${yellow}Loading data package...${reset}`);
     const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
-    console.log(`Found ${channelJsonPaths.length} channel(s). Processing recipients...`);
+    console.log(`${yellow}Found ${channelJsonPaths.length} channel(s).${reset} Processing recipients...`);
     
     const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'), typeFilter);
     
@@ -44,8 +46,6 @@ async function initializeBatchProcessing(typeFilter = null) {
     
     await closeAllOpenDMs();
     
-    const yellow = '\x1b[33m';
-    const reset = '\x1b[0m';
     const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
     console.log(`\nProcessing ${yellow}${allDmIds.length}${reset} direct messages in ${yellow}${totalBatches}${reset} batches of ${yellow}${configManager.get('BATCH_SIZE')}${reset}`);
     
@@ -81,12 +81,14 @@ async function closeAllOpenDMs() {
             return [];
         }
 
-        console.log(`Closing ${dmCount} open direct messages...`);
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
+        console.log(`${yellow}Closing ${dmCount} open direct messages...${reset}`);
         delayTracker.reset(dmCount);
         
-        console.log('Saving channel data to id-history.json before closing...');
+        console.log(`${yellow}Saving channel data to id-history.json before closing...${reset}`);
         updateIdHistory(filePath, currentDMs);
-        console.log('Channel data saved!\n\n Now closing DMs...');
+        console.log(`${yellow}Channel data saved!${reset}\n\n Now closing DMs...`);
         
         const closedUserIds = [];
         
@@ -112,7 +114,8 @@ async function closeAllOpenDMs() {
         }
         closeProgress.stop();
         
-        console.log(`Successfully closed ${closedUserIds.length} direct messages. Channel info was saved to ${filePath}`);
+        const green = '\x1b[32m';
+        console.log(`${green}Successfully closed ${closedUserIds.length} direct messages.${reset} Channel info was saved to ${filePath}`);
         
         return closedUserIds;
     } catch (error) {

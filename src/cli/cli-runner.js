@@ -162,7 +162,9 @@ async function manageDMState(configManager, targetUserIds) {
     const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
     
     // Step 1: Get currently open DMs
-    console.log('\nStep 1: Saving current DM state...');
+    const yellow = '\x1b[33m';
+    const reset = '\x1b[0m';
+    console.log(`\n${yellow}Step 1: Saving current DM state...${reset}`);
     const currentlyOpenDMs = await getCurrentOpenDMs(token);
     await delayTracker.trackAndDelay();
     
@@ -176,14 +178,14 @@ async function manageDMState(configManager, targetUserIds) {
     updateIdHistory(idHistoryPath, currentlyOpenDMs);
     
     // Step 2: Close all open DMs using existing function
-    console.log('\nStep 2: Closing current open DMs...');
+    console.log(`\n${yellow}Step 2: Closing current open DMs...${reset}`);
     await closeAllOpenDMs();
     
     // Step 3: Mark pending DMs to be opened
     await savePendingOpenDMs(idHistoryPath, targetUserIds);
     
     // Step 4: Open target DMs using existing batch function
-    console.log(`\nStep 3: Opening ${targetUserIds.length} target DM(s)...`);
+    console.log(`\n${yellow}Step 3: Opening ${targetUserIds.length} target DM(s)...${reset}`);
     const { reopenedIds } = await openBatchDMs(targetUserIds, 0, 1);
     
     // Step 5: Clear pending list after successful open
@@ -195,7 +197,9 @@ async function manageDMState(configManager, targetUserIds) {
 async function exportCurrentDMs(configManager) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     
-    console.log('\nStep 4: Exporting opened DMs with Discord Chat Exporter...');
+    const yellow = '\x1b[33m';
+    const reset = '\x1b[0m';
+    console.log(`\n${yellow}Step 4: Exporting opened DMs with Discord Chat Exporter...${reset}`);
     
     const currentDMs = await getCurrentOpenDMs(token);
     await delayTracker.trackAndDelay();
@@ -224,12 +228,14 @@ async function restoreDMState(configManager, previouslyOpenDMs) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     
     // Step 5: Close exported DMs
-    console.log('\nStep 5: Closing exported DMs...');
+    const yellow = '\x1b[33m';
+    const reset = '\x1b[0m';
+    console.log(`\n${yellow}Step 5: Closing exported DMs...${reset}`);
     await closeAllOpenDMs();
     
     // Step 6: Reopen previously open DMs using batch function
     if (previouslyOpenDMs.length > 0) {
-        console.log(`\nStep 6: Reopening ${previouslyOpenDMs.length} previously open DM(s)...`);
+        console.log(`\n${yellow}Step 6: Reopening ${previouslyOpenDMs.length} previously open DM(s)...${reset}`);
         await openBatchDMs(previouslyOpenDMs, 0, 1);
         console.log('DM state restored.');
     }
@@ -314,10 +320,14 @@ async function runCLI() {
         // Restore DM state
         await restoreDMState(configManager, previouslyOpenDMs);
         
-        console.log('\n✓ Export completed successfully!');
+        const green = '\x1b[32m';
+        const reset = '\x1b[0m';
+        console.log(`\n${green}✓ Export completed successfully!${reset}`);
         process.exit(0);
     } catch (error) {
-        console.error('\n✗ Export failed:', error.message);
+        const red = '\x1b[31m';
+        const reset = '\x1b[0m';
+        console.error(`\n${red}✗ Export failed:${reset} ${error.message}`);
         getLogger().error('CLI Export Error:', error);
         process.exit(1);
     }
