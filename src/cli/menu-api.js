@@ -22,8 +22,8 @@ class ApiMenu extends MenuBase {
             const dryTitle = getDryRunTitle(this.options);
             console.log(`\nDiscord API${dryTitle ? ' ' + dryTitle : ''}`);
             console.log('===========');
-            console.log('1. Export All Direct Messages');
-            console.log('2. List Current Open Direct Messages');
+            console.log('1. List Current Open Direct Messages');
+            console.log('2. Export All Direct Messages');
             console.log('3. Close All Open Direct Messages');
             console.log('4. Reopen Direct Message (Specific User ID)');
             console.log('5. Reset DM State (Reopen Closed Direct Messages)');
@@ -31,11 +31,11 @@ class ApiMenu extends MenuBase {
         }, async (choice) => {
             switch (choice) {
                 case '1':
-                    return await this.executeMenuAction('Export All Direct Messages', 
-                        () => this.processAndExportAllDMs(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
-                case '2':
                     return await this.executeMenuAction('List Current Open Direct Messages', 
                         () => this.viewOpenDMs());
+                case '2':
+                    return await this.executeMenuAction('Export All Direct Messages', 
+                        () => this.processAndExportAllDMs(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
                 case '3':
                     return await this.executeMenuAction('Close All Open Direct Messages', 
                         () => this.closeAllDMs());
@@ -93,10 +93,15 @@ class ApiMenu extends MenuBase {
         }
         
         console.log(`Reopening ${closedIds.length} closed direct messages...`);
-        
+
         if (isDryRun()) {
             console.log('[DRY RUN] Would reopen these user IDs:');
             console.log(closedIds);
+            return;
+        }
+
+        if (!await promptConfirmation(`Reopen ${closedIds.length} closed direct messages? (y/n): `, this.rl)) {
+            console.log('Operation cancelled.');
             return;
         }
         
@@ -158,10 +163,15 @@ class ApiMenu extends MenuBase {
         
         if (isDryRun()) {
             console.log('[DRY RUN] Fetching open direct messages...');
+        } else {
+            if (!await promptConfirmation('Close all open direct messages? (y/n): ', this.rl)) {
+                console.log('Operation cancelled.');
+                return;
+            }
         }
 
         await closeAllOpenDMs();
-        
+
         if (!isDryRun()) {
             console.log('\nAll direct messages closed successfully!');
         }
@@ -170,10 +180,20 @@ class ApiMenu extends MenuBase {
     async reopenSpecificDM() {
         await this.ensureConfigured();
         
-        const userId = cleanInput(await promptUser('Enter Discord User ID: ', this.rl));
-        
+        const userId = cleanInput(await promptUser('Enter Discord User ID (or q to cancel): ', this.rl));
+
+        if (userId === 'q') {
+            console.log('Cancelled.');
+            return;
+        }
+
         if (isDryRun()) {
             console.log(`\n[DRY RUN] Would reopen direct message with user ${userId}`);
+            return;
+        }
+
+        if (!await promptConfirmation(`Reopen direct message with user ${userId}? (y/n): `, this.rl)) {
+            console.log('Operation cancelled.');
             return;
         }
 
