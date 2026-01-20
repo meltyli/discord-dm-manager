@@ -9,6 +9,7 @@ const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const { MenuBase } = require('./menu-base');
 const { red, green, yellow, reset } = require('../lib/colors');
+const { getIdHistoryPath } = require('../lib/path-utils');
 
 const delayTracker = getApiDelayTracker();
 
@@ -60,7 +61,7 @@ class ApiMenu extends MenuBase {
         await this.ensureConfigured();
         
         const dataPackagePath = this.configManager.get('DATA_PACKAGE_FOLDER');
-        const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
+        const idHistoryPath = getIdHistoryPath(dataPackagePath);
         
         if (!validatePathExists(idHistoryPath, 'id-history.json')) {
             console.log('No id-history.json file found. Nothing to reopen.');
@@ -133,8 +134,6 @@ class ApiMenu extends MenuBase {
         }
         reopenProgress.stop();
         
-        const yellow = '\x1b[33m';
-        const reset = '\x1b[0m';
         console.log(`\nReopened: ${yellow}${reopened}${reset}, Skipped: ${yellow}${skipped}${reset}`);
     }
 
@@ -247,7 +246,7 @@ class ApiMenu extends MenuBase {
             const dmChannels = openDMs.filter(dm => dm.type === 1);
             
             const dataPackagePath = this.options.DATA_PACKAGE_FOLDER;
-            const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
+            const idHistoryPath = getIdHistoryPath(dataPackagePath);
             
             return await exportDMs(
                 process.env.AUTHORIZATION_TOKEN,

@@ -159,7 +159,7 @@ async function clearPendingOpenDMs(idHistoryPath) {
 async function manageDMState(configManager, targetUserIds) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
-    const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
+    const idHistoryPath = getIdHistoryPath(dataPackagePath);
     
     // Step 1: Get currently open DMs
     console.log(`\n${yellow}Step 1: Saving current DM state...${reset}`);

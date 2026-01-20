@@ -3,6 +3,7 @@ const { displayDetailedConfig } = require('./menu-helpers');
 const { MenuBase } = require('./menu-base');
 const { validatePathExists, validateDataPackage, validateUserJson } = require('../lib/validators');
 const { red, green, yellow, reset } = require('../lib/colors');
+const { getMessagesPath, getAccountPath, getUserJsonPath } = require('../lib/path-utils');
 
 class ConfigurationMenu extends MenuBase {
     constructor(rl, configManager) {
@@ -172,7 +173,7 @@ class ConfigurationMenu extends MenuBase {
             
             const fs = require('fs');
             const path = require('path');
-            const messagesPath = path.join(dataPackagePath, 'messages');
+            const messagesPath = getMessagesPath(dataPackagePath);
             if (fs.existsSync(messagesPath)) {
                 const channels = fs.readdirSync(messagesPath).filter(f => {
                     const stat = fs.statSync(path.join(messagesPath, f));
@@ -181,7 +182,7 @@ class ConfigurationMenu extends MenuBase {
                 console.log(`  - Messages: ${yellow}${channels.length}${reset} channels found`);
             }
             
-            const accountPath = path.join(dataPackagePath, 'account');
+            const accountPath = getAccountPath(dataPackagePath);
             if (fs.existsSync(accountPath)) {
                 console.log('  - Account: ✓');
             }
@@ -194,7 +195,7 @@ class ConfigurationMenu extends MenuBase {
                 console.log(`  ${red}Warning:${reset} No user ID configured yet`);
                 console.log('  Run configuration setup to set your user ID');
             } else {
-                const userJsonPath = path.join(dataPackagePath, 'account', 'user.json');
+                const userJsonPath = getUserJsonPath(dataPackagePath);
                 const validation = validateUserJson(userJsonPath);
                 
                 if (!validation.valid) {

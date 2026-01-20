@@ -3,6 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 const cliProgress = require('cli-progress');
+const { yellow, reset } = require('./colors');
 
 async function promptUser(question, readlineInterface) {
     return new Promise((resolve) => {
@@ -274,8 +275,6 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
                 idHistoryPath
             );
             
-            const yellow = '\x1b[33m';
-            const reset = '\x1b[0m';
             const successCount = results.filter(r => r.success).length;
             const failCount = results.filter(r => !r.success).length;
             

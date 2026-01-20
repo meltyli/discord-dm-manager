@@ -7,6 +7,7 @@ const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-sta
 const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const { red, green, yellow, reset } = require('../lib/colors');
+const { getIdHistoryPath } = require('../lib/path-utils');
 
 const configManager = getConfigManager();
 const delayTracker = getApiDelayTracker();
@@ -64,7 +65,7 @@ async function closeAllOpenDMs() {
         const dmCount = currentDMs.filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0).length;
         
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
-        const filePath = path.join(dataPackagePath, 'messages', 'id-history.json');
+        const filePath = getIdHistoryPath(dataPackagePath);
         
         if (isDryRun()) {
             console.log(`[DRY RUN] Found ${dmCount} open direct messages that would be closed`);
@@ -133,7 +134,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
     
     // Load id-history to get usernames
     const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
-    const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
+    const idHistoryPath = getIdHistoryPath(dataPackagePath);
     let usernameMap = {};
     try {
         const idHistoryData = readJsonFile(idHistoryPath);
@@ -288,7 +289,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
         
         // Get id-history.json path for export status tracking
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
-        const idHistoryPath = path.join(dataPackagePath, 'messages', 'id-history.json');
+        const idHistoryPath = getIdHistoryPath(dataPackagePath);
         
         // Filter out already completed exports
         const channelsToExport = getChannelsToExport(idHistoryPath, allDmIds);

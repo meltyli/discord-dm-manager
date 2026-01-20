@@ -2,6 +2,7 @@ const path = require('path');
 const { validatePathExists, validateUserJson, validateDataPackage } = require('./validators');
 const { readJsonFile } = require('./file-utils');
 const { promptUser, promptConfirmation, cleanInput } = require('./cli-helpers');
+const { getUserJsonPath } = require('./path-utils');
 
 /**
  * Verifies user ID against data package user.json
@@ -11,7 +12,7 @@ const { promptUser, promptConfirmation, cleanInput } = require('./cli-helpers');
  * @returns {Promise<string>} Verified user ID
  */
 async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null) {
-    const userJsonPath = path.join(dataPackagePath, 'account', 'user.json');
+    const userJsonPath = getUserJsonPath(dataPackagePath);
     const validation = validateUserJson(userJsonPath);
     
     if (!validation.valid) {
