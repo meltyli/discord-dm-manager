@@ -7,30 +7,62 @@ const { promptUser, promptConfirmation, cleanInput } = require('./cli-helpers');
  * Verifies user ID against data package user.json
  * @param {string} dataPackagePath - Path to Discord data package
  * @param {readline.Interface} rlInterface - Readline interface for prompts
+ * @param {string} existingUserId - Optional existing user ID to verify
  * @returns {Promise<string>} Verified user ID
  */
-async function verifyUserId(dataPackagePath, rlInterface) {
+async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null) {
     const userJsonPath = path.join(dataPackagePath, 'account', 'user.json');
     const validation = validateUserJson(userJsonPath);
     
     if (!validation.valid) {
-        console.warn(`Warning: ${validation.error}`);
-        return null;
+        console.warn(`\nWarning: ${validation.error}`);
+        // If no user.json available, prompt for user ID if not already provided
+        if (!existingUserId) {
+            const providedUserId = cleanInput(await promptUser('Enter your Discord user ID: ', rlInterface));
+            return providedUserId;
+        }
+        return existingUserId;
     }
 
     const { userId: packageUserId, username: packageUsername } = validation;
     console.log(`\nFound user in data package: ${packageUsername} (ID: ${packageUserId})`);
     
-    const providedUserId = cleanInput(await promptUser(`Provide user ID for user ${packageUsername}: `, rlInterface));
+    let providedUserId;
     
-    if (providedUserId !== packageUserId) {
-        console.warn(`\nWARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
-        
-        if (!await promptConfirmation('Are you sure you want to proceed? (yes/no): ', rlInterface)) {
-            throw new Error('User ID verification failed. Setup cancelled.');
+    // If user ID already exists, verify it matches the package
+    if (existingUserId) {
+        providedUserId = existingUserId;
+        if (providedUserId !== packageUserId) {
+            console.warn(`\n⚠ WARNING: Your configured user ID (${providedUserId}) doesn't match the data package user ID (${packageUserId})`);
+            console.warn(`  Package user: ${packageUsername}`);
+            
+            const shouldContinue = await promptConfirmation('\nDo you want to continue with the configured ID? (y/n): ', rlInterface);
+            
+            if (!shouldContinue) {
+                console.log('Updating to use data package user ID...');
+                providedUserId = packageUserId;
+            }
+        } else {
+            console.log('✓ User ID matches data package!');
         }
     } else {
-        console.log('✓ User ID verified successfully!');
+        // No existing ID, prompt for it
+        providedUserId = cleanInput(await promptUser(`Enter user ID for ${packageUsername} (or press Enter to use ${packageUserId}): `, rlInterface));
+        
+        // If empty, use package ID
+        if (!providedUserId) {
+            providedUserId = packageUserId;
+            console.log(`Using data package user ID: ${packageUserId}`);
+        } else if (providedUserId !== packageUserId) {
+            console.warn(`\n⚠ WARNING: The provided ID (${providedUserId}) doesn't match the data package ID (${packageUserId})`);
+            
+            const shouldContinue = await promptConfirmation('Are you sure you want to proceed? (y/n): ', rlInterface);
+            if (!shouldContinue) {
+                throw new Error('User ID verification cancelled.');
+            }
+        } else {
+            console.log('✓ User ID verified successfully!');
+        }
     }
     
     return providedUserId;

@@ -31,8 +31,10 @@ Download your Discord data package from Discord settings, then:
 Edit `docker-compose.yml` to set your custom path:
 ```yaml
 volumes:
-  - /path/to/your/discord-data-package:/data/package:ro
+  - /path/to/your/discord-data-package:/data/package
 ```
+
+**Note:** The data package needs write access for tracking DM state (id-history.json).
 
 3. **Build the Docker image:**
 ```bash
@@ -45,8 +47,9 @@ docker-compose run --rm discord-dm-manager interactive
 ```
 The setup wizard will:
 - Verify your data package location (prompts if not found)
+- Verify your Discord user ID matches the data package
 - Request your Discord authorization token
-- Request your Discord user ID
+- Allow you to proceed even if IDs don't match (with warning)
 
 ### Usage
 

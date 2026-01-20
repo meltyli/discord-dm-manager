@@ -135,8 +135,9 @@ class ConfigManager {
         }
         
         // After paths are validated, verify user ID from data package
-        if (validatePathExists(this.config.DATA_PACKAGE_FOLDER) && !process.env.USER_DISCORD_ID) {
-            const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl);
+        if (validatePathExists(this.config.DATA_PACKAGE_FOLDER)) {
+            const existingUserId = process.env.USER_DISCORD_ID || null;
+            const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl, existingUserId);
             if (verifiedUserId) {
                 this.env.USER_DISCORD_ID = verifiedUserId;
                 process.env.USER_DISCORD_ID = verifiedUserId;
