@@ -2,14 +2,16 @@ function displaySettings(options) {
 }
 
 function displayDetailedConfig(options) {
+    const yellow = '\x1b[33m';
+    const reset = '\x1b[0m';
     console.log('\nSettings:');
-    console.log(`  DRY_RUN: ${options.DRY_RUN}`);
-    console.log(`  BATCH_SIZE: ${options.BATCH_SIZE}`);
-    console.log(`  API_DELAY_MS: ${options.API_DELAY_MS}`);
-    console.log(`  RATE_LIMIT: ${options.RATE_LIMIT_REQUESTS} req/${options.RATE_LIMIT_INTERVAL_MS}ms`);
+    console.log(`  DRY_RUN: ${yellow}${options.DRY_RUN}${reset}`);
+    console.log(`  BATCH_SIZE: ${yellow}${options.BATCH_SIZE}${reset}`);
+    console.log(`  API_DELAY_MS: ${yellow}${options.API_DELAY_MS}${reset}`);
+    console.log(`  RATE_LIMIT: ${yellow}${options.RATE_LIMIT_REQUESTS}${reset} req/${yellow}${options.RATE_LIMIT_INTERVAL_MS}${reset}ms`);
     console.log('\nAuthentication:');
-    console.log(`  AUTHORIZATION_TOKEN: ${process.env.AUTHORIZATION_TOKEN ? '***set***' : 'Not set'}`);
-    console.log(`  USER_DISCORD_ID: ${process.env.USER_DISCORD_ID || 'Not set'}`);
+    console.log(`  AUTHORIZATION_TOKEN: ${yellow}${process.env.AUTHORIZATION_TOKEN ? '***set***' : 'Not set'}${reset}`);
+    console.log(`  USER_DISCORD_ID: ${yellow}${process.env.USER_DISCORD_ID || 'Not set'}${reset}`);
 }
 
 function getDryRunTitle(options) {

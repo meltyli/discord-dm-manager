@@ -274,10 +274,12 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
                 idHistoryPath
             );
             
+            const yellow = '\x1b[33m';
+            const reset = '\x1b[0m';
             const successCount = results.filter(r => r.success).length;
             const failCount = results.filter(r => !r.success).length;
             
-            console.log(`${format} export completed: ${successCount} succeeded, ${failCount} failed\n`);
+            console.log(`${format} export completed: ${yellow}${successCount}${reset} succeeded, ${yellow}${failCount}${reset} failed\n`);
             allResults.push({ format, success: failCount === 0, results });
         } catch (error) {
             console.error(`${format} export failed: [${error.message}]`);

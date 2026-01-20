@@ -82,29 +82,35 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async setBatchSize() {
-        const newValue = cleanInput(await promptUser(`Enter new batch size (current: ${this.options.BATCH_SIZE}): `, this.rl));
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
+        const newValue = cleanInput(await promptUser(`Enter new batch size (current: ${yellow}${this.options.BATCH_SIZE}${reset}): `, this.rl));
         if (newValue) {
             this.options.BATCH_SIZE = Number(newValue);
             this.configManager.saveConfig();
-            console.log(`\nBatch size updated to ${this.options.BATCH_SIZE}`);
+            console.log(`\nBatch size updated to ${yellow}${this.options.BATCH_SIZE}${reset}`);
         }
         await waitForKeyPress(this.rl);
     }
 
     async setApiDelay() {
-        const newValue = cleanInput(await promptUser(`Enter new API delay in ms (current: ${this.options.API_DELAY_MS}): `, this.rl));
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
+        const newValue = cleanInput(await promptUser(`Enter new API delay in ms (current: ${yellow}${this.options.API_DELAY_MS}${reset}): `, this.rl));
         if (newValue) {
             this.options.API_DELAY_MS = Number(newValue);
             this.configManager.saveConfig();
-            console.log(`\nAPI delay updated to ${this.options.API_DELAY_MS}ms`);
+            console.log(`\nAPI delay updated to ${yellow}${this.options.API_DELAY_MS}${reset}ms`);
         }
         await waitForKeyPress(this.rl);
     }
 
     async setRateLimit() {
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
         console.log('Rate Limit Configuration');
-        const requests = cleanInput(await promptUser(`Requests (current: ${this.options.RATE_LIMIT_REQUESTS}): `, this.rl));
-        const interval = cleanInput(await promptUser(`Interval in ms (current: ${this.options.RATE_LIMIT_INTERVAL_MS}): `, this.rl));
+        const requests = cleanInput(await promptUser(`Requests (current: ${yellow}${this.options.RATE_LIMIT_REQUESTS}${reset}): `, this.rl));
+        const interval = cleanInput(await promptUser(`Interval in ms (current: ${yellow}${this.options.RATE_LIMIT_INTERVAL_MS}${reset}): `, this.rl));
         
         if (requests) {
             this.options.RATE_LIMIT_REQUESTS = Number(requests);
@@ -114,7 +120,7 @@ class ConfigurationMenu extends MenuBase {
         }
         
         this.configManager.saveConfig();
-        console.log(`\nRate limit updated to ${this.options.RATE_LIMIT_REQUESTS} requests per ${this.options.RATE_LIMIT_INTERVAL_MS}ms`);
+        console.log(`\nRate limit updated to ${yellow}${this.options.RATE_LIMIT_REQUESTS}${reset} requests per ${yellow}${this.options.RATE_LIMIT_INTERVAL_MS}${reset}ms`);
         await waitForKeyPress(this.rl);
     }
 
@@ -138,8 +144,10 @@ class ConfigurationMenu extends MenuBase {
         console.log('Checking Data Package');
         console.log('='.repeat(60));
         
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
         const dataPackagePath = this.options.DATA_PACKAGE_FOLDER;
-        console.log(`\nChecking: ${dataPackagePath}`);
+        console.log(`\nChecking: ${yellow}${dataPackagePath}${reset}`);
         
         if (!validatePathExists(dataPackagePath)) {
             console.log('✗ Path does not exist');
@@ -173,7 +181,7 @@ class ConfigurationMenu extends MenuBase {
                     const stat = fs.statSync(path.join(messagesPath, f));
                     return stat.isDirectory() && f.startsWith('c');
                 });
-                console.log(`  - Messages: ${channels.length} channels found`);
+                console.log(`  - Messages: ${yellow}${channels.length}${reset} channels found`);
             }
             
             const accountPath = path.join(dataPackagePath, 'account');
@@ -194,11 +202,11 @@ class ConfigurationMenu extends MenuBase {
                 
                 if (!validation.valid) {
                     console.log(`  Warning: ${validation.error}`);
-                    console.log(`  Configured ID: ${configuredUserId}`);
+                    console.log(`  Configured ID: ${yellow}${configuredUserId}${reset}`);
                 } else {
                     const { userId: packageUserId, username: packageUsername } = validation;
-                    console.log(`  Package user: ${packageUsername} (ID: ${packageUserId})`);
-                    console.log(`  Configured ID: ${configuredUserId}`);
+                    console.log(`  Package user: ${yellow}${packageUsername}${reset} (ID: ${yellow}${packageUserId}${reset})`);
+                    console.log(`  Configured ID: ${yellow}${configuredUserId}${reset}`);
                     
                     if (configuredUserId === packageUserId) {
                         console.log('  ✓ User ID matches!');

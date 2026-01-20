@@ -132,28 +132,32 @@ class ApiMenu extends MenuBase {
         }
         reopenProgress.stop();
         
-        console.log(`\nReopened: ${reopened}, Skipped: ${skipped}`);
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
+        console.log(`\nReopened: ${yellow}${reopened}${reset}, Skipped: ${yellow}${skipped}${reset}`);
     }
 
     async viewOpenDMs() {
         await this.ensureConfigured();
 
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
         console.log('Fetching open direct messages...');
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
         await delayTracker.trackAndDelay();
         
-        console.log(`\nCount: ${dms.length}`);
+        console.log(`\nCount: ${yellow}${dms.length}${reset}`);
         dms.forEach(dm => {
             const channelType = dm.type === 1 ? 'DM' : dm.type === 3 ? 'GROUP_DM' : `TYPE_${dm.type}`;
             if (dm.recipients && dm.recipients.length > 0) {
                 if (dm.type === 3) {
                     const usernames = dm.recipients.map(r => r.username).join(', ');
-                    console.log(`- Channel ID: ${dm.id}, Type: ${channelType}, Users: ${usernames}`);
+                    console.log(`- Channel ID: ${yellow}${dm.id}${reset}, Type: ${channelType}, Users: ${yellow}${usernames}${reset}`);
                 } else {
-                    console.log(`- Channel ID: ${dm.id}, Type: ${channelType}, User: ${dm.recipients[0].username}`);
+                    console.log(`- Channel ID: ${yellow}${dm.id}${reset}, Type: ${channelType}, User: ${yellow}${dm.recipients[0].username}${reset}`);
                 }
             } else {
-                console.log(`- Channel ID: ${dm.id}, Type: ${channelType}`);
+                console.log(`- Channel ID: ${yellow}${dm.id}${reset}, Type: ${channelType}`);
             }
         });
     }
@@ -221,11 +225,13 @@ class ApiMenu extends MenuBase {
         const typeFilter = ['DM'];
 
         console.clear();
+        const yellow = '\x1b[33m';
+        const reset = '\x1b[0m';
         console.log('\nProcess and Export All Direct Messages');
         console.log('=======================================');
         console.log('This will:');
         console.log('1. Close all currently open direct messages');
-        console.log('2. Open direct messages in batches of', this.options.BATCH_SIZE);
+        console.log(`2. Open direct messages in batches of ${yellow}${this.options.BATCH_SIZE}${reset}`);
         console.log('3. Export each batch using Discord Chat Exporter');
         console.log('4. Close the batch and move to the next');
         console.log('5. Repeat until all direct messages are processed');

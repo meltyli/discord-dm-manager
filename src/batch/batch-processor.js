@@ -44,8 +44,10 @@ async function initializeBatchProcessing(typeFilter = null) {
     
     await closeAllOpenDMs();
     
+    const yellow = '\x1b[33m';
+    const reset = '\x1b[0m';
     const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-    console.log(`\nProcessing ${allDmIds.length} direct messages in ${totalBatches} batches of ${configManager.get('BATCH_SIZE')}`);
+    console.log(`\nProcessing ${yellow}${allDmIds.length}${reset} direct messages in ${yellow}${totalBatches}${reset} batches of ${yellow}${configManager.get('BATCH_SIZE')}${reset}`);
     
     return { allDmIds, totalBatches };
 }
