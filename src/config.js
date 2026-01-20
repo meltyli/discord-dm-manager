@@ -16,6 +16,7 @@ initializeLogger('./logs', 10);
 const CONFIG_DIR = path.join(__dirname, '..', 'config');
 const CONFIG_FILE_PATH = resolveConfigPath('config.json');
 const ENV_FILE_PATH = resolveConfigPath('.env');
+const DEFAULT_DATA_PACKAGE_DIR = path.join(__dirname, '..', 'datapackage');
 
 // Default configurations (Docker paths)
 const defaultConfig = {
@@ -123,6 +124,9 @@ class ConfigManager {
     }
 
     async validatePaths() {
+        // Special handling for DATA_PACKAGE_FOLDER
+        await this.validateDataPackageFolder();
+        
         const pathsToCheck = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
         const updated = await validateConfigPaths(this.config, pathsToCheck, this.rl, resolveExportPath);
         
@@ -137,6 +141,66 @@ class ConfigManager {
                 this.env.USER_DISCORD_ID = verifiedUserId;
                 process.env.USER_DISCORD_ID = verifiedUserId;
             }
+        }
+    }
+
+    async validateDataPackageFolder() {
+        // Ensure default directory exists
+        ensureDirectory(DEFAULT_DATA_PACKAGE_DIR);
+        
+        let dataPackagePath = this.config.DATA_PACKAGE_FOLDER;
+        let isValid = false;
+        
+        // Check if current path exists and is valid
+        if (validatePathExists(dataPackagePath)) {
+            try {
+                validateDataPackage(dataPackagePath);
+                isValid = true;
+            } catch (error) {
+                console.warn(`\n⚠ Data package at ${dataPackagePath} is invalid: ${error.message}`);
+            }
+        }
+        
+        // If not valid, prompt user
+        if (!isValid) {
+            console.log('\n' + '='.repeat(60));
+            console.log('Discord Data Package Setup');
+            console.log('='.repeat(60));
+            console.log(`\nDefault location: ${DEFAULT_DATA_PACKAGE_DIR}`);
+            console.log('\nTo use the default location:');
+            console.log('1. Download your Discord data package from Discord settings');
+            console.log('2. Extract it to the default location above');
+            console.log('3. Press Enter to use the default location');
+            console.log('\nOr provide a custom path to your Discord data package.');
+            
+            this.initReadline();
+            
+            while (!isValid) {
+                const input = await promptUser('\nEnter data package path (or press Enter for default): ', this.rl);
+                const cleanedInput = cleanInput(input);
+                
+                // Use default if empty
+                const pathToCheck = cleanedInput || DEFAULT_DATA_PACKAGE_DIR;
+                
+                if (validatePathExists(pathToCheck)) {
+                    try {
+                        validateDataPackage(pathToCheck);
+                        dataPackagePath = pathToCheck;
+                        isValid = true;
+                        console.log(`✓ Valid data package found at: ${pathToCheck}`);
+                    } catch (error) {
+                        console.error(`✗ Invalid data package: ${error.message}`);
+                        console.log('Please ensure the path contains a "messages" folder.');
+                    }
+                } else {
+                    console.error(`✗ Path does not exist: ${pathToCheck}`);
+                    console.log('Please check the path and try again.');
+                }
+            }
+            
+            // Update config with validated path
+            this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
+            this.saveConfig();
         }
     }
 

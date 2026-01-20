@@ -6,9 +6,9 @@ services:
     image: discord-dm-manager:latest
     container_name: discord-dm-manager
     volumes:
-      # Mount your Discord data package (update path to your actual package)
-      # REQUIRED: Change this to your Discord data package location
-      - ~/Documents/Takeout/package:/data/package
+      # Mount your Discord data package (default: ./datapackage)
+      # Place your Discord data package in ./datapackage or change path below
+      - ./datapackage:/data/package
       # Mount config directory (contains config.json, .env, etc.)
       - ./config:/app/config
       # Mount export directory for exported DMs

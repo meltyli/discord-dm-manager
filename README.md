@@ -17,7 +17,18 @@ git clone <repository-url>
 cd discord-dm-manager
 ```
 
-2. **Edit docker-compose.yml to set your Discord data package path:**
+2. **Place your Discord data package:**
+
+Download your Discord data package from Discord settings, then:
+
+**Option A: Use default location (recommended)**
+```bash
+# Extract your Discord data package to ./datapackage/
+# The folder should contain: messages/, account/, servers/, etc.
+```
+
+**Option B: Custom location**
+Edit `docker-compose.yml` to set your custom path:
 ```yaml
 volumes:
   - /path/to/your/discord-data-package:/data/package:ro
@@ -32,7 +43,10 @@ docker-compose build
 ```bash
 docker-compose run --rm discord-dm-manager interactive
 ```
-Follow prompts to enter your Discord authorization token and user ID.
+The setup wizard will:
+- Verify your data package location (prompts if not found)
+- Request your Discord authorization token
+- Request your Discord user ID
 
 ### Usage
 
