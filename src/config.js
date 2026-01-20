@@ -21,7 +21,7 @@ const ENV_FILE_PATH = resolveConfigPath('.env');
 const IS_DOCKER = fs.existsSync('/.dockerenv');
 const DEFAULT_DATA_PACKAGE_DIR = IS_DOCKER 
     ? '/data/package'  // Docker mounted path
-    : path.join(__dirname, '..', 'datapackage');  // Local development path
+    : path.join(__dirname, '..', 'data', 'package');  // Local development path
 
 // Default configurations (Docker paths)
 const defaultConfig = {
@@ -165,20 +165,20 @@ class ConfigManager {
                 this.saveConfig();
                 return true;
             } catch (error) {
-                console.warn(`\n⚠ Data package at ${dataPackagePath} is invalid: ${error.message}`);
+                console.warn(`\nWarning: Data package at ${dataPackagePath} is invalid: ${error.message}`);
             }
         }
         
         // Show setup instructions if not valid
         console.log('\n' + '='.repeat(60));
-        console.log('⚠️  Discord Data Package Not Found');
+        console.log('Discord Data Package Not Found');
         console.log('='.repeat(60));
         console.log(`\nExpected location: ${dataPackagePath}`);
         
         if (IS_DOCKER) {
-            console.log('\n📦 Docker Setup Instructions:');
+            console.log('\nDocker Setup Instructions:');
             console.log('1. Extract your Discord data package on your host machine');
-            console.log('2. Place the contents in: ./datapackage/');
+            console.log('2. Place the contents in: ./data/package/');
             console.log('   (It should contain: messages/, account/, servers/, etc.)');
             console.log('\n3. If using a custom location, edit docker-compose.yml:');
             console.log('   volumes:');
@@ -186,15 +186,15 @@ class ConfigManager {
             console.log('4. Rebuild: docker-compose down && docker-compose build');
             console.log('\n5. Use "Check Data Package" in Configuration menu to verify');
         } else {
-            console.log('\n📦 Setup Instructions:');
+            console.log('\nSetup Instructions:');
             console.log('1. Download your Discord data package from Discord settings');
             console.log('2. Extract it to: ' + dataPackagePath);
             console.log('   (It should contain: messages/, account/, servers/, etc.)');
             console.log('\n3. Use "Check Data Package" in Configuration menu to verify');
         }
         
-        console.log('\n⚠️  You can still access Configuration menu, but');
-        console.log('    export functions will not work until the data package is found.');
+        console.log('\nNote: You can still access Configuration menu, but');
+        console.log('      export functions will not work until the data package is found.');
         
         this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
         this.saveConfig();

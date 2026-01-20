@@ -7,11 +7,11 @@ services:
     container_name: discord-dm-manager
     volumes:
       # Mount your Discord data package
-      # IMPORTANT: Place your extracted Discord data package in ./datapackage/
+      # IMPORTANT: Place your extracted Discord data package in ./data/package/
       # It should contain: messages/, account/, servers/, etc.
       # To use a different location, change the path before the colon:
       # - /your/custom/path:/data/package
-      - ./datapackage:/data/package
+      - ./data/package:/data/package
       # Mount config directory (contains config.json, .env, etc.)
       - ./config:/app/config
       # Mount export directory for exported DMs

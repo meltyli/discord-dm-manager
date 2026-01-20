@@ -23,7 +23,7 @@ Download your Discord data package from Discord settings, then:
 
 **Option A: Use default location (recommended)**
 ```bash
-# Extract your Discord data package to ./datapackage/
+# Extract your Discord data package to ./data/package/
 # The folder should contain: messages/, account/, servers/, etc.
 ```
 

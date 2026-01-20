@@ -4,8 +4,7 @@ eadm.md
 /tests/fixtures
 /export/
 # Ignore Discord data package contents but keep directory structure
-/datapackage/*
-!/datapackage/README.txt
+/data/package/*
 
 ## Node 
 # Logs

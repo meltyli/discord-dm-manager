@@ -1,7 +1,7 @@
 const { promptUser, waitForKeyPress, cleanInput, promptConfirmation } = require('../lib/cli-helpers');
 const { displayDetailedConfig } = require('./menu-helpers');
 const { MenuBase } = require('./menu-base');
-const { validatePathExists, validateDataPackage } = require('../lib/validators');
+const { validatePathExists, validateDataPackage, validateUserJson } = require('../lib/validators');
 
 class ConfigurationMenu extends MenuBase {
     constructor(rl, configManager) {
@@ -143,11 +143,11 @@ class ConfigurationMenu extends MenuBase {
         
         if (!validatePathExists(dataPackagePath)) {
             console.log('✗ Path does not exist');
-            console.log('\n📦 Setup Instructions:');
+            console.log('\nSetup Instructions:');
             
             const isDocker = require('fs').existsSync('/.dockerenv');
             if (isDocker) {
-                console.log('1. Place your Discord data package in: ./datapackage/ (on host)');
+                console.log('1. Place your Discord data package in: ./data/package/ (on host)');
                 console.log('   It should contain: messages/, account/, servers/, etc.');
                 console.log('2. Or edit docker-compose.yml to mount your custom path');
                 console.log('3. Rebuild: docker-compose down && docker-compose build');
@@ -179,6 +179,35 @@ class ConfigurationMenu extends MenuBase {
             const accountPath = path.join(dataPackagePath, 'account');
             if (fs.existsSync(accountPath)) {
                 console.log('  - Account: ✓');
+            }
+            
+            // Check user ID match
+            console.log('\nUser ID Verification:');
+            const configuredUserId = process.env.USER_DISCORD_ID;
+            
+            if (!configuredUserId) {
+                console.log('  Warning: No user ID configured yet');
+                console.log('  Run configuration setup to set your user ID');
+            } else {
+                const userJsonPath = path.join(dataPackagePath, 'account', 'user.json');
+                const validation = validateUserJson(userJsonPath);
+                
+                if (!validation.valid) {
+                    console.log(`  Warning: ${validation.error}`);
+                    console.log(`  Configured ID: ${configuredUserId}`);
+                } else {
+                    const { userId: packageUserId, username: packageUsername } = validation;
+                    console.log(`  Package user: ${packageUsername} (ID: ${packageUserId})`);
+                    console.log(`  Configured ID: ${configuredUserId}`);
+                    
+                    if (configuredUserId === packageUserId) {
+                        console.log('  ✓ User ID matches!');
+                    } else {
+                        console.log('  ✗ Warning: User ID mismatch!');
+                        console.log('  This may cause issues with DM exports.');
+                        console.log('  Consider resetting configuration to update user ID.');
+                    }
+                }
             }
             
             console.log('\n✓ Data package is ready to use!');
