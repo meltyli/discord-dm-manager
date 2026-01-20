@@ -3,6 +3,7 @@ const { validatePathExists, validateUserJson, validateDataPackage } = require('.
 const { readJsonFile } = require('./file-utils');
 const { promptUser, promptConfirmation, cleanInput } = require('./cli-helpers');
 const { getUserJsonPath } = require('./path-utils');
+const { red, green, yellow, reset } = require('./colors');
 
 /**
  * Verifies user ID against data package user.json
