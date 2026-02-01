@@ -12,7 +12,7 @@ class ConfigurationMenu extends MenuBase {
 
     async show() {
         if (!this.configManager.initialized) {
-            console.log('\nStarting initial configuration...\n');
+            console.log('\nStarting initial configuration.\n');
             await this.configManager.init();
             console.log('\nConfiguration complete!');
             await waitForKeyPress(this.rl);

@@ -105,7 +105,7 @@ class ConfigManager {
             if (fileConfig) {
                 this.config = { ...defaultConfig, ...fileConfig };
             } else {
-                console.warn(`${yellow}No config.json found,${reset} creating with default values...`);
+                console.warn(`${yellow}No config.json found,${reset} creating with default values.`);
                 await this.createConfigFile();
             }
         } catch (error) {
@@ -115,8 +115,8 @@ class ConfigManager {
     }
 
     async createConfigFile() {
-        console.log(`\n${yellow}Setting up configuration...${reset}`);
-        console.log(`\n${yellow}Paths are pre-configured for Docker:${reset}`);
+        process.stdout.write(`\n\u280b Setting up configuration\r`);
+        console.log(`\n\n${yellow}Paths are pre-configured for Docker:${reset}`);
         console.log(`  Data Package: ${this.config.DATA_PACKAGE_FOLDER}`);
         console.log(`  Export Path: ${this.config.EXPORT_PATH}`);
         console.log(`  DCE Path: ${this.config.DCE_PATH}`);

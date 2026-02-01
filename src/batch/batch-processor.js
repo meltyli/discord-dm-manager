@@ -8,6 +8,9 @@ const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const { red, green, yellow, reset } = require('../lib/colors');
 const { getIdHistoryPath } = require('../lib/path-utils');
+const { getLogger } = require('../logger');
+
+const logger = getLogger();
 
 const configManager = getConfigManager();
 const delayTracker = getApiDelayTracker();
@@ -27,9 +30,10 @@ function createBatchState(allDmIds, totalBatches, currentBatch = 0) {
 async function initializeBatchProcessing(typeFilter = null) {
     await configManager.init();
     
-    console.log(`${yellow}Loading data package...${reset}`);
+    process.stdout.write(`\n⠋ Loading data package.\r`);
     const channelJsonPaths = traverseDataPackage(configManager.get('DATA_PACKAGE_FOLDER'));
-    console.log(`${yellow}Found ${channelJsonPaths.length} channel(s).${reset} Processing recipients...`);
+    console.log(`✓ Loading data package.`);
+    console.log(`✓ Found ${channelJsonPaths.length} channels. Processing recipients`);
     
     const allDmIds = getRecipients(channelJsonPaths, configManager.getEnv('USER_DISCORD_ID'), typeFilter);
     
@@ -47,7 +51,8 @@ async function initializeBatchProcessing(typeFilter = null) {
     await closeAllOpenDMs();
     
     const totalBatches = Math.ceil(allDmIds.length / configManager.get('BATCH_SIZE'));
-    console.log(`\nProcessing ${yellow}${allDmIds.length}${reset} direct messages in ${yellow}${totalBatches}${reset} batches of ${yellow}${configManager.get('BATCH_SIZE')}${reset}`);
+    const batchWord = totalBatches === 1 ? 'batch' : 'batches';
+    console.log(`\nProcessing ${yellow}${allDmIds.length}${reset} direct messages in ${yellow}${totalBatches}${reset} ${batchWord} of ${yellow}${configManager.get('BATCH_SIZE')}${reset}`);
     
     return { allDmIds, totalBatches };
 }
@@ -69,7 +74,7 @@ async function closeAllOpenDMs() {
         
         if (isDryRun()) {
             console.log(`[DRY RUN] Found ${dmCount} open direct messages that would be closed`);
-            console.log('[DRY RUN] Saving channel data to id-history.json...');
+            console.log('[DRY RUN] Saving channel data to id-history.json.');
             updateIdHistory(filePath, currentDMs);
             console.log('[DRY RUN] Channel data saved!\n\n Would close these DMs:');
             currentDMs.forEach(dm => {
@@ -81,16 +86,15 @@ async function closeAllOpenDMs() {
             return [];
         }
 
-        console.log(`${yellow}Closing ${dmCount} open direct messages...${reset}`);
+        process.stdout.write(`\n⠋ Closing ${dmCount} open direct messages.\r`);
         delayTracker.reset(dmCount);
         
-        console.log(`${yellow}Saving channel data to id-history.json before closing...${reset}`);
+        process.stdout.write(`⠙ Saving channel data to id-history.json.\r`);
         updateIdHistory(filePath, currentDMs);
-        console.log(`${yellow}Channel data saved!${reset}\n\nNow closing DMs...`);
         
         const closedUserIds = [];
         
-        const closeProgress = createDMProgressBar('DMs', true);
+        const closeProgress = createDMProgressBar('Closing', true);
         closeProgress.start(currentDMs.length, 0, { username: 'Starting' });
         
         for (const [index, dm] of currentDMs.entries()) {
@@ -109,11 +113,13 @@ async function closeAllOpenDMs() {
                 closedUserIds.push(...recipientIds);
             }
         }
-        // Update to 100% without username to clean display
-        closeProgress.update(currentDMs.length, { username: '' });
+        closeProgress.update(currentDMs.length);
         closeProgress.stop();
+        process.stdout.write('\r\x1b[K');
         
-        console.log(`${green}Successfully closed ${closedUserIds.length} direct messages.${reset}\nChannel info was saved to ${filePath}`);
+        console.log(`✓ Successfully closed ${closedUserIds.length} DMs`);
+        logger.logOnly(`⠋ Saving channel info to id-history.json`, 'info');
+        logger.logOnly(`✓ Channel info saved to ${filePath}`, 'info');
         
         return closedUserIds;
     } catch (error) {
@@ -130,7 +136,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
         return { processed: userIds.length, skipped: 0, reopenedIds: [] };
     }
 
-    console.log(`\nOpening batch ${batchNum + 1}/${totalBatches} (${userIds.length} direct messages)`);
+    process.stdout.write(`\n⠋ Opening batch ${batchNum + 1}/${totalBatches} (${userIds.length} direct messages)\r`);
     delayTracker.reset(userIds.length);
     
     // Load id-history to get usernames
@@ -157,7 +163,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
         // If we can't read id-history, continue without usernames
     }
     
-    const batchProgress = createDMProgressBar('DMs', true);
+    const batchProgress = createDMProgressBar('Opening', true);
     batchProgress.start(userIds.length, 0, { username: 'Starting' });
     
     let skippedUsers = 0;
@@ -180,10 +186,10 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
             
             await delayTracker.trackAndDelay();
         }
-        // Update to 100% without username to clean display
-        batchProgress.update(userIds.length, { username: '' });
+        batchProgress.update(userIds.length);
         batchProgress.stop();
-        console.log('');
+        process.stdout.write('\r\x1b[K');
+        console.log(`✓ Batch ${batchNum + 1}/${totalBatches} opened`);
         
         return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };
     } catch (error) {
@@ -195,7 +201,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
 
 async function closeBatchDMs() {
     if (isDryRun()) {
-        console.log('[DRY RUN] Fetching current batch direct messages...');
+        console.log('[DRY RUN] Fetching current batch direct messages.');
         const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
         await delayTracker.trackAndDelay();
         
@@ -210,7 +216,7 @@ async function closeBatchDMs() {
         return;
     }
 
-    console.log('\nClosing current batch direct messages');
+    process.stdout.write(`\n⠋ Closing current batch.\r`);
     const batchDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
     await delayTracker.trackAndDelay();
     
@@ -222,7 +228,7 @@ async function closeBatchDMs() {
             await delayTracker.trackAndDelay();
         }
     }
-    console.log(`Closed ${batchDMs.length} batch direct messages`);
+    console.log(`✓ Closed ${batchDMs.length} batch DMs`);
 }
 
 async function processDMsInBatches(startBatch = 0, rlInterface = null) {
@@ -272,7 +278,7 @@ async function processDMsInBatches(startBatch = 0, rlInterface = null) {
         console.log(`Processed users: ${processedUsers}`);
         console.log(`Skipped users: ${skippedUsers}`);
         
-        // Mark as complete and clear state
+        // Mark as complete, save final state, then clear
         batchState.inProgress = false;
         saveBatchState(batchState);
         clearBatchState();
@@ -345,7 +351,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
                 if (exportSuccess) {
                     exportedCount += stats.reopenedIds.length;
                 } else {
-                    console.error('\nExport completed with errors');
+                    console.error(`\n${red}Export completed with errors${reset}`);
                     failedCount += stats.reopenedIds.length;
                     
                     const continueAnyway = rlInterface 
@@ -358,7 +364,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
                     }
                 }
             } catch (error) {
-                console.error(`\nExport failed: [${error.message}]`);
+                console.error(`\n${red}Export failed: [${error.message}]${reset}`);
                 failedCount += stats.reopenedIds.length;
                 
                 const continueAnyway = rlInterface 
@@ -382,7 +388,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
         console.log('\nAll batches processed!');
         console.log(`Processed: ${processedUsers} | Skipped: ${skippedUsers} | Exported: ${exportedCount} | Failed: ${failedCount}`);
         
-        // Mark as complete and clear state
+        // Mark as complete and save final state, then clear
         batchState.inProgress = false;
         saveBatchState(batchState);
         clearBatchState();

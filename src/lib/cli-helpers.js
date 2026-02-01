@@ -3,7 +3,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 const cliProgress = require('cli-progress');
-const { yellow, reset } = require('./colors');
+const { red, green, yellow, reset } = require('./colors');
 
 async function promptUser(question, readlineInterface) {
     return new Promise((resolve) => {
@@ -117,7 +117,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
             const timeSinceLastOutput = Date.now() - lastOutputTime;
             if (timeSinceLastOutput > DCE_STALL_TIMEOUT_MS) {
                 onFinish(() => {
-                    console.log(`\nDCE process stalled for ${channelName} (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes), terminating...`);
+                    console.log(`\nDCE process stalled for ${channelName} (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes), terminating.`);
                     try {
                         dceProcess.kill('SIGTERM');
                         setTimeout(() => {
@@ -172,7 +172,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
     const exportStatuses = idHistoryPath ? getExportStatus(idHistoryPath) : {};
     
     const progressBar = new cliProgress.SingleBar({
-        format: 'Progress |{bar}| {percentage}% | {value}/{total} | {username}',
+        format: `Exporting |{bar}| {percentage}% | {value}/{total} | {username}`,
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true
@@ -263,7 +263,7 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
     const allResults = [];
     
     for (const format of formats) {
-        console.log(`\nExporting ${channels.length} channel(s) in ${format} format`);
+        process.stdout.write(`\n⠋ Exporting ${channels.length} channels in ${format} format\r`);
         
         try {
             const results = await exportChannelsInParallel(
@@ -280,10 +280,10 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
             const successCount = results.filter(r => r.success).length;
             const failCount = results.filter(r => !r.success).length;
             
-            console.log(`${format} export completed: ${yellow}${successCount}${reset} succeeded, ${yellow}${failCount}${reset} failed\n`);
+            console.log(`✓ ${format} export completed: ${yellow}${successCount}${reset} succeeded, ${yellow}${failCount}${reset} failed`);
             allResults.push({ format, success: failCount === 0, results });
         } catch (error) {
-            console.error(`${format} export failed: [${error.message}]`);
+            console.error(`${red}${format} export failed: [${error.message}]${reset}`);
             allResults.push({ format, success: false, error: error.message });
         }
     }
@@ -292,10 +292,11 @@ async function exportDMs(token, exportPath, dcePath, userId, formats = ['Json'],
     return { success: allSucceeded, results: allResults };
 }
 
-function createDMProgressBar(label = 'DMs', showUsername = false) {
+function createDMProgressBar(label = 'Progress', showUsername = false, color = '') {
+    const labelText = color ? `${color}${label}${reset}` : label;
     const format = showUsername 
-        ? 'Progress |{bar}| {percentage}% | {value}/{total} | {username}'
-        : `Progress |{bar}| {percentage}% || {value}/{total} ${label}`;
+        ? `${labelText} |{bar}| {percentage}% | {value}/{total} | {username}`
+        : `${labelText} |{bar}| {percentage}% | {value}/{total}`;
     
     return new cliProgress.SingleBar({
         format: format,

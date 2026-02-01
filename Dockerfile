@@ -1,21 +1,18 @@
-# Use Node.js LTS version
-FROM node:18-alpine
+# Use Node.js LTS version with Debian (includes glibc)
+FROM node:18-slim
 
 # Install dependencies for .NET and DCE
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     curl \
     unzip \
-    icu-libs \
-    krb5-libs \
-    libgcc \
-    libintl \
-    libssl3 \
-    libstdc++ \
-    zlib
+    ca-certificates \
+    libicu72 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install .NET 8 runtime for Discord Chat Exporter (latest LTS)
-RUN apk add --no-cache dotnet8-runtime
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --channel 8.0 --runtime dotnet --install-dir /usr/share/dotnet \
+    && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet
 
 # Set working directory
 WORKDIR /app

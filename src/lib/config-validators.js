@@ -42,8 +42,9 @@ async function verifyUserId(dataPackagePath, rlInterface, existingUserId = null)
             const shouldContinue = await promptConfirmation('\nDo you want to continue with the configured ID? (y/n): ', rlInterface);
             
             if (!shouldContinue) {
-                console.log('Updating to use data package user ID...');
+                process.stdout.write('\u280b Updating to use data package user ID\r');
                 providedUserId = packageUserId;
+                console.log('\u2713 Updated to use data package user ID');
             }
         } else {
 

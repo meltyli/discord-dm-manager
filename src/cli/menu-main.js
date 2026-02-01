@@ -101,7 +101,7 @@ class DiscordDMApp {
                 console.log(`\n${green}Configuration Complete!${reset}`);
                 console.log('======================');
                 displayDetailedConfig(this.options);
-                console.log('\nReturning to main menu...');
+                console.log('\nReturning to main menu.');
                 
                 // Throw error to prevent operation and return to main menu
                 throw new Error('CONFIG_COMPLETE');

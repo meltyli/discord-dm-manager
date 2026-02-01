@@ -121,7 +121,7 @@ async function resolveUserIds(usernames, configManager) {
     const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
     const myUserId = configManager.getEnv('USER_DISCORD_ID');
     
-    console.log(`\nResolving usernames to Discord IDs...`);
+    process.stdout.write(`\n\u280b Resolving usernames to Discord IDs\r`);
     
     for (const username of usernames) {
         const userId = await getUserIdByUsername(username, dataPackagePath, myUserId);
@@ -129,8 +129,12 @@ async function resolveUserIds(usernames, configManager) {
             console.log(`  ✓ Found ${username}: ${userId}`);
             userIds.push(userId);
         } else {
-            console.warn(`  ✗ Could not find user: ${username}`);
+            console.warn(`  ${red}✗ Could not find user: ${username}${reset}`);
         }
+    }
+    
+    if (userIds.length > 0) {
+        console.log(`\u2713 Resolved ${userIds.length} username(s)`);
     }
     
     return userIds;
@@ -174,7 +178,7 @@ async function manageDMState(configManager, targetUserIds) {
     const idHistoryPath = getIdHistoryPath(dataPackagePath);
     
     // Step 1: Get currently open DMs
-    console.log(`\n${yellow}Step 1: Saving current DM state...${reset}`);
+    process.stdout.write(`\n\u280b Step 1: Saving current DM state\r`);
     const currentlyOpenDMs = await getCurrentOpenDMs(token);
     await delayTracker.trackAndDelay();
     
@@ -182,21 +186,22 @@ async function manageDMState(configManager, targetUserIds) {
         .filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0)
         .map(dm => dm.recipients[0].id);
     
-    console.log(`Found ${currentDMUserIds.length} currently open DM(s)`);
+    console.log(`\u2713 Saved ${currentDMUserIds.length} currently open DM(s)`);
     
     // Save channel info to id-history
     updateIdHistory(idHistoryPath, currentlyOpenDMs);
     
     // Step 2: Close all open DMs using existing function
-    console.log(`\n${yellow}Step 2: Closing current open DMs...${reset}`);
+    process.stdout.write(`\n\u280b Step 2: Closing current open DMs\r`);
     await closeAllOpenDMs();
     
     // Step 3: Mark pending DMs to be opened
     await savePendingOpenDMs(idHistoryPath, targetUserIds);
     
     // Step 4: Open target DMs using existing batch function
-    console.log(`\n${yellow}Step 3: Opening ${targetUserIds.length} target DM(s)...${reset}`);
+    process.stdout.write(`\n\u280b Step 3: Opening ${targetUserIds.length} target DM(s)\r`);
     const { reopenedIds } = await openBatchDMs(targetUserIds, 0, 1);
+    console.log(`\u2713 Opened ${reopenedIds.length} target DM(s)`);
     
     // Step 5: Clear pending list after successful open
     await clearPendingOpenDMs(idHistoryPath);
@@ -207,7 +212,7 @@ async function manageDMState(configManager, targetUserIds) {
 async function exportCurrentDMs(configManager) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     
-    console.log(`\n${yellow}Step 4: Exporting opened DMs with Discord Chat Exporter...${reset}`);
+    process.stdout.write(`\n\u280b Step 4: Exporting opened DMs with Discord Chat Exporter\r`);
     
     const currentDMs = await getCurrentOpenDMs(token);
     await delayTracker.trackAndDelay();
@@ -236,14 +241,15 @@ async function restoreDMState(configManager, previouslyOpenDMs) {
     const token = configManager.getEnv('USER_DISCORD_TOKEN');
     
     // Step 5: Close exported DMs
-    console.log(`\n${yellow}Step 5: Closing exported DMs...${reset}`);
+    process.stdout.write(`\n\u280b Step 5: Closing exported DMs\r`);
     await closeAllOpenDMs();
+    console.log(`\u2713 Closed exported DMs`);
     
     // Step 6: Reopen previously open DMs using batch function
     if (previouslyOpenDMs.length > 0) {
-        console.log(`\n${yellow}Step 6: Reopening ${previouslyOpenDMs.length} previously open DM(s)...${reset}`);
+        process.stdout.write(`\n\u280b Step 6: Reopening ${previouslyOpenDMs.length} previously open DM(s)\r`);
         await openBatchDMs(previouslyOpenDMs, 0, 1);
-        console.log('DM state restored.');
+        console.log(`\u2713 DM state restored`);
     }
 }
 
@@ -304,12 +310,12 @@ async function runCLI() {
     
     // Get all DM user IDs if --all is specified
     if (args.all) {
-        console.log('\nGetting all DM user IDs...');
+        process.stdout.write('\n\u280b Getting all DM user IDs\r');
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
         const myUserId = configManager.getEnv('USER_DISCORD_ID');
         const channelJsonPaths = traverseDataPackage(dataPackagePath);
         targetUserIds = getRecipients(channelJsonPaths, myUserId, ['DM']);
-        console.log(`Found ${targetUserIds.length} DM(s) to export`);
+        console.log(`\u2713 Found ${targetUserIds.length} DM(s) to export`);
     }
     
     // Validate we have users to export

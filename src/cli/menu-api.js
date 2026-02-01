@@ -10,6 +10,9 @@ const { getApiDelayTracker } = require('../lib/api-delay-tracker');
 const { MenuBase } = require('./menu-base');
 const { red, green, yellow, reset } = require('../lib/colors');
 const { getIdHistoryPath } = require('../lib/path-utils');
+const { getLogger } = require('../logger');
+
+const logger = getLogger();
 
 const delayTracker = getApiDelayTracker();
 
@@ -68,21 +71,26 @@ class ApiMenu extends MenuBase {
             return;
         }
         
-        console.log(`Reading from ${idHistoryPath}`);
+        process.stdout.write(`\n⠋ Resetting DM state.\r`);
         const idHistoryData = readJsonFile(idHistoryPath);
+        logger.logOnly(`✓ Reading from ${idHistoryPath}`, 'info');
         if (!idHistoryData) {
             console.log('Could not read id-history.json. Nothing to reopen.');
             return;
         }
         
-        // Extract user IDs from latest channels
+        // Extract user IDs and usernames from latest channels
         let closedIds = [];
+        let usernameMap = {};
         if (idHistoryData.latest && Array.isArray(idHistoryData.latest)) {
             idHistoryData.latest.forEach(channel => {
                 if (channel.recipients && Array.isArray(channel.recipients)) {
                     channel.recipients.forEach(recipient => {
                         if (recipient.id && !closedIds.includes(recipient.id)) {
                             closedIds.push(recipient.id);
+                            if (recipient.username) {
+                                usernameMap[recipient.id] = recipient.username;
+                            }
                         }
                     });
                 }
@@ -94,7 +102,7 @@ class ApiMenu extends MenuBase {
             return;
         }
         
-        console.log(`Reopening ${closedIds.length} closed direct messages...`);
+        console.log(`Reopening ${closedIds.length} closed direct messages.`);
 
         if (isDryRun()) {
             console.log('[DRY RUN] Would reopen these user IDs:');
@@ -109,14 +117,18 @@ class ApiMenu extends MenuBase {
         
         delayTracker.reset(closedIds.length);
         
-        const reopenProgress = createDMProgressBar();
-        reopenProgress.start(closedIds.length, 0);
+        const reopenProgress = createDMProgressBar('Reopen', true);
+        reopenProgress.start(closedIds.length, 0, { username: 'Starting' });
         
         let skipped = 0;
         let reopened = 0;
         
         for (const [index, userId] of closedIds.entries()) {
             try {
+                const username = usernameMap[userId] || 'Unknown';
+                const displayName = `${username} (${userId})`;
+                reopenProgress.update(index, { username: displayName });
+                
                 const result = await reopenDM(process.env.AUTHORIZATION_TOKEN, userId);
                 if (result === null) {
                     skipped++;
@@ -125,14 +137,15 @@ class ApiMenu extends MenuBase {
                 }
                 
                 await delayTracker.trackAndDelay();
-                reopenProgress.update(index + 1);
             } catch (error) {
                 reopenProgress.stop();
                 console.log('');
                 throw error;
             }
         }
+        reopenProgress.update(closedIds.length);
         reopenProgress.stop();
+        process.stdout.write('\r\x1b[K');
         
         console.log(`\nReopened: ${yellow}${reopened}${reset}, Skipped: ${yellow}${skipped}${reset}`);
     }
@@ -140,11 +153,11 @@ class ApiMenu extends MenuBase {
     async viewOpenDMs() {
         await this.ensureConfigured();
 
-        console.log(`${yellow}Fetching open direct messages...${reset}`);
+        process.stdout.write(`\n\u280b Fetching open direct messages\r`);
         const dms = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
         await delayTracker.trackAndDelay();
         
-        console.log(`\nCount: ${yellow}${dms.length}${reset}`);
+        console.log(`\u2713 Found ${dms.length} open DM(s)\n`);
         dms.forEach(dm => {
             const channelType = dm.type === 1 ? 'DM' : dm.type === 3 ? 'GROUP_DM' : `TYPE_${dm.type}`;
             if (dm.recipients && dm.recipients.length > 0) {
@@ -164,7 +177,7 @@ class ApiMenu extends MenuBase {
         await this.ensureConfigured();
         
         if (isDryRun()) {
-            console.log('[DRY RUN] Fetching open direct messages...');
+            console.log('[DRY RUN] Fetching open direct messages.');
         } else {
             if (!await promptConfirmation('Close all open direct messages? (y/n): ', this.rl)) {
                 console.log('Operation cancelled.');
@@ -203,7 +216,7 @@ class ApiMenu extends MenuBase {
         if (result) {
             console.log(`\n${green}Direct message reopened successfully!${reset}`);
         } else {
-            console.log(`\n${yellow}Could not reopen direct message${reset} (user may not exist or be inaccessible).`);
+            console.log(`\n${red}Could not reopen direct message${reset} (user may not exist or be inaccessible).`);
         }
     }
 
@@ -215,7 +228,7 @@ class ApiMenu extends MenuBase {
             validateDCEPath(this.options.DCE_PATH);
             validateRequired(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
         } catch (error) {
-            console.error(`Error: ${error.message}`);
+            console.error(`${red}Error: ${error.message}${reset}`);
             return;
         }
 
@@ -263,10 +276,10 @@ class ApiMenu extends MenuBase {
         try {
             await processAndExportAllDMs(exportCallback, this.rl, typeFilter);
             console.log(`\n${green}All direct messages processed and exported successfully!${reset}`);
-            console.log('\nResetting DM state...');
+            console.log('\nResetting DM state.');
             await this.resetDMState();
         } catch (error) {
-            console.error('Process and export failed:', error.message);
+            console.error(`${red}Process and export failed: ${error.message}${reset}`);
         }
     }
 }

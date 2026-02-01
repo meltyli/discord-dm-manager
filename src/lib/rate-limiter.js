@@ -17,7 +17,7 @@ async function randomDelay(callCount, totalCalls = 0) {
     
     if (shouldDoLongPauses && callCount >= nextLongPauseAt) {
         const longPauseMs = randomInt(5000, 20000);
-        console.log(`\nTaking a ${(longPauseMs / 1000).toFixed(1)}s pause after ${callCount} API calls...`);
+        console.log(`\nTaking a ${(longPauseMs / 1000).toFixed(1)}s pause after ${callCount} API calls.`);
         await delay(longPauseMs);
         
         nextLongPauseAt = callCount + randomInt(40, 50);
@@ -26,7 +26,7 @@ async function randomDelay(callCount, totalCalls = 0) {
         
         // Log if > 4 seconds
         if (regularPauseMs > 4000) {
-            console.log(`Pausing for ${(regularPauseMs / 1000).toFixed(1)}s...`);
+            console.log(`Pausing for ${(regularPauseMs / 1000).toFixed(1)}s.`);
         }
         
         await delay(regularPauseMs);
