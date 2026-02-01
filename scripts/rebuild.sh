@@ -3,13 +3,16 @@
 
 set -e
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 echo "Cleaning up Docker containers and images..."
 
-# Remove containers
-docker compose down 2>/dev/null || true
+# Stop any running Docker Compose build processes
+pkill -f "docker compose build" 2>/dev/null || true
 
-# Remove image
-docker rmi discordmanager:latest 2>/dev/null || true
+# Run clean script to stop containers and remove image
+"$SCRIPT_DIR/clean.sh"
 
 echo "Building fresh Docker image..."
 docker compose build --no-cache

@@ -32,14 +32,35 @@ COPY src/ ./src/
 # Create necessary directories
 RUN mkdir -p /app/config /app/export /app/logs
 
-# Download Discord Chat Exporter
+# Download Discord Chat Exporter (detect architecture automatically)
 RUN mkdir -p /app/dce && \
     cd /app/dce && \
+    ARCH=$(uname -m) && \
+    echo "Detected architecture: $ARCH" && \
+    case "$ARCH" in \
+        x86_64|amd64) \
+            DCE_ARCH="linux-x64" \
+            ;; \
+        aarch64|arm64) \
+            DCE_ARCH="linux-arm64" \
+            ;; \
+        armv7l|armv7) \
+            echo "ERROR: ARMv7 is not supported by DiscordChatExporter" && exit 1 \
+            ;; \
+        i386|i686) \
+            echo "ERROR: 32-bit x86 is not supported by DiscordChatExporter" && exit 1 \
+            ;; \
+        *) \
+            echo "ERROR: Unsupported architecture: $ARCH" && exit 1 \
+            ;; \
+    esac && \
+    echo "Downloading DiscordChatExporter for $DCE_ARCH..." && \
     curl -L -o DiscordChatExporter.Cli.zip \
-    "https://github.com/Tyrrrz/DiscordChatExporter/releases/latest/download/DiscordChatExporter.Cli.linux-x64.zip" && \
+    "https://github.com/Tyrrrz/DiscordChatExporter/releases/latest/download/DiscordChatExporter.Cli.$DCE_ARCH.zip" && \
     unzip DiscordChatExporter.Cli.zip && \
     rm DiscordChatExporter.Cli.zip && \
-    chmod +x DiscordChatExporter.Cli
+    chmod +x DiscordChatExporter.Cli && \
+    echo "Successfully installed DiscordChatExporter ($DCE_ARCH)"
 
 # Set environment variables for Docker mode
 ENV DCE_PATH=/app/dce
