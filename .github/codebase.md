@@ -109,10 +109,16 @@ USER_DISCORD_ID=your_user_id_here
 Located at `{DATA_PACKAGE_FOLDER}/messages/id-history.json`:
 ```javascript
 {
+  "user": {                   // User metadata (for reference only)
+    "id": "1053430353626407062",
+    "username": "fluffy07995",
+    "global_name": "fluffy",
+    "discriminator": 0
+  },
   "originalState": [...],     // First capture from closeAllOpenDMs
   "latest": [...],            // Most recent close (type=1 DMs only)
   "uniqueChannels": [...],    // All unique channels ever seen
-  "exportStatus": {           // Export progress tracking (NEW)
+  "exportStatus": {           // Export progress tracking
     "channelId1": {
       "status": "completed",  // Status: pending, in-progress, completed, failed
       "timestamp": "2025-12-31T10:30:45.123Z"
@@ -124,7 +130,20 @@ Located at `{DATA_PACKAGE_FOLDER}/messages/id-history.json`:
   }
 }
 ```
-Each channel object contains full Discord API response data (id, type, recipients array with username/id).
+Each channel object is simplified to only essential fields:
+```javascript
+{
+  "id": "1055269158520111155",
+  "type": 1,
+  "recipients": [
+    {
+      "id": "596986721942503424",
+      "username": "togpie",
+      "global_name": "Togpie"
+    }
+  ]
+}
+```
 
 **Export Status:**
 - `pending`: Not yet exported (implicit if not in exportStatus)

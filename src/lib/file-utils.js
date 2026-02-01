@@ -131,20 +131,72 @@ function writeJsonFile(filePath, data, indent = 2) {
     }
 }
 
+/**
+ * Strips channel data to only essential fields
+ * @param {Object} channel - Full channel object from Discord API
+ * @returns {Object} Simplified channel object with only essential data
+ */
+function stripChannelData(channel) {
+    const stripped = {
+        id: channel.id,
+        type: channel.type
+    };
+    
+    // Only include recipients with essential fields
+    if (channel.recipients && Array.isArray(channel.recipients)) {
+        stripped.recipients = channel.recipients.map(r => ({
+            id: r.id,
+            username: r.username,
+            global_name: r.global_name
+        }));
+    }
+    
+    return stripped;
+}
+
+/**
+ * Gets user metadata from account/user.json
+ * @param {string} idHistoryPath - Path to id-history.json
+ * @returns {Object|null} User metadata or null if not found
+ */
+function getUserMetadata(idHistoryPath) {
+    try {
+        const accountPath = path.join(path.dirname(path.dirname(idHistoryPath)), 'account', 'user.json');
+        const userData = readJsonFile(accountPath, null);
+        
+        if (userData) {
+            return {
+                id: userData.id,
+                username: userData.username,
+                global_name: userData.global_name,
+                discriminator: userData.discriminator
+            };
+        }
+    } catch (error) {
+        // If we can't read user data, that's okay
+    }
+    return null;
+}
+
 function updateIdHistory(idHistoryPath, currentChannels) {
     const existing = readJsonFile(idHistoryPath, null);
     
+    // Strip channels to only essential data
+    const strippedChannels = currentChannels.map(stripChannelData);
+    
     if (!existing || !existing.originalState) {
-        // First run - set originalState
+        // First run - set originalState and user metadata
+        const userMeta = getUserMetadata(idHistoryPath);
         const data = {
-            originalState: currentChannels,
-            latest: currentChannels,
-            uniqueChannels: currentChannels,
+            user: userMeta,
+            originalState: strippedChannels,
+            latest: strippedChannels,
+            uniqueChannels: strippedChannels,
             exportStatus: {}
         };
         writeJsonFile(idHistoryPath, data);
     } else {
-        // Subsequent runs - preserve originalState, update latest and uniqueChannels
+        // Subsequent runs - preserve originalState and user, update latest and uniqueChannels
         const existingChannelMap = new Map();
         
         // Build map of existing unique channels by id
@@ -155,15 +207,19 @@ function updateIdHistory(idHistoryPath, currentChannels) {
         }
         
         // Add new channels to map (will not overwrite existing ones)
-        currentChannels.forEach(channel => {
+        strippedChannels.forEach(channel => {
             if (!existingChannelMap.has(channel.id)) {
                 existingChannelMap.set(channel.id, channel);
             }
         });
         
+        // Preserve user metadata or get it if missing
+        const userMeta = existing.user || getUserMetadata(idHistoryPath);
+        
         const data = {
+            user: userMeta,
             originalState: existing.originalState,
-            latest: currentChannels,
+            latest: strippedChannels,
             uniqueChannels: Array.from(existingChannelMap.values()),
             exportStatus: existing.exportStatus || {}
         };

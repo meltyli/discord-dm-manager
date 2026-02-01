@@ -30,16 +30,7 @@ Options:
   -u, --user-id <id...>                Export DMs for specific Discord user ID(s)
   -a, --all                            Export all DMs (default behavior)
   -h, --help                           Show this help message
-
-Examples:
-  # Export DMs for specific users by username
-  docker compose run --rm discordmanager -s username1 username2 "user three"
-  
-  # Export DMs for specific user IDs
-  docker compose run --rm discordmanager -u 123456789 987654321
-  
-  # Export all DMs
-  docker compose run --rm discordmanager --all
+      --examples                       Show usage examples
 
 Configuration:
   To configure settings (token, auth, etc.), use the interactive menu:
@@ -49,13 +40,32 @@ Note: Only exports 1-on-1 DMs (type 1). Group DMs are not supported.
 `);
 }
 
+function showExamples() {
+    console.log(`
+DiscorDManager - Usage Examples
+
+Export DMs for specific users by username:
+  docker compose run --rm discordmanager -s username1 username2 "user three"
+
+Export DMs for specific user IDs:
+  docker compose run --rm discordmanager -u 123456789 987654321
+
+Export all DMs:
+  docker compose run --rm discordmanager --all
+
+Interactive menu (for configuration):
+  docker compose run --rm discordmanager interactive
+`);
+}
+
 function parseArgs() {
     const args = process.argv.slice(2);
     const parsed = {
         usernames: [],
         userIds: [],
         all: false,
-        help: false
+        help: false,
+        examples: false
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -63,6 +73,8 @@ function parseArgs() {
         
         if (arg === '-h' || arg === '--help') {
             parsed.help = true;
+        } else if (arg === '--examples') {
+            parsed.examples = true;
         } else if (arg === '-a' || arg === '--all') {
             parsed.all = true;
         } else if (arg === '-s' || arg === '--username') {
@@ -240,6 +252,11 @@ async function runCLI() {
     
     if (args.help) {
         showUsage();
+        process.exit(0);
+    }
+    
+    if (args.examples) {
+        showExamples();
         process.exit(0);
     }
     
