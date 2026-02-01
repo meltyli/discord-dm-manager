@@ -246,6 +246,8 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     
+    // Clear username at 100% completion
+    progressBar.update(channels.length, { username: '' });
     progressBar.stop();
     console.log('');
     

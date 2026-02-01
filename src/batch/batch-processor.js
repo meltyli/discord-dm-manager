@@ -86,7 +86,7 @@ async function closeAllOpenDMs() {
         
         console.log(`${yellow}Saving channel data to id-history.json before closing...${reset}`);
         updateIdHistory(filePath, currentDMs);
-        console.log(`${yellow}Channel data saved!${reset}\n\n Now closing DMs...`);
+        console.log(`${yellow}Channel data saved!${reset}\n\nNow closing DMs...`);
         
         const closedUserIds = [];
         
@@ -108,11 +108,12 @@ async function closeAllOpenDMs() {
                 const recipientIds = dm.recipients.map(r => r && r.id).filter(Boolean);
                 closedUserIds.push(...recipientIds);
             }
-            closeProgress.update(index + 1, { username: dm.recipients[0]?.username ? `${dm.recipients[0].username} (${dm.recipients[0].id})` : 'Unknown' });
         }
+        // Update to 100% without username to clean display
+        closeProgress.update(currentDMs.length, { username: '' });
         closeProgress.stop();
         
-        console.log(`${green}Successfully closed ${closedUserIds.length} direct messages.${reset} Channel info was saved to ${filePath}`);
+        console.log(`${green}Successfully closed ${closedUserIds.length} direct messages.${reset}\nChannel info was saved to ${filePath}`);
         
         return closedUserIds;
     } catch (error) {
@@ -178,8 +179,9 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
             }
             
             await delayTracker.trackAndDelay();
-            batchProgress.update(index + 1, { username: displayName });
         }
+        // Update to 100% without username to clean display
+        batchProgress.update(userIds.length, { username: '' });
         batchProgress.stop();
         console.log('');
         
