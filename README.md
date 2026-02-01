@@ -36,17 +36,14 @@ volumes:
 
 **Note:** The data package needs write access for tracking DM state (id-history.json).
 
-3. **Build the Docker image:**
+3. **Build and run (first time):**
 ```bash
-docker compose build
-# Or use the rebuild script for a clean build:
 ./scripts/rebuild.sh
+# This will build the image and test it
 ```
 
-4. **Configure authentication (first time only):**
+4. **Launch the interactive menu:**
 ```bash
-docker compose run --rm discordmanager interactive
-# Or use the launch script:
 ./scripts/launch.sh
 ```
 The setup wizard will:
@@ -56,6 +53,11 @@ The setup wizard will:
 - Allow you to proceed even if IDs don't match (with warning)
 
 ### Usage
+
+**Quick start (recommended):**
+```bash
+./scripts/launch.sh    # Interactive menu
+```
 
 **Export specific users by username:**
 ```bash
@@ -72,20 +74,24 @@ docker compose run --rm discordmanager -u 123456789 987654321
 docker compose run --rm discordmanager --all
 ```
 
-**Interactive menu:**
-```bash
-docker compose run --rm discordmanager interactive
-```
-
-**Batch mode:**
-```bash
-docker compose run --rm discordmanager batch
-```
-
 **Show help:**
 ```bash
 docker compose run --rm discordmanager --help
 ```
+
+**Show examples:**
+```bash
+docker compose run --rm discordmanager --examples
+```
+
+### Scripts
+
+Convenient scripts in the `scripts/` folder:
+
+- `./scripts/launch.sh` - Launch interactive menu (auto-builds if needed)
+- `./scripts/rebuild.sh` - Clean rebuild from scratch
+- `./scripts/clean.sh` - Remove all containers and images
+- `./scripts/stop.sh` - Stop running containers
 
 ### CLI Options
 
@@ -97,6 +103,7 @@ Options:
   -u, --user-id <id...>          Export DMs for specific Discord user ID(s)
   -a, --all                      Export all DMs (default behavior)
   -h, --help                     Show this help message
+      --examples                 Show usage examples
 ```
 
 **Note:** Only 1-on-1 DMs (type 1) are supported. Group DMs are not exported.
