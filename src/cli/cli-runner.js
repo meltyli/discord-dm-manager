@@ -21,7 +21,7 @@ function showUsage() {
 DiscorDManager - CLI Mode
 
 Usage:
-  docker-compose run --rm discordmanager [options]
+  docker compose run --rm discordmanager [options]
 
 Options:
   -s, --username <username...>         Export DMs for specific Discord username(s)
@@ -33,17 +33,17 @@ Options:
 
 Examples:
   # Export DMs for specific users by username
-  docker-compose run --rm discordmanager -s username1 username2 "user three"
+  docker compose run --rm discordmanager -s username1 username2 "user three"
   
   # Export DMs for specific user IDs
-  docker-compose run --rm discordmanager -u 123456789 987654321
+  docker compose run --rm discordmanager -u 123456789 987654321
   
   # Export all DMs
-  docker-compose run --rm discordmanager --all
+  docker compose run --rm discordmanager --all
 
 Configuration:
   To configure settings (token, auth, etc.), use the interactive menu:
-  docker-compose run --rm discordmanager interactive
+  docker compose run --rm discordmanager interactive
 
 Note: Only exports 1-on-1 DMs (type 1). Group DMs are not supported.
 `);

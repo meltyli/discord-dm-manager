@@ -23,7 +23,7 @@ services:
       - NODE_ENV=production
       # Optional: Set dry run mode
       # - DRY_RUN=false
-    # Default command - override with docker-compose run args
+    # Default command - override with docker compose run args
     command: ["--help"]
     stdin_open: true
     tty: true
@@ -34,7 +34,6 @@ services:
 #    docker-compose run --rm discordmanager interactive
 #
 # 2. Export specific users by username:
-#    docker-compose run --rm discordmanager -s username1 username2 "user three"
 #
 # 3. Export specific user IDs:
 #    docker-compose run --rm discordmanager -u 123456789 987654321

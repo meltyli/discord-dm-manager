@@ -39,6 +39,12 @@ jest.mock('../../src/lib/file-utils', () => ({
     resolveConfigPath: jest.fn((filename) => `/mock/config/${filename}`)
 }));
 
+// Mock validators used in tests
+jest.mock('../../src/lib/validators', () => ({
+    validateRequired: jest.fn(),
+    validateDCEPath: jest.fn()
+}));
+
 const { getCurrentOpenDMs, closeDM } = require('../../src/discord-api');
 const { openBatchDMs, closeAllOpenDMs } = require('../../src/batch/batch-processor');
 const { updateIdHistory, readJsonFile, writeJsonFile } = require('../../src/lib/file-utils');
@@ -166,7 +172,7 @@ describe('CLI Runner Integration Tests', () => {
     });
 
     describe('Username Resolution', () => {
-        test.skip('resolves usernames to user IDs from data package', async () => {
+        test('resolves usernames to user IDs from data package', async () => {
             const mockChannelData = {
                 type: 'DM',
                 recipients: [
@@ -175,13 +181,8 @@ describe('CLI Runner Integration Tests', () => {
                 ]
             };
 
-            // Mock require to return channel data
-            jest.spyOn(global, 'require').mockImplementation((path) => {
-                if (path.includes('channel.json')) {
-                    return mockChannelData;
-                }
-                return jest.requireActual(path);
-            });
+            // Mock module path returned by traverseDataPackage
+            jest.mock('/path/to/channel.json', () => mockChannelData, { virtual: true });
 
             const { traverseDataPackage } = require('../../src/lib/file-utils');
             traverseDataPackage.mockReturnValue(['/path/to/channel.json']);
@@ -202,7 +203,7 @@ describe('CLI Runner Integration Tests', () => {
             expect(result).toBe(null);
         });
 
-        test.skip('resolves multiple usernames correctly', async () => {
+        test('resolves multiple usernames correctly', async () => {
             const mockConfigManager = {
                 get: jest.fn(() => '/path/to/data'),
                 getEnv: jest.fn(() => 'myid')
@@ -219,18 +220,13 @@ describe('CLI Runner Integration Tests', () => {
             const { traverseDataPackage } = require('../../src/lib/file-utils');
             traverseDataPackage.mockReturnValue(['/path/to/channel.json']);
 
-            jest.spyOn(global, 'require').mockImplementation((path) => {
-                if (path.includes('channel.json')) {
-                    return mockChannelData;
-                }
-                return jest.requireActual(path);
-            });
+            jest.mock('/path/to/channel.json', () => mockChannelData, { virtual: true });
 
             // This would resolve in actual implementation
             expect(traverseDataPackage).toBeDefined();
         });
 
-        test.skip('handles case-insensitive username matching', async () => {
+        test('handles case-insensitive username matching', async () => {
             const mockChannelData = {
                 type: 'DM',
                 recipients: [
@@ -238,12 +234,7 @@ describe('CLI Runner Integration Tests', () => {
                 ]
             };
 
-            jest.spyOn(global, 'require').mockImplementation((path) => {
-                if (path.includes('channel.json')) {
-                    return mockChannelData;
-                }
-                return jest.requireActual(path);
-            });
+            jest.mock('/path/to/channel.json', () => mockChannelData, { virtual: true });
 
             const { traverseDataPackage } = require('../../src/lib/file-utils');
             traverseDataPackage.mockReturnValue(['/path/to/channel.json']);
@@ -327,7 +318,7 @@ describe('CLI Runner Integration Tests', () => {
             expect(getLogger).toBeDefined();
         });
 
-        test.skip('handles missing configuration', async () => {
+        test('handles missing configuration', async () => {
             const { validateRequired } = require('../../src/lib/validators');
             validateRequired.mockImplementation(() => {
                 throw new Error('Configuration required');
@@ -336,7 +327,7 @@ describe('CLI Runner Integration Tests', () => {
             expect(validateRequired).toBeDefined();
         });
 
-        test.skip('handles invalid DCE path', async () => {
+        test('handles invalid DCE path', async () => {
             const { validateDCEPath } = require('../../src/lib/validators');
             validateDCEPath.mockImplementation(() => {
                 throw new Error('Invalid DCE path');

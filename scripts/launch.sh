@@ -12,4 +12,4 @@ if [ -z "$(docker images -q discordmanager:latest 2>/dev/null)" ]; then
 	"$SCRIPT_DIR/rebuild.sh"
 fi
 
-docker-compose run --rm discordmanager interactive
+docker compose run --rm discordmanager interactive

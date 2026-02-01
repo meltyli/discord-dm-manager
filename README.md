@@ -38,14 +38,14 @@ volumes:
 
 3. **Build the Docker image:**
 ```bash
-docker-compose build
+docker compose build
 # Or use the rebuild script for a clean build:
 ./scripts/rebuild.sh
 ```
 
 4. **Configure authentication (first time only):**
 ```bash
-docker-compose run --rm discordmanager interactive
+docker compose run --rm discordmanager interactive
 # Or use the launch script:
 ./scripts/launch.sh
 ```
@@ -59,32 +59,32 @@ The setup wizard will:
 
 **Export specific users by username:**
 ```bash
-docker-compose run --rm discordmanager -s username1 username2 "user three"
+docker compose run --rm discordmanager -s username1 username2 "user three"
 ```
 
 **Export by user ID:**
 ```bash
-docker-compose run --rm discordmanager -u 123456789 987654321
+docker compose run --rm discordmanager -u 123456789 987654321
 ```
 
 **Export all DMs:**
 ```bash
-docker-compose run --rm discordmanager --all
+docker compose run --rm discordmanager --all
 ```
 
 **Interactive menu:**
 ```bash
-docker-compose run --rm discordmanager interactive
+docker compose run --rm discordmanager interactive
 ```
 
 **Batch mode:**
 ```bash
-docker-compose run --rm discordmanager batch
+docker compose run --rm discordmanager batch
 ```
 
 **Show help:**
 ```bash
-docker-compose run --rm discordmanager --help
+docker compose run --rm discordmanager --help
 ```
 
 ### CLI Options

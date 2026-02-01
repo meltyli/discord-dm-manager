@@ -9,7 +9,7 @@
     "cli": "node src/cli/cli-runner.js",
     "test": "jest",
     "docker:build": "docker build -t discordmanager .",
-    "docker:run": "docker-compose run --rm discordmanager"
+    "docker:run": "docker compose run --rm discordmanager"
   },
   "bin": {
     "discordmanager": "./src/cli/menu-main.js",

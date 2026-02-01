@@ -4,6 +4,6 @@
 set -e
 
 echo "Stopping DiscorDManager containers..."
-docker-compose down
+docker compose down
 
 echo "DiscorDManager containers stopped and removed."

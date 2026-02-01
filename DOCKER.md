@@ -55,27 +55,27 @@ Example `config/config.json`:
 
 Export DMs for specific users by username:
 ```bash
-docker-compose run --rm discordmanager -s username1 username2 "user three"
+docker compose run --rm discordmanager -s username1 username2 "user three"
 ```
 
 Export by user IDs:
 ```bash
-docker-compose run --rm discordmanager -u 123456789 987654321
+docker compose run --rm discordmanager -u 123456789 987654321
 ```
 
 Export all DMs:
 ```bash
-docker-compose run --rm discordmanager --all
+docker compose run --rm discordmanager --all
 ```
 
 Interactive menu mode (for configuration and more options):
 ```bash
-docker-compose run --rm discordmanager interactive
+docker compose run --rm discordmanager interactive
 ```
 
 ## Direct Docker Usage
 
-If not using docker-compose:
+If not using docker compose:
 
 ```bash
 # Export specific users
@@ -129,25 +129,25 @@ environment:
 
 ### Example 1: Export Multiple Users
 ```bash
-docker-compose run --rm discordmanager \
+docker compose run --rm discordmanager \
   -s "user one" user2 user3
 ```
 
 ### Example 2: Export Specific User IDs
 ```bash
-docker-compose run --rm discordmanager \
+docker compose run --rm discordmanager \
   -u 123456789 987654321
 ```
 
 ### Example 3: Export All DMs
 ```bash
-docker-compose run --rm discordmanager --all
+docker compose run --rm discordmanager --all
 ```
 
 ### Example 4: Test Run (Dry Run)
 Edit docker-compose.yml to set `DRY_RUN=true` in environment, then:
 ```bash
-docker-compose run --rm discordmanager --all
+docker compose run --rm discordmanager --all
 ```
 
 ## Troubleshooting
