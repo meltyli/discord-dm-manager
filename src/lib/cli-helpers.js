@@ -126,7 +126,8 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
                             }
                         }, 5000);
                     } catch (e) {}
-                    const last = (stderrBuf || stdoutBuf).slice(-2000);
+                    const fullOutput = stderrBuf || stdoutBuf || '';
+                    const last = fullOutput.slice(-2000);
                     reject(new Error(`DCE stalled (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes) for ${channelName}. Last output: ${last}`));
                 });
             }
@@ -147,19 +148,68 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
                 if (code === 0) {
                     resolve({ success: true, channelId, channelName });
                 } else {
-                    const last = (stderrBuf || stdoutBuf).slice(-2000);
-                    reject(new Error(`DCE exited with code ${code} for ${channelName}. Last output: ${last}`));
+                    // Try to extract the actual error from the output
+                    const fullOutput = stderrBuf || stdoutBuf || '';
+                    let errorMsg = '';
+                    
+                    // Look for common error patterns in DCE output
+                    const errorPatterns = [
+                        /Error:\s*(.+)/i,
+                        /Exception:\s*(.+)/i,
+                        /Failed to.*?:\s*(.+)/i,
+                        /at DiscordChatExporter\..*?\n\s*(.+?)(?:\n|$)/
+                    ];
+                    
+                    for (const pattern of errorPatterns) {
+                        const match = fullOutput.match(pattern);
+                        if (match && match[1]) {
+                            errorMsg = match[1].trim();
+                            break;
+                        }
+                    }
+                    
+                    // If no specific error found, show more context
+                    if (!errorMsg) {
+                        // Get first 500 chars and last 2000 chars
+                        const start = fullOutput.slice(0, 500);
+                        const end = fullOutput.slice(-2000);
+                        errorMsg = start !== end ? `${start}\n...\n${end}` : end;
+                    }
+                    
+                    reject(new Error(`DCE exited with code ${code} for ${channelName}. Error: ${errorMsg}`));
                 }
             });
         });
 
         dceProcess.on('error', (error) => {
             onFinish(() => {
-                const last = (stderrBuf || stdoutBuf).slice(-2000);
+                const fullOutput = stderrBuf || stdoutBuf || '';
+                const last = fullOutput.slice(-2000);
                 reject(new Error(`Failed to start DCE for ${channelName}: ${error.message}. Last output: ${last}`));
             });
         });
     });
+}
+
+async function runDCEExportChannelWithRetry(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown', afterTimestamp = null, maxRetries = 2) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName, afterTimestamp);
+        } catch (error) {
+            lastError = error;
+            
+            if (attempt < maxRetries) {
+                const delay = 2000 * attempt; // Progressive delay: 2s, 4s
+                console.log(`\n  Retry ${attempt}/${maxRetries - 1} for ${channelName} after ${delay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    // All retries failed
+    throw lastError;
 }
 
 async function exportChannelsInParallel(token, exportPath, dcePath, format, userId, channels, concurrency = 2, idHistoryPath = null) {
@@ -203,7 +253,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                     updateExportStatus(idHistoryPath, recipientId, 'in-progress', username);
                 }
                 
-                const result = await runDCEExportChannel(
+                const result = await runDCEExportChannelWithRetry(
                     token, 
                     exportPath, 
                     dcePath, 
@@ -211,7 +261,8 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
                     userId, 
                     channel.id, 
                     username,
-                    afterTimestamp
+                    afterTimestamp,
+                    2 // max retries
                 );
                 
                 completed++;
@@ -315,6 +366,7 @@ module.exports = {
     clearScreen,
     cleanInput,
     runDCEExportChannel,
+    runDCEExportChannelWithRetry,
     exportChannelsInParallel,
     exportDMs,
     createDMProgressBar

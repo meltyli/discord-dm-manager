@@ -32,7 +32,9 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 **Utilities (src/lib/):**
 - `cli-helpers.js` - Input prompts, progress bars, DCE spawn wrapper
   - `exportDMs(token, exportPath, dcePath, userId)` - Exports DMs in JSON (messages.json) and returns {success, results}
-  - `runDCEExport()` - Spawns DiscordChatExporter.Cli with proper args
+  - `runDCEExportChannel()` - Spawns DiscordChatExporter.Cli with proper args
+  - `runDCEExportChannelWithRetry()` - Wrapper with automatic retry logic (2 attempts, progressive delays)
+  - Enhanced error extraction: Captures full DCE output and extracts specific error messages using regex patterns
 - `file-utils.js` - File operations, JSON atomic writes
   - `traverseDataPackage()` - Finds all channel.json files
   - `getRecipients(paths, userId, typeFilter)` - Extracts recipient IDs by channel type
@@ -255,6 +257,24 @@ try {
     throw error;
 }
 ```
+
+### DCE Export Error Handling
+**Enhanced error capture for DiscordChatExporter failures:**
+- Captures full stdout/stderr output (not just last 2000 chars)
+- Extracts specific error messages using regex patterns:
+  - `Error: <message>`
+  - `Exception: <message>`
+  - `Failed to...: <message>`
+  - Stack trace context extraction
+- Shows both beginning (500 chars) and end (2000 chars) of output when no specific error found
+- Automatic retry mechanism (2 attempts with 2s, 4s progressive delays)
+- Detects stalled processes (30 min timeout) and terminates gracefully
+
+**Common DCE errors:**
+- Authentication failures: "Unauthorized" or "Invalid token"
+- Rate limiting: "Too many requests"
+- Channel access: "Missing access" or "Unknown channel"
+- Network issues: Auto-retried by `runDCEExportChannelWithRetry()`
 
 ## Logging System
 
