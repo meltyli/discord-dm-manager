@@ -155,7 +155,7 @@ class ConfigurationMenu extends MenuBase {
             if (isDocker) {
                 console.log('1. Place your Discord data package in: ./data/package/ (on host)');
                 console.log('   It should contain: messages/, account/, servers/, etc.');
-                console.log('2. Or edit docker-compose.yml to mount your custom path');
+                console.log('2. Or edit Dockerfile/docker-compose.yml to mount your custom path');
                 console.log('3. Rebuild: docker compose down && docker compose build');
             } else {
                 console.log('1. Download your Discord data package from Discord settings');

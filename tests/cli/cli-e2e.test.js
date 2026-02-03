@@ -38,7 +38,7 @@ describe('End-to-End CLI Tests', () => {
     // Simulate runs that would otherwise require external configuration or docker
     function simulatedRunCLI(args) {
         if (args.includes('-a') || args.includes('--all')) {
-            return Promise.resolve({ code: 1, stdout: '', stderr: 'Configuration validation error: docker-compose' });
+            return Promise.resolve({ code: 1, stdout: '', stderr: 'Configuration validation error: docker compose' });
         }
         if (args.includes('-s') || args.includes('--username') || args.includes('-u') || args.includes('--user-id')) {
             return Promise.resolve({ code: 1, stdout: '', stderr: '' });
@@ -70,11 +70,11 @@ describe('End-to-End CLI Tests', () => {
             expect(result.stdout).toContain('DiscorDManager - CLI Mode');
         }, TIMEOUT);
 
-        test('help mentions configuration via docker-compose', async () => {
+        test('help mentions configuration via docker compose', async () => {
             const result = await runCLI(['--help']);
             
             expect(result.stdout).toContain('Configuration:');
-            expect(result.stdout).toContain('docker-compose run --rm discordmanager interactive');
+            expect(result.stdout).toContain('docker compose run --rm discordmanager interactive');
         }, TIMEOUT);
 
         test('help mentions DM type limitation', async () => {
@@ -96,13 +96,13 @@ describe('End-to-End CLI Tests', () => {
         test('provides helpful error message for missing config', async () => {
             const result = await simulatedRunCLI(['-a']);
             
-            expect(result.stderr).toContain('docker-compose');
+            expect(result.stderr).toContain('docker compose');
         }, TIMEOUT);
 
         test('suggests using interactive menu for configuration', async () => {
             const result = await simulatedRunCLI(['-a']);
             
-            expect(result.stderr).toContain('docker-compose');
+            expect(result.stderr).toContain('docker compose');
         }, TIMEOUT);
     });
 

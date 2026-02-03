@@ -162,7 +162,7 @@ chmod -R 755 config export logs
 ```
 
 ### Data Package Not Found
-Make sure to mount your Discord data package correctly in docker-compose.yml or your docker run command.
+Make sure to mount your Discord data package correctly in the docker-compose.yml volumes section or your docker run command.
 
 ## Advanced: Custom DCE Version
 

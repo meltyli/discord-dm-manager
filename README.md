@@ -131,14 +131,14 @@ If you encounter issues, rebuild the container:
 
 ```bash
 # Remove containers and images
-docker-compose down
+docker compose down
 docker rmi discordmanager:latest
 
 # Rebuild without cache
-docker-compose build --no-cache
+docker compose build --no-cache
 
 # Test
-docker-compose run --rm discordmanager --help
+docker compose run --rm discordmanager --help
 ```
 
 ### Complete Docker Cleanup
@@ -150,7 +150,7 @@ If problems persist:
 docker system prune -a
 
 # Rebuild
-docker-compose build
+docker compose build
 ```
 
 ## Project Structure

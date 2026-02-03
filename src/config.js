@@ -184,7 +184,7 @@ class ConfigManager {
             console.log('\n3. If using a custom location, edit docker-compose.yml:');
             console.log('   volumes:');
             console.log('     - /your/custom/path:/data/package');
-            console.log('4. Rebuild: docker-compose down && docker-compose build');
+            console.log('4. Rebuild: docker compose down && docker compose build');
             console.log('\n5. Use "Check Data Package" in Configuration menu to verify');
         } else {
             console.log(`\n${yellow}Setup Instructions:${reset}`);

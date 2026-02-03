@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   discordmanager:
     build: .
@@ -33,15 +31,16 @@ services:
 # Example usage:
 # 
 # 1. Interactive menu mode (for configuration):
-#    docker-compose run --rm discordmanager interactive
+#    docker compose run --rm discordmanager interactive
 #
 # 2. Export specific users by username:
+#    docker compose run --rm discordmanager -s username1 username2
 #
 # 3. Export specific user IDs:
-#    docker-compose run --rm discordmanager -u 123456789 987654321
+#    docker compose run --rm discordmanager -u 123456789 987654321
 #
 # 4. Export all DMs:
-#    docker-compose run --rm discordmanager --all
+#    docker compose run --rm discordmanager --all
 #
 # 5. Batch mode:
-#    docker-compose run --rm discordmanager batch
+#    docker compose run --rm discordmanager batch
