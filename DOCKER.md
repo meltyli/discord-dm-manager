@@ -156,9 +156,32 @@ docker compose run --rm discordmanager --all
 The Dockerfile automatically downloads DCE. If you encounter issues, verify the DCE_PATH in config.json points to `/app/dce`.
 
 ### Permission Issues
-Ensure your local config and export directories have appropriate permissions:
+
+**Understanding User/Group IDs:**
+The container runs as your host user (via `UID` and `GID` environment variables) to avoid permission issues. The `./scripts/launch.sh` script automatically sets these.
+
+- **Linux users**: Typically UID=1000, GID=1000
+- **macOS users**: Typically UID=501, GID=20
+- **Manual runs**: Falls back to UID=1000, GID=1000
+
+**If you encounter permission errors:**
+
+1. Ensure directories are readable/writable:
 ```bash
-chmod -R 755 config export logs
+chmod -R 755 config export logs data/package
+```
+
+2. When using `docker compose` directly (not via launch.sh), set user IDs:
+```bash
+export UID=$(id -u)
+export GID=$(id -g)
+docker compose run --rm discordmanager interactive
+```
+
+3. Check file ownership matches your user:
+```bash
+ls -la export/
+# Should show your username, not root
 ```
 
 ### Data Package Not Found

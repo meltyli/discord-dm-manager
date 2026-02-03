@@ -73,6 +73,55 @@ function cleanInput(input) {
 
 const DCE_STALL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of no output = stalled
 
+/**
+ * Extract output summary from DCE process buffers
+ * @param {string} stderrBuf - stderr buffer
+ * @param {string} stdoutBuf - stdout buffer
+ * @param {number} maxChars - Maximum characters to return from end
+ * @returns {string} Output summary
+ */
+function getOutputSummary(stderrBuf, stdoutBuf, maxChars = 2000) {
+    const fullOutput = stderrBuf || stdoutBuf || '';
+    return fullOutput.slice(-maxChars);
+}
+
+/**
+ * Extract detailed error message from DCE output
+ * @param {string} stderrBuf - stderr buffer
+ * @param {string} stdoutBuf - stdout buffer
+ * @returns {string} Extracted error message with context
+ */
+function extractDCEError(stderrBuf, stdoutBuf) {
+    const fullOutput = stderrBuf || stdoutBuf || '';
+    let errorMsg = '';
+    
+    // Look for common error patterns in DCE output
+    const errorPatterns = [
+        /Error:\s*(.+)/i,
+        /Exception:\s*(.+)/i,
+        /Failed to.*?:\s*(.+)/i,
+        /at DiscordChatExporter\..*?\n\s*(.+?)(?:\n|$)/
+    ];
+    
+    for (const pattern of errorPatterns) {
+        const match = fullOutput.match(pattern);
+        if (match && match[1]) {
+            errorMsg = match[1].trim();
+            break;
+        }
+    }
+    
+    // If no specific error found, show more context
+    if (!errorMsg) {
+        // Get first 500 chars and last 2000 chars
+        const start = fullOutput.slice(0, 500);
+        const end = fullOutput.slice(-2000);
+        errorMsg = start !== end ? `${start}\n...\n${end}` : end;
+    }
+    
+    return errorMsg;
+}
+
 async function runDCEExportChannel(token, exportPath, dcePath, format, userId, channelId, channelName = 'Unknown', afterTimestamp = null) {
     return new Promise((resolve, reject) => {
         const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
@@ -126,8 +175,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
                             }
                         }, 5000);
                     } catch (e) {}
-                    const fullOutput = stderrBuf || stdoutBuf || '';
-                    const last = fullOutput.slice(-2000);
+                    const last = getOutputSummary(stderrBuf, stdoutBuf);
                     reject(new Error(`DCE stalled (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes) for ${channelName}. Last output: ${last}`));
                 });
             }
@@ -148,34 +196,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
                 if (code === 0) {
                     resolve({ success: true, channelId, channelName });
                 } else {
-                    // Try to extract the actual error from the output
-                    const fullOutput = stderrBuf || stdoutBuf || '';
-                    let errorMsg = '';
-                    
-                    // Look for common error patterns in DCE output
-                    const errorPatterns = [
-                        /Error:\s*(.+)/i,
-                        /Exception:\s*(.+)/i,
-                        /Failed to.*?:\s*(.+)/i,
-                        /at DiscordChatExporter\..*?\n\s*(.+?)(?:\n|$)/
-                    ];
-                    
-                    for (const pattern of errorPatterns) {
-                        const match = fullOutput.match(pattern);
-                        if (match && match[1]) {
-                            errorMsg = match[1].trim();
-                            break;
-                        }
-                    }
-                    
-                    // If no specific error found, show more context
-                    if (!errorMsg) {
-                        // Get first 500 chars and last 2000 chars
-                        const start = fullOutput.slice(0, 500);
-                        const end = fullOutput.slice(-2000);
-                        errorMsg = start !== end ? `${start}\n...\n${end}` : end;
-                    }
-                    
+                    const errorMsg = extractDCEError(stderrBuf, stdoutBuf);
                     reject(new Error(`DCE exited with code ${code} for ${channelName}. Error: ${errorMsg}`));
                 }
             });
@@ -183,8 +204,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
 
         dceProcess.on('error', (error) => {
             onFinish(() => {
-                const fullOutput = stderrBuf || stdoutBuf || '';
-                const last = fullOutput.slice(-2000);
+                const last = getOutputSummary(stderrBuf, stdoutBuf);
                 reject(new Error(`Failed to start DCE for ${channelName}: ${error.message}. Last output: ${last}`));
             });
         });
