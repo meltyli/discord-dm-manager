@@ -32,10 +32,14 @@ test_path/
 
 # OS files
 .DS_Store
+**/.DS_Store
 Thumbs.db
 ._*
+**/._*
 .AppleDouble
+**/.AppleDouble
 .LSOverride
+**/.LSOverride
 
 # Git
 .git/
