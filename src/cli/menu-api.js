@@ -1,6 +1,7 @@
 const path = require('path');
 const { getCurrentOpenDMs, reopenDM } = require('../discord-api');
 const { processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-processor');
+const { loadBatchState, hasIncompleteBatchSession, validateBatchStateForResume } = require('../batch/batch-state');
 const { readJsonFile } = require('../lib/file-utils');
 const { validateRequired, validateDCEPath, validatePathExists } = require('../lib/validators');
 const { promptUser, waitForKeyPress, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
@@ -25,15 +26,20 @@ class ApiMenu extends MenuBase {
     async show() {
         await this.runMenuLoop('Discord API Menu', () => {
             const dryTitle = getDryRunTitle(this.options);
+            const hasIncompleteSession = hasIncompleteBatchSession();
+            
             console.log(`\nDiscord API${dryTitle ? ' ' + dryTitle : ''}`);
             console.log('===========');
             console.log('1. List Current Open Direct Messages');
             console.log('2. Export All Direct Messages');
-            console.log('3. Close All Open Direct Messages');
-            console.log('4. Reopen Direct Message (Specific User ID)');
-            console.log('5. Reset DM State (Reopen Closed Direct Messages)');
+            console.log(`3. Resume Previous Export${hasIncompleteSession ? ` ${yellow}(Available)${reset}` : ''}`);
+            console.log('4. Close All Open Direct Messages');
+            console.log('5. Reopen Direct Message (Specific User ID)');
+            console.log('6. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
         }, async (choice) => {
+            const hasIncompleteSession = hasIncompleteBatchSession();
+            
             switch (choice) {
                 case '1':
                     return await this.executeMenuAction('List Current Open Direct Messages', 
@@ -42,12 +48,25 @@ class ApiMenu extends MenuBase {
                     return await this.executeMenuAction('Export All Direct Messages', 
                         () => this.processAndExportAllDMs(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
                 case '3':
+                    if (hasIncompleteSession) {
+                        return await this.executeMenuAction('Resume Previous Export', 
+                            () => this.resumeExport(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
+                    } else {
+                        console.log(`\n${yellow}No incomplete export session found.${reset}`);
+                        console.log('To use this option, you must first:');
+                        console.log('  1. Start an export using option 2 (Export All Direct Messages)');
+                        console.log('  2. Allow the export to be interrupted or stopped');
+                        console.log('  3. Then use this option to resume from where it left off');
+                        await waitForKeyPress(this.rl);
+                        return true;
+                    }
+                case '4':
                     return await this.executeMenuAction('Close All Open Direct Messages', 
                         () => this.closeAllDMs());
-                case '4':
+                case '5':
                     return await this.executeMenuAction('Reopen Direct Message (Specific User ID)', 
                         () => this.reopenSpecificDM());
-                case '5':
+                case '6':
                     return await this.executeMenuAction('Reset DM State (Reopen Closed Direct Messages)', 
                         () => this.resetDMState());
                 case 'q':
@@ -232,6 +251,16 @@ class ApiMenu extends MenuBase {
             return;
         }
 
+        // Check batch size and warn if > 40
+        if (this.options.BATCH_SIZE > 40) {
+            console.log(`\n${yellow}Warning: Batch size is ${this.options.BATCH_SIZE}${reset}`);
+            console.log('Recommended batch size is under 40 to reduce risk of long-running batches.');
+            if (!await promptConfirmation(`Proceed with batch size ${this.options.BATCH_SIZE}? (y/n): `, this.rl)) {
+                console.log('Operation cancelled.');
+                return;
+            }
+        }
+
         // Hardcoded to DM only (1-on-1 conversations)
         const typeFilter = ['DM'];
 
@@ -280,6 +309,79 @@ class ApiMenu extends MenuBase {
             await this.resetDMState();
         } catch (error) {
             console.error(`${red}Process and export failed: ${error.message}${reset}`);
+        }
+    }
+
+    async resumeExport() {
+        await this.ensureConfigured();
+        
+        // Load and validate batch state
+        const batchState = loadBatchState();
+        
+        try {
+            validateBatchStateForResume(batchState, this.configManager);
+        } catch (error) {
+            console.error(`${red}Cannot resume: ${error.message}${reset}`);
+            return;
+        }
+        
+        // Validate DCE_PATH and EXPORT_PATH
+        try {
+            validateDCEPath(this.options.DCE_PATH);
+            validateRequired(this.options.EXPORT_PATH, 'EXPORT_PATH', 'export path');
+        } catch (error) {
+            console.error(`${red}Error: ${error.message}${reset}`);
+            return;
+        }
+        
+        const resumeFromBatch = batchState.lastCompletedBatch + 1;
+        const remainingBatches = batchState.totalBatches - resumeFromBatch;
+        
+        console.clear();
+        console.log(`\n${yellow}Resume Previous Export${reset}`);
+        console.log('======================');
+        console.log(`Last completed batch: ${batchState.lastCompletedBatch + 1}/${batchState.totalBatches}`);
+        console.log(`Resuming from batch: ${resumeFromBatch + 1}/${batchState.totalBatches}`);
+        console.log(`Remaining batches: ${remainingBatches}\n`);
+        
+        if (!await promptConfirmation('Continue with resume? (y/n): ', this.rl)) {
+            console.log('Resume cancelled.');
+            return;
+        }
+        
+        // Hardcoded to DM only (1-on-1 conversations)
+        const typeFilter = ['DM'];
+        
+        // Create export callback
+        const exportCallback = async () => {
+            const { getCurrentOpenDMs } = require('../discord-api');
+            const openDMs = await getCurrentOpenDMs(process.env.AUTHORIZATION_TOKEN);
+            const dmChannels = openDMs.filter(dm => dm.type === 1);
+            
+            const dataPackagePath = this.options.DATA_PACKAGE_FOLDER;
+            const idHistoryPath = getIdHistoryPath(dataPackagePath);
+            
+            return await exportDMs(
+                process.env.AUTHORIZATION_TOKEN,
+                this.options.EXPORT_PATH,
+                this.options.DCE_PATH,
+                process.env.USER_DISCORD_ID,
+                ['Json'],
+                dmChannels,
+                2,
+                idHistoryPath
+            );
+        };
+        
+        try {
+            // Resume by processing remaining batches
+            const { processAndExportAllDMs } = require('../batch/batch-processor');
+            await processAndExportAllDMs(exportCallback, this.rl, typeFilter);
+            console.log(`\n${green}Export resumed and completed successfully!${reset}`);
+            console.log('\nResetting DM state.');
+            await this.resetDMState();
+        } catch (error) {
+            console.error(`${red}Resume failed: ${error.message}${reset}`);
         }
     }
 }

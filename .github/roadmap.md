@@ -41,26 +41,19 @@
 ### High Priority
 
 #### Session 1-3: Reliable Batch Resume
-**Missing:**
+✅ **Completed** - All features implemented:
 - `lastCompletedBatch` field in batch-state.json schema
-- Per-batch completion tracking
-- "Resume previous export" menu option
+- Per-batch completion tracking with atomic writes
+- "Resume Previous Export" menu option (always visible)
 - Resume flow that starts from `lastCompletedBatch + 1`
 - Validation of EXPORT_PATH and DCE_PATH before resuming
-
-**Current Limitation:**
-- Exports can be resumed at channel level (via exportStatus)
-- But batch-level resume not implemented
-- Interrupted exports must restart entire batch
+- Full test coverage in test-batch-resume.js
 
 #### Session 5: Batch Size Warning
-- Missing: Warning when batch size > 40
-- Missing: Confirmation prompt for large batch sizes
-- Current: User can set any batch size without warning
+✅ **Completed** - Warning and confirmation when batch size > 40
 
 #### Session 6: Sub-menu Rearrangement
-- Missing: Menu option 2 visibility before configuration
-- Current: Some options may require configuration before display
+✅ **Completed** - Menu option 3 (Resume Previous Export) always visible with helpful messaging
 
 ### Medium Priority
 

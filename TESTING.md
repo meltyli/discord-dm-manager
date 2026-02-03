@@ -77,6 +77,8 @@ npm test -- --testTimeout=20000
 ### Integration Tests (Medium Speed)
 - `tests/batch/` - Batch processing tests
   - `batch-processor-dm-state.test.js` - DM state management ✅
+- `tests/` - Batch resume tests
+  - `test-batch-resume.js` - Batch state persistence and resume logic ✅
 - `tests/cli/` - CLI runner tests
   - `cli-runner.test.js` - Basic CLI runner tests ✅
   - `cli-runner-integration.test.js` - CLI integration tests ⚠️ (some tests need refactoring)

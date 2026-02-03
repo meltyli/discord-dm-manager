@@ -2,6 +2,14 @@
 
 A Docker-based wrapper tool for Discord Chat Exporter that helps manage and export Discord DMs efficiently.
 
+**Key Features:**
+- Batch processing with automatic resume support for interrupted exports
+- Intelligent export status tracking (skips already-exported DMs)
+- Configurable batch sizes with warnings for large batches (>40)
+- Safe rate limiting with random delays
+- DM state management (save/restore open DMs)
+- Dry run mode for testing
+
 ## Quick Start
 
 ### Prerequisites

@@ -15,11 +15,12 @@ const logger = getLogger();
 const configManager = getConfigManager();
 const delayTracker = getApiDelayTracker();
 
-function createBatchState(allDmIds, totalBatches, currentBatch = 0) {
+function createBatchState(allDmIds, totalBatches, currentBatch = 0, lastCompletedBatch = -1) {
     return {
         allDmIds,
         totalBatches,
         currentBatch,
+        lastCompletedBatch,
         processedUsers: 0,
         skippedUsers: 0,
         timestamp: new Date().toISOString(),
@@ -350,6 +351,9 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
                 
                 if (exportSuccess) {
                     exportedCount += stats.reopenedIds.length;
+                    // Mark batch as completed after successful export
+                    batchState.lastCompletedBatch = batchNum;
+                    saveBatchState(batchState);
                 } else {
                     console.error(`\n${red}Export completed with errors${reset}`);
                     failedCount += stats.reopenedIds.length;

@@ -18,16 +18,24 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 **Menu System (src/cli/):**
 - `menu-main.js` - Main menu orchestration
 - `menu-config.js` - Configuration submenu
-- `menu-api.js` - API operations (export, close/reopen DMs, reset state)
+- `menu-api.js` - API operations:
+  - Export with batch size warning (>40)
+  - Resume interrupted exports from last completed batch
+  - Close/reopen DMs, reset state
 - `menu-base.js` - Shared menu base class
 - `menu-helpers.js` - Display utilities
 
 **Batch Processing (src/batch/):**
 - `batch-processor.js` - Core DM processing:
   - `closeAllOpenDMs()` - Closes all open DMs, saves channel data to id-history.json
-  - `processAndExportAllDMs(exportCallback, rlInterface, typeFilter)` - Main export workflow
+  - `processAndExportAllDMs(exportCallback, rlInterface, typeFilter)` - Main export workflow with resume support
   - `initializeBatchProcessing(typeFilter)` - Setup with channel type filtering
-- `batch-state.js` - Persistent state for interrupted sessions
+- `batch-state.js` - Persistent state for interrupted sessions:
+  - `saveBatchState(state)` - Atomic save with lastCompletedBatch tracking
+  - `loadBatchState()` - Load saved batch state
+  - `clearBatchState()` - Clean up after successful completion
+  - `hasIncompleteBatchSession()` - Check for resumable session
+  - `validateBatchStateForResume(state, configManager)` - Validate state before resume
 
 **Utilities (src/lib/):**
 - `cli-helpers.js` - Input prompts, progress bars, DCE spawn wrapper
@@ -82,13 +90,34 @@ Node.js CLI tool for batch-managing Discord Direct Messages at scale. Processes 
 All configuration stored in `/config/` directory:
 - `.env` - Secrets (AUTHORIZATION_TOKEN, USER_DISCORD_ID)
 - `config.json` - Application settings
-- `batch-state.json` - Auto-managed batch processing state
+- `batch-state.json` - Auto-managed batch processing state (created during export, cleaned on completion)
 - Data package stores `{DATA_PACKAGE_FOLDER}/messages/id-history.json`
+
+### batch-state.json Structure
+Auto-managed file for batch resume functionality:
+```javascript
+{
+  "allDmIds": ["123", "456", "789"],  // All DM user IDs to process
+  "totalBatches": 3,                   // Total number of batches
+  "currentBatch": 2,                   // Current batch being processed
+  "lastCompletedBatch": 1,            // Last fully completed batch
+  "processedUsers": ["123", "456"],   // Successfully processed user IDs
+  "skippedUsers": ["999"],            // Skipped user IDs
+  "timestamp": "2025-12-31T10:30:45.123Z",
+  "inProgress": true                  // Session in progress flag
+}
+```
+Batch resume workflow:
+1. On export start: Creates batch-state.json with inProgress=true
+2. After each batch: Updates lastCompletedBatch and persists state
+3. On interruption: State file preserved with last completion point
+4. On resume: Validates state and continues from lastCompletedBatch + 1
+5. On successful completion: Clears batch-state.json
 
 ### config.json Settings
 ```javascript
 {
-  "BATCH_SIZE": 20,              // DMs per batch (default: 20)
+  "BATCH_SIZE": 20,              // DMs per batch (default: 20, recommended <40)
   "API_DELAY_MS": 100,           // Deprecated - use randomDelay instead
   "MAX_RETRIES": 3,              // API retry attempts
   "RETRY_DELAY_MS": 5000,        // Delay between retries
