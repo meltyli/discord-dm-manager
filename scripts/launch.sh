@@ -13,7 +13,8 @@ if [ -z "$(docker images -q discordmanager:latest 2>/dev/null)" ]; then
 fi
 
 # Set user/group IDs for proper permissions
-export UID=$(id -u)
-export GID=$(id -g)
+# Note: UID is readonly in bash/zsh, so we use USER_UID instead
+export USER_UID=$(id -u)
+export USER_GID=$(id -g)
 
 docker compose run --rm discordmanager interactive

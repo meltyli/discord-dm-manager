@@ -26,6 +26,9 @@ RUN npm install --omit=dev --no-audit --no-fund
 # Copy source code
 COPY src/ ./src/
 
+# Fix permissions for non-root users (files copied are root-owned by default)
+RUN chmod -R 755 /app/src
+
 # Create necessary directories
 RUN mkdir -p /app/config /app/export /app/logs
 
