@@ -12,4 +12,8 @@ if [ -z "$(docker images -q discordmanager:latest 2>/dev/null)" ]; then
 	"$SCRIPT_DIR/rebuild.sh"
 fi
 
+# Set user/group IDs for proper permissions
+export UID=$(id -u)
+export GID=$(id -g)
+
 docker compose run --rm discordmanager interactive

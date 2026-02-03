@@ -5,6 +5,8 @@ services:
     build: .
     image: discordmanager:latest
     container_name: discordmanager
+    # Run as host user to avoid permission issues
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       # Mount your Discord data package
       # IMPORTANT: Place your extracted Discord data package in ./data/package/
