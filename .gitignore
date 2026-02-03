@@ -126,5 +126,13 @@ dist
 .yarn/install-state.gz
 .pnp.*
 package-lock.json
+
+# macOS metadata files
 .DS_Store
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+
 .github/refactor.md

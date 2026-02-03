@@ -33,6 +33,9 @@ test_path/
 # OS files
 .DS_Store
 Thumbs.db
+._*
+.AppleDouble
+.LSOverride
 
 # Git
 .git/
