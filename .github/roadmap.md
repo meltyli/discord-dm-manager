@@ -1,71 +1,120 @@
-# Roadmap: Reliable Batch Resume for Export All Direct Messages
+# Roadmap
 
-Goal: Implement reliable resume behavior for the Export All Direct Messages workflow, add a per-batch completion flag, and reduce risk of long-running batches. Recommend keeping batch size under 40; warn when user selects >40.
+## Current Status
 
-## Sessions
+### ✅ Completed Features
 
-### Session 1 — State schema & save/load
-- Add `lastCompletedBatch` (integer) to `config/batch-state.json`.
-- Ensure `saveBatchState()` writes:
-  - allDmIds, totalBatches, currentBatch, processedUsers, skippedUsers, timestamp, inProgress, lastCompletedBatch
-- Implement atomic write (write temp file, rename) for batch-state using `writeJsonFileAtomic`.
+#### Session 7: id-history.json Revamp
+- Stores full channel objects from getCurrentOpenDMs
+- Three-key structure: `originalState`, `latest`, `uniqueChannels`
+- Simplified channel data to essential fields only
 
-Acceptance:
-- Batch state schema updated and file written atomically after each batch completes.
+#### Export Status Tracking
+- `exportStatus` field in id-history.json tracks per-channel export completion
+- Status values: `pending`, `in-progress`, `completed`, `failed`
+- Resume capability skips already-completed exports
+- Completion count displayed before starting new exports
 
-### Session 2 — Marking per-batch completion
-- After finishing export + close for a batch, set `lastCompletedBatch = batchNum` and persist state.
-- Ensure `currentBatch` advances only after marking completion.
+#### Basic Batch State
+- `batch-state.json` exists with schema: `allDmIds`, `totalBatches`, `currentBatch`, `processedUsers`, `skippedUsers`, `timestamp`, `inProgress`
+- Atomic writes implemented in `writeJsonFile()` (temp file → rename)
+- `hasIncompleteBatchSession()` checks for recent incomplete sessions (within 7 days)
+- State cleared on completion
 
-Acceptance:
-- Resumable state shows highest fully completed batch; partial batches are not marked complete.
+#### Export Infrastructure
+- JSON-only export format (hardcoded)
+- DCE integration with media download, reuse, and partitioning
+- Automatic retry logic (2 attempts with progressive delays)
+- Enhanced error extraction from DCE output
+- Progress bars with username display
+- Batch size default: 20
+- Type filtering: DM only (type=1), GROUP_DM excluded
 
-### Session 3 — Resume flow & menu
-- Add "Resume previous export" menu option.
-- On resume:
-  - Load and validate `batch-state.json` fields.
-  - Restore `allDmIds`, `totalBatches`, `currentBatch`, `processedUsers`, `skippedUsers`.
-  - Start processing at `lastCompletedBatch + 1`.
-- Validate EXPORT_PATH and DCE_PATH before resuming.
+#### Docker & Environment
+- Docker Compose v2 syntax throughout
+- UID/GID environment variables for host user permissions
+- Automatic architecture detection for DCE download
+- Pre-configured paths for Docker environment
 
-Acceptance:
-- User can select resume; processing continues from the next uncompleted batch.
+## 🚧 Pending Implementation
 
-### Session 4 — Robustness & cleanup
-- Use `inProgress` flag: set true when run starts, false on clean completion.
-- On clean completion, clear or archive `batch-state.json`.
+### High Priority
 
-Acceptance:
-- Interrupted runs leave valid state; completed runs clear state.
+#### Session 1-3: Reliable Batch Resume
+**Missing:**
+- `lastCompletedBatch` field in batch-state.json schema
+- Per-batch completion tracking
+- "Resume previous export" menu option
+- Resume flow that starts from `lastCompletedBatch + 1`
+- Validation of EXPORT_PATH and DCE_PATH before resuming
 
-### Session 5 — Tests, logging, and UX
-- Unit tests for save/load state and resume logic.
-- End-to-end test: start run, simulate crash after N batches, resume and verify no re-run of completed batches.
-- Add user prompt when starting export that warns: "Recommended batch size < 40. Proceed with batch size > 40? (y/n)".
+**Current Limitation:**
+- Exports can be resumed at channel level (via exportStatus)
+- But batch-level resume not implemented
+- Interrupted exports must restart entire batch
 
-Acceptance:
-- Tests pass, logs indicate resume points, user warned on large batch sizes.
+#### Session 5: Batch Size Warning
+- Missing: Warning when batch size > 40
+- Missing: Confirmation prompt for large batch sizes
+- Current: User can set any batch size without warning
 
-## Implementation notes
-- Use `lastCompletedBatch` as the minimal per-batch completion flag (simpler to implement and reason about).
-- On resume, skip batches <= `lastCompletedBatch`.
-- Persist state immediately after each batch completes to make resume reliable.
-- Recommend batch size under 40; if configured batch size > 40 show a clear warning and require confirmation.
-- Discord Chat Exporter creates unique folders based on time, so no need to check for existing exports.
+#### Session 6: Sub-menu Rearrangement
+- Missing: Menu option 2 visibility before configuration
+- Current: Some options may require configuration before display
 
-## Minimal acceptance criteria for feature delivery
-- New menu option to resume works and resumes from the next uncompleted batch.
-- Batch-state schema includes per-batch completion tracking.
-- State file writes are atomic and updated after each batch.
-- User receives a warning when batch size > 40.
+### Medium Priority
 
-### Session 6 - Sub menu rearrangement
-- Don't hide menu option 2 and instead prompt the user the menu option they need to use before it's available
+#### Comprehensive Testing
+- Unit tests for save/load batch state needed
+- E2E test for crash/resume scenario needed
+- Batch processor tests exist but incomplete coverage
 
-### Session 7 Revamp id-history.json output
-✅ Completed - id-history.json now stores full channel objects from getCurrentOpenDMs with three keys:
-- `originalState`: Channel data from first capture
-- `latest`: Channel data from most recent close operation (type=1 DMs only)
-- `uniqueChannels`: All unique channels ever seen (by channel.id)
+### Low Priority (Code Quality)
 
-#file:guidelines.instructions.md 
+#### Completed:
+1. ✅ Refactored duplicate error handling in cli-helpers.js
+2. ✅ Updated docker-compose → docker compose across codebase
+3. ✅ Removed obsolete `version: '3.8'` from docker-compose.yml
+4. ✅ Added UID/GID documentation
+
+#### Pending Review:
+5. Remove redundant path validation in config.js
+6. Simplify progress bar creation logic
+7. Extract magic numbers to named constants
+8. Consolidate readline cleanup patterns
+9. DRY out menu option handling
+10. Remove unused/deprecated `API_DELAY_MS` config
+
+## Implementation Notes
+
+### Resume Implementation Plan
+When implementing resume (Sessions 1-3):
+- Add `lastCompletedBatch` to batch state schema
+- Update after export + close completes for each batch
+- Resume menu option loads state and validates paths
+- Start processing at `lastCompletedBatch + 1`
+- Skip batches <= `lastCompletedBatch`
+
+### Batch Size Recommendations
+- Recommended: < 40 DMs per batch
+- Reason: Reduces risk of long-running batches failing
+- Implementation: Prompt confirmation when user sets > 40
+
+### Export Status vs Batch Resume
+- **Export Status** (✅ implemented): Per-channel tracking in id-history.json
+- **Batch Resume** (❌ not implemented): Per-batch tracking in batch-state.json
+- These work together: Export status provides fine-grained resume within a batch
+
+## Acceptance Criteria Summary
+
+### For Batch Resume Feature:
+- [ ] `lastCompletedBatch` field in batch-state.json
+- [ ] Atomic writes to batch state after each batch
+- [ ] "Resume previous export" menu option
+- [ ] Resume flow validates paths and starts at correct batch
+- [ ] Interrupted runs leave valid state
+- [ ] Completed runs clear state
+- [ ] Tests verify no re-run of completed batches
+- [ ] Warning displayed when batch size > 40
+
+#file:guidelines.instructions.md
