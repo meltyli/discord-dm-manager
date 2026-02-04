@@ -5,6 +5,31 @@ const os = require('os');
 const cliProgress = require('cli-progress');
 const { red, green, yellow, reset } = require('./colors');
 
+/**
+ * Sanitizes a string to be safe for use in file paths
+ * Removes or replaces characters that are invalid in filenames across different OS
+ * @param {string} str - The string to sanitize
+ * @returns {string} - The sanitized string
+ */
+function sanitizeForFilePath(str) {
+    if (!str) return 'Unknown';
+    
+    // Replace common invalid characters for Windows, Linux, and macOS
+    // Windows: < > : " / \ | ? *
+    // Linux/macOS: / (null character is also invalid but unlikely in usernames)
+    // Also replace control characters, zero-width characters, and trim whitespace
+    return str
+        .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_')  // Replace invalid chars with underscore
+        .replace(/[\u200B-\u200D\uFEFF\u180E]/g, '') // Remove zero-width spaces
+        .replace(/[\u1C80-\u1CFF]/g, '_')        // Replace Georgian Mtavruli (often invisible/problematic)
+        .replace(/\s+/g, ' ')                     // Normalize whitespace
+        .replace(/^\.+/, '_')                     // Replace leading dots (hidden files on Unix)
+        .replace(/\.$/, '_')                      // Replace trailing dots (invalid on Windows)
+        .trim()                                   // Remove leading/trailing whitespace
+        .substring(0, 200)                        // Limit length (filesystem limits vary)
+        || 'Unknown';                             // Fallback if empty after sanitization
+}
+
 async function promptUser(question, readlineInterface) {
     return new Promise((resolve) => {
         readlineInterface.question(question, resolve);
@@ -126,11 +151,14 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
     return new Promise((resolve, reject) => {
         const dceExecutable = path.join(dcePath, 'DiscordChatExporter.Cli');
 
+        // Sanitize channel name for use in file path
+        const safeChannelName = sanitizeForFilePath(channelName);
+
         const args = [
             'export',
             '-t', token,
             '-c', channelId,
-            '-o', `${exportPath}/${userId}/Direct Messages/${channelId}/${channelName} - %d/`,
+            '-o', `${exportPath}/${userId}/Direct Messages/${channelId}/${safeChannelName} - %d/`,
             '--partition', '10MB',
             '--format', format,
             '--media-dir', `${exportPath}/media`,
