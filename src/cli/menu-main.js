@@ -31,6 +31,13 @@ class DiscordDMApp {
         return this.configManager.config;
     }
 
+    cleanup() {
+        if (this.rl) {
+            this.rl.close();
+            this.rl = null;
+        }
+    }
+
     async showMenu() {
         while (true) {
             clearScreen();
@@ -59,7 +66,7 @@ class DiscordDMApp {
                         break;
                     case 'q':
                         console.log('\nGoodbye!');
-                        this.rl.close();
+                        this.cleanup();
                         return;
                     default:
                         console.log('\nInvalid option. Please try again.');
@@ -127,6 +134,7 @@ class DiscordDMApp {
         await app.showMenu();
     } catch (error) {
         console.error('Initialization error:', error.message);
+        app.cleanup();
         process.exit(1);
     }
 })();

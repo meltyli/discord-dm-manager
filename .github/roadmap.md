@@ -73,9 +73,12 @@ All high-priority items have been completed.
 8. ✅ Simplified progress bar creation logic:
    - Removed inline cliProgress.SingleBar creation in exportChannelsInParallel
    - Now consistently uses createDMProgressBar helper throughout codebase
+9. ✅ Consolidated readline cleanup patterns:
+   - Added cleanup() method to DiscordDMApp class
+   - Replaced direct rl.close() calls with centralized cleanup method
+   - Ensures readline is properly closed in both normal and error exit paths
 
 #### Pending Review:
-9. Consolidate readline cleanup patterns
 10. DRY out menu option handling
 
 ## Implementation Notes
