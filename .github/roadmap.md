@@ -40,27 +40,17 @@
 
 ### High Priority
 
-#### Session 1-3: Reliable Batch Resume
-✅ **Completed** - All features implemented:
-- `lastCompletedBatch` field in batch-state.json schema
-- Per-batch completion tracking with atomic writes
-- "Resume Previous Export" menu option (always visible)
-- Resume flow that starts from `lastCompletedBatch + 1`
-- Validation of EXPORT_PATH and DCE_PATH before resuming
-- Full test coverage in test-batch-resume.js
-
-#### Session 5: Batch Size Warning
-✅ **Completed** - Warning and confirmation when batch size > 40
-
-#### Session 6: Sub-menu Rearrangement
-✅ **Completed** - Menu option 3 (Resume Previous Export) always visible with helpful messaging
+All high-priority items have been completed.
 
 ### Medium Priority
 
 #### Comprehensive Testing
-- Unit tests for save/load batch state needed
-- E2E test for crash/resume scenario needed
-- Batch processor tests exist but incomplete coverage
+✅ **Completed** - Unit tests exist in test-batch-resume.js with comprehensive coverage for:
+- Save/load batch state
+- Mark batch completion
+- Resume from incomplete session
+- Clear batch state on completion
+- Atomic write verification
 
 ### Low Priority (Code Quality)
 
@@ -69,14 +59,22 @@
 2. ✅ Updated docker-compose → docker compose across codebase
 3. ✅ Removed obsolete `version: '3.8'` from docker-compose.yml
 4. ✅ Added UID/GID documentation
+5. ✅ Extracted magic numbers to named constants:
+   - BATCH_STATE_MAX_AGE_MS (7 days)
+   - MAX_OUTPUT_SUMMARY_CHARS, ERROR_CONTEXT_START_CHARS, ERROR_CONTEXT_END_CHARS
+   - EXPORT_TIMEOUT_MS, RETRY_DELAY_BASE_MS
+   - LONG_PAUSE_MIN_MS, LONG_PAUSE_MAX_MS, etc. (rate-limiter.js)
+   - DEFAULT_RATE_LIMIT_RETRY_MS (discord-api.js)
+6. ✅ Renamed `API_DELAY_MS` to `INTER_BATCH_DELAY_MS` with automatic migration
+7. ✅ Removed redundant path validation in config.js:
+   - Consolidated validateDataPackageFolder() logic into validatePaths()
+   - Eliminated duplicate validatePathExists() calls
+   - Extracted setup instructions into showDataPackageSetupInstructions()
 
 #### Pending Review:
-5. Remove redundant path validation in config.js
-6. Simplify progress bar creation logic
-7. Extract magic numbers to named constants
-8. Consolidate readline cleanup patterns
-9. DRY out menu option handling
-10. Remove unused/deprecated `API_DELAY_MS` config
+8. Simplify progress bar creation logic
+9. Consolidate readline cleanup patterns
+10. DRY out menu option handling
 
 ## Implementation Notes
 
@@ -101,13 +99,15 @@ When implementing resume (Sessions 1-3):
 ## Acceptance Criteria Summary
 
 ### For Batch Resume Feature:
-- [ ] `lastCompletedBatch` field in batch-state.json
-- [ ] Atomic writes to batch state after each batch
-- [ ] "Resume previous export" menu option
-- [ ] Resume flow validates paths and starts at correct batch
-- [ ] Interrupted runs leave valid state
-- [ ] Completed runs clear state
-- [ ] Tests verify no re-run of completed batches
-- [ ] Warning displayed when batch size > 40
+- [x] `lastCompletedBatch` field in batch-state.json
+- [x] Atomic writes to batch state after each batch
+- [x] "Resume previous export" menu option
+- [x] Resume flow validates paths and starts at correct batch
+- [x] Interrupted runs leave valid state
+- [x] Completed runs clear state
+- [x] Tests verify no re-run of completed batches
+- [x] Warning displayed when batch size > 40
+
+All acceptance criteria have been met.
 
 #file:guidelines.instructions.md

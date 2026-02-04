@@ -7,6 +7,9 @@ const { isDryRun } = require('./lib/dry-run-helper');
 
 const configManager = getConfigManager();
 
+// Constants
+const DEFAULT_RATE_LIMIT_RETRY_MS = 10000; // 10 seconds if no retry-after header
+
 async function withRetry(operation, description) {
     for (let attempt = 1; attempt <= configManager.get('MAX_RETRIES'); attempt++) {
         try {
@@ -16,7 +19,7 @@ async function withRetry(operation, description) {
                 let msg;
                 if (error.response && error.response.status === 429) {
                     const retryAfter = error.response.headers['retry-after'];
-                    delayMs = retryAfter ? parseInt(retryAfter) * 1000 : 10000;
+                    delayMs = retryAfter ? parseInt(retryAfter) * 1000 : DEFAULT_RATE_LIMIT_RETRY_MS;
                     msg = `${description} rate limited! waiting ${delayMs}ms before retry ${attempt}/${configManager.get('MAX_RETRIES')}`;
                 } else {
                     msg = `${description} failed! attempt ${attempt}/${configManager.get('MAX_RETRIES')}: ${error.message}`;

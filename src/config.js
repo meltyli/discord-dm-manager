@@ -27,7 +27,7 @@ const DEFAULT_DATA_PACKAGE_DIR = IS_DOCKER
 // Default configurations (Docker paths)
 const defaultConfig = {
     BATCH_SIZE: 20,
-    API_DELAY_MS: 100,
+    INTER_BATCH_DELAY_MS: 200, // Small delay between batches (2x base = 200ms)
     MAX_RETRIES: 3,
     RETRY_DELAY_MS: 5000,
     RATE_LIMIT_REQUESTS: 40,
@@ -103,6 +103,13 @@ class ConfigManager {
 
             const fileConfig = readJsonFile(CONFIG_FILE_PATH);
             if (fileConfig) {
+                // Migrate old API_DELAY_MS to INTER_BATCH_DELAY_MS
+                if (fileConfig.API_DELAY_MS !== undefined && fileConfig.INTER_BATCH_DELAY_MS === undefined) {
+                    fileConfig.INTER_BATCH_DELAY_MS = fileConfig.API_DELAY_MS * 2;
+                    delete fileConfig.API_DELAY_MS;
+                    console.log(`${yellow}Migrated API_DELAY_MS to INTER_BATCH_DELAY_MS${reset}`);
+                }
+                
                 this.config = { ...defaultConfig, ...fileConfig };
             } else {
                 console.warn(`${yellow}No config.json found,${reset} creating with default values.`);
@@ -131,9 +138,26 @@ class ConfigManager {
     }
 
     async validatePaths() {
-        // Special handling for DATA_PACKAGE_FOLDER
-        await this.validateDataPackageFolder();
+        // Ensure default directory exists
+        ensureDirectory(DEFAULT_DATA_PACKAGE_DIR);
         
+        // Update DATA_PACKAGE_FOLDER based on current environment
+        let needsSave = false;
+        if (IS_DOCKER && this.config.DATA_PACKAGE_FOLDER !== '/data/package') {
+            // Running in Docker but config has local path - update to Docker path
+            this.config.DATA_PACKAGE_FOLDER = '/data/package';
+            needsSave = true;
+        } else if (!IS_DOCKER && this.config.DATA_PACKAGE_FOLDER === '/data/package') {
+            // Running locally but config has Docker path - update to local path
+            this.config.DATA_PACKAGE_FOLDER = DEFAULT_DATA_PACKAGE_DIR;
+            needsSave = true;
+        }
+        
+        if (needsSave) {
+            this.saveConfig();
+        }
+        
+        // Validate all paths and create missing ones
         const pathsToCheck = ['DATA_PACKAGE_FOLDER', 'EXPORT_PATH', 'DCE_PATH'];
         const updated = await validateConfigPaths(this.config, pathsToCheck, this.rl, resolveExportPath);
         
@@ -141,38 +165,33 @@ class ConfigManager {
             this.saveConfig();
         }
         
-        // After paths are validated, verify user ID from data package
-        if (validatePathExists(this.config.DATA_PACKAGE_FOLDER)) {
-            const existingUserId = process.env.USER_DISCORD_ID || null;
-            const verifiedUserId = await verifyUserId(this.config.DATA_PACKAGE_FOLDER, this.rl, existingUserId);
-            if (verifiedUserId) {
-                this.env.USER_DISCORD_ID = verifiedUserId;
-                process.env.USER_DISCORD_ID = verifiedUserId;
-            }
-        }
-    }
-
-    async validateDataPackageFolder() {
-        // Ensure default directory exists
-        ensureDirectory(DEFAULT_DATA_PACKAGE_DIR);
-        
-        const dataPackagePath = DEFAULT_DATA_PACKAGE_DIR;
-        
-        // Check if path exists and is valid
+        // After paths are validated, handle data package validation
+        const dataPackagePath = this.config.DATA_PACKAGE_FOLDER;
         if (validatePathExists(dataPackagePath)) {
             try {
                 validateDataPackage(dataPackagePath);
-                this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
-                this.saveConfig();
-                return true;
+                
+                // Verify user ID from data package
+                const existingUserId = process.env.USER_DISCORD_ID || null;
+                const verifiedUserId = await verifyUserId(dataPackagePath, this.rl, existingUserId);
+                if (verifiedUserId) {
+                    this.env.USER_DISCORD_ID = verifiedUserId;
+                    process.env.USER_DISCORD_ID = verifiedUserId;
+                }
             } catch (error) {
+                // Data package exists but is invalid - show setup instructions
                 console.warn(`\n${yellow}Warning:${reset} Data package at ${dataPackagePath} is invalid: ${error.message}`);
+                this.showDataPackageSetupInstructions(dataPackagePath);
             }
+        } else {
+            // Data package path doesn't exist - show setup instructions
+            this.showDataPackageSetupInstructions(dataPackagePath);
         }
-        
-        // Show setup instructions if not valid
+    }
+
+    showDataPackageSetupInstructions(dataPackagePath) {
         console.log('\n' + '='.repeat(60));
-        console.log(`${red}Discord Data Package Not Found${reset}`);
+        console.log(`${red}Discord Data Package Not Found or Invalid${reset}`);
         console.log('='.repeat(60));
         console.log(`\nExpected location: ${dataPackagePath}`);
         
@@ -196,10 +215,6 @@ class ConfigManager {
         
         console.log(`\n${yellow}Note:${reset} You can still access Configuration menu, but`);
         console.log('      export functions will not work until the data package is found.');
-        
-        this.config.DATA_PACKAGE_FOLDER = dataPackagePath;
-        this.saveConfig();
-        return false;
     }
 
     async ensureEnvValues() {

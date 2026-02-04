@@ -5,6 +5,13 @@ const os = require('os');
 const cliProgress = require('cli-progress');
 const { red, green, yellow, reset } = require('./colors');
 
+// Constants
+const MAX_OUTPUT_SUMMARY_CHARS = 2000;
+const ERROR_CONTEXT_START_CHARS = 500;
+const ERROR_CONTEXT_END_CHARS = 2000;
+const EXPORT_TIMEOUT_MS = 5000;
+const RETRY_DELAY_BASE_MS = 2000;
+
 /**
  * Sanitizes a string to be safe for use in file paths
  * Removes or replaces characters that are invalid in filenames across different OS
@@ -105,7 +112,7 @@ const DCE_STALL_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of no output = stalle
  * @param {number} maxChars - Maximum characters to return from end
  * @returns {string} Output summary
  */
-function getOutputSummary(stderrBuf, stdoutBuf, maxChars = 2000) {
+function getOutputSummary(stderrBuf, stdoutBuf, maxChars = MAX_OUTPUT_SUMMARY_CHARS) {
     const fullOutput = stderrBuf || stdoutBuf || '';
     return fullOutput.slice(-maxChars);
 }
@@ -139,8 +146,8 @@ function extractDCEError(stderrBuf, stdoutBuf) {
     // If no specific error found, show more context
     if (!errorMsg) {
         // Get first 500 chars and last 2000 chars
-        const start = fullOutput.slice(0, 500);
-        const end = fullOutput.slice(-2000);
+        const start = fullOutput.slice(0, ERROR_CONTEXT_START_CHARS);
+        const end = fullOutput.slice(-ERROR_CONTEXT_END_CHARS);
         errorMsg = start !== end ? `${start}\n...\n${end}` : end;
     }
     
@@ -205,7 +212,7 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
                             if (!dceProcess.killed) {
                                 dceProcess.kill('SIGKILL');
                             }
-                        }, 5000);
+                        }, EXPORT_TIMEOUT_MS);
                     } catch (e) {}
                     const last = getOutputSummary(stderrBuf, stdoutBuf);
                     reject(new Error(`DCE stalled (no output for ${Math.floor(timeSinceLastOutput / 60000)} minutes) for ${channelName}. Last output: ${last}`));
@@ -253,7 +260,7 @@ async function runDCEExportChannelWithRetry(token, exportPath, dcePath, format, 
             lastError = error;
             
             if (attempt < maxRetries) {
-                const delay = 2000 * attempt; // Progressive delay: 2s, 4s
+                const delay = RETRY_DELAY_BASE_MS * attempt; // Progressive delay: 2s, 4s
                 console.log(`\n  Retry ${attempt}/${maxRetries - 1} for ${channelName} after ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             }

@@ -7,7 +7,7 @@ function displayDetailedConfig(options) {
     console.log('\nSettings:');
     console.log(`  DRY_RUN: ${yellow}${options.DRY_RUN}${reset}`);
     console.log(`  BATCH_SIZE: ${yellow}${options.BATCH_SIZE}${reset}`);
-    console.log(`  API_DELAY_MS: ${yellow}${options.API_DELAY_MS}${reset}`);
+    console.log(`  INTER_BATCH_DELAY_MS: ${yellow}${options.INTER_BATCH_DELAY_MS}${reset}`);
     console.log(`  RATE_LIMIT: ${yellow}${options.RATE_LIMIT_REQUESTS}${reset} req/${yellow}${options.RATE_LIMIT_INTERVAL_MS}${reset}ms`);
     console.log('\nAuthentication:');
     console.log(`  AUTHORIZATION_TOKEN: ${yellow}${process.env.AUTHORIZATION_TOKEN ? '***set***' : 'Not set'}${reset}`);

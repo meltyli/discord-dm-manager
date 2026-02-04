@@ -97,12 +97,12 @@ class ConfigurationMenu extends MenuBase {
     }
 
     async setApiDelay() {
-        console.log(`${yellow}API Delay Configuration${reset}`);
-        const newValue = cleanInput(await promptUser(`Enter new API delay in ms (current: ${yellow}${this.options.API_DELAY_MS}${reset}): `, this.rl));
+        console.log(`${yellow}Inter-Batch Delay Configuration${reset}`);
+        const newValue = cleanInput(await promptUser(`Enter new inter-batch delay in ms (current: ${yellow}${this.options.INTER_BATCH_DELAY_MS}${reset}): `, this.rl));
         if (newValue) {
-            this.options.API_DELAY_MS = Number(newValue);
+            this.options.INTER_BATCH_DELAY_MS = Number(newValue);
             this.configManager.saveConfig();
-            console.log(`\nAPI delay updated to ${yellow}${this.options.API_DELAY_MS}${reset}ms`);
+            console.log(`\nInter-batch delay updated to ${yellow}${this.options.INTER_BATCH_DELAY_MS}${reset}ms`);
         }
         await waitForKeyPress(this.rl);
     }

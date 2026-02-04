@@ -1,6 +1,9 @@
 const fs = require('fs');
 const { resolveConfigPath, readJsonFile, writeJsonFile } = require('../lib/file-utils');
 
+// Constants
+const BATCH_STATE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
 function saveBatchState(state) {
     try {
         const filePath = resolveConfigPath('batch-state.json');
@@ -44,9 +47,8 @@ function hasIncompleteBatchSession() {
     
     // Check if state is recent (within 7 days)
     const stateAge = Date.now() - new Date(state.timestamp).getTime();
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
     
-    return state.inProgress && stateAge < sevenDays;
+    return state.inProgress && stateAge < BATCH_STATE_MAX_AGE_MS;
 }
 
 function validateBatchStateForResume(state, configManager) {
@@ -68,9 +70,8 @@ function validateBatchStateForResume(state, configManager) {
     
     // Check if state is recent (within 7 days)
     const stateAge = Date.now() - new Date(state.timestamp).getTime();
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
     
-    if (stateAge >= sevenDays) {
+    if (stateAge >= BATCH_STATE_MAX_AGE_MS) {
         throw new Error('Batch state is too old (>7 days)');
     }
     

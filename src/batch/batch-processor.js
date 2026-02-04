@@ -386,7 +386,7 @@ async function processAndExportAllDMs(exportCallback, rlInterface = null, typeFi
             // Small delay before next batch
             if (batchNum < adjustedTotalBatches - 1) {
                 console.log(`\nBatch ${batchNum + 1}/${adjustedTotalBatches} complete, moving to next batch`);
-                await delay(configManager.get('API_DELAY_MS') * 2);
+                await delay(configManager.get('INTER_BATCH_DELAY_MS'));
             }
         }
         console.log('\nAll batches processed!');
