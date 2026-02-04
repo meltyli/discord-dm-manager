@@ -153,12 +153,16 @@ async function runDCEExportChannel(token, exportPath, dcePath, format, userId, c
 
         // Sanitize channel name for use in file path
         const safeChannelName = sanitizeForFilePath(channelName);
+        
+        // Create filename with sanitized channel name to prevent DCE from using problematic characters
+        // DCE format: "Direct Messages - [channel-name] [channel-id].json"
+        const safeFileName = `Direct Messages - ${safeChannelName} [${channelId}]`;
 
         const args = [
             'export',
             '-t', token,
             '-c', channelId,
-            '-o', `${exportPath}/${userId}/Direct Messages/${channelId}/${safeChannelName} - %d/`,
+            '-o', `${exportPath}/${userId}/Direct Messages/${channelId}/${safeChannelName} - %d/${safeFileName}.${format.toLowerCase()}`,
             '--partition', '10MB',
             '--format', format,
             '--media-dir', `${exportPath}/media`,
