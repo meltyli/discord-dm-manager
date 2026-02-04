@@ -70,9 +70,11 @@ All high-priority items have been completed.
    - Consolidated validateDataPackageFolder() logic into validatePaths()
    - Eliminated duplicate validatePathExists() calls
    - Extracted setup instructions into showDataPackageSetupInstructions()
+8. ✅ Simplified progress bar creation logic:
+   - Removed inline cliProgress.SingleBar creation in exportChannelsInParallel
+   - Now consistently uses createDMProgressBar helper throughout codebase
 
 #### Pending Review:
-8. Simplify progress bar creation logic
 9. Consolidate readline cleanup patterns
 10. DRY out menu option handling
 

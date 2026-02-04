@@ -280,13 +280,7 @@ async function exportChannelsInParallel(token, exportPath, dcePath, format, user
     const { getExportStatus, updateExportStatus } = require('./file-utils');
     const exportStatuses = idHistoryPath ? getExportStatus(idHistoryPath) : {};
     
-    const progressBar = new cliProgress.SingleBar({
-        format: `Exporting |{bar}| {percentage}% | {value}/{total} | {username}`,
-        barCompleteChar: '\u2588',
-        barIncompleteChar: '\u2591',
-        hideCursor: true
-    });
-    
+    const progressBar = createDMProgressBar('Exporting', true);
     progressBar.start(channels.length, 0, { username: 'Starting' });
     
     for (let i = 0; i < channels.length; i++) {
