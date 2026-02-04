@@ -2,7 +2,7 @@ const path = require('path');
 const { getConfigManager } = require('../config');
 const { getCurrentOpenDMs, reopenDM, closeDM, delay } = require('../discord-api');
 const { traverseDataPackage, getRecipients, resolveConfigPath, readJsonFile, writeJsonFile, updateIdHistory, getChannelsToExport, updateExportStatus, getCompletedExports } = require('../lib/file-utils');
-const { waitForKeyPress, promptConfirmation, createDMProgressBar } = require('../lib/cli-helpers');
+const { waitForKeyPress, promptConfirmation, createDMProgressBar, clearProgressLine } = require('../lib/cli-helpers');
 const { saveBatchState, loadBatchState, clearBatchState } = require('./batch-state');
 const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
@@ -59,16 +59,15 @@ async function initializeBatchProcessing(typeFilter = null) {
 }
 
 async function closeAllOpenDMs() {
-    try {
-        const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
-        await delayTracker.trackAndDelay();
-        
-        if (currentDMs.length === 0) {
-            console.log('No open direct messages to close.');
-            return [];
-        }
+    const currentDMs = await getCurrentOpenDMs(configManager.getEnv('AUTHORIZATION_TOKEN'));
+    await delayTracker.trackAndDelay();
+    
+    if (currentDMs.length === 0) {
+        console.log('No open direct messages to close.');
+        return [];
+    }
 
-        const dmCount = currentDMs.filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0).length;
+    const dmCount = currentDMs.filter(dm => dm.type === 1 && Array.isArray(dm.recipients) && dm.recipients.length > 0).length;
         
         const dataPackagePath = configManager.get('DATA_PACKAGE_FOLDER');
         const filePath = getIdHistoryPath(dataPackagePath);
@@ -116,16 +115,13 @@ async function closeAllOpenDMs() {
         }
         closeProgress.update(currentDMs.length);
         closeProgress.stop();
-        process.stdout.write('\r\x1b[K');
+        clearProgressLine();
         
         console.log(`✓ Successfully closed ${closedUserIds.length} DMs`);
         logger.logOnly(`⠋ Saving channel info to id-history.json`, 'info');
         logger.logOnly(`✓ Channel info saved to ${filePath}`, 'info');
         
         return closedUserIds;
-    } catch (error) {
-        throw error;
-    }
 }
 
 async function openBatchDMs(userIds, batchNum, totalBatches) {
@@ -189,7 +185,7 @@ async function openBatchDMs(userIds, batchNum, totalBatches) {
         }
         batchProgress.update(userIds.length);
         batchProgress.stop();
-        process.stdout.write('\r\x1b[K');
+        clearProgressLine();
         console.log(`✓ Batch ${batchNum + 1}/${totalBatches} opened`);
         
         return { processed: processedUsers, skipped: skippedUsers, reopenedIds: successfullyReopened };

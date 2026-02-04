@@ -40,27 +40,17 @@ function getRecipients(channelJsonPaths, myDiscordId, typeFilter = ['DM', 'GROUP
             const channelJson = JSON.parse(data.trim());
             
             if (typeFilter.includes(channelJson.type)) {
-                // Skip if recipients field is missing or not an array
-                if (!channelJson.recipients || !Array.isArray(channelJson.recipients)) {
-                    return;
-                }
-                
-                // Skip if recipients array is empty
-                if (channelJson.recipients.length === 0) {
+                if (!channelJson.recipients || !Array.isArray(channelJson.recipients) || channelJson.recipients.length === 0) {
                     return;
                 }
                 
                 channelJson.recipients.forEach(recipientId => {
-                    // Skip if recipient is null, undefined, or the user's own ID
                     if (!recipientId || recipientId === myDiscordId) {
                         return;
                     }
                     
-                    // Filter out invalid IDs - only accept numeric strings/numbers
                     const recipientStr = String(recipientId).trim();
-                    const isValidId = /^\d+$/.test(recipientStr);
-                    
-                    if (isValidId) {
+                    if (/^\d+$/.test(recipientStr)) {
                         recipientIds.add(recipientStr);
                     }
                 });
@@ -131,18 +121,12 @@ function writeJsonFile(filePath, data, indent = 2) {
     }
 }
 
-/**
- * Strips channel data to only essential fields
- * @param {Object} channel - Full channel object from Discord API
- * @returns {Object} Simplified channel object with only essential data
- */
 function stripChannelData(channel) {
     const stripped = {
         id: channel.id,
         type: channel.type
     };
     
-    // Only include recipients with essential fields
     if (channel.recipients && Array.isArray(channel.recipients)) {
         stripped.recipients = channel.recipients.map(r => ({
             id: r.id,
@@ -154,11 +138,6 @@ function stripChannelData(channel) {
     return stripped;
 }
 
-/**
- * Gets user metadata from account/user.json
- * @param {string} idHistoryPath - Path to id-history.json
- * @returns {Object|null} User metadata or null if not found
- */
 function getUserMetadata(idHistoryPath) {
     try {
         const accountPath = path.join(path.dirname(path.dirname(idHistoryPath)), 'account', 'user.json');
@@ -173,19 +152,16 @@ function getUserMetadata(idHistoryPath) {
             };
         }
     } catch (error) {
-        // If we can't read user data, that's okay
+        // Silently fail if user data unavailable
     }
     return null;
 }
 
 function updateIdHistory(idHistoryPath, currentChannels) {
     const existing = readJsonFile(idHistoryPath, null);
-    
-    // Strip channels to only essential data
     const strippedChannels = currentChannels.map(stripChannelData);
     
     if (!existing || !existing.originalState) {
-        // First run - set originalState and user metadata
         const userMeta = getUserMetadata(idHistoryPath);
         const data = {
             user: userMeta,
@@ -196,24 +172,20 @@ function updateIdHistory(idHistoryPath, currentChannels) {
         };
         writeJsonFile(idHistoryPath, data);
     } else {
-        // Subsequent runs - preserve originalState and user, update latest and uniqueChannels
         const existingChannelMap = new Map();
         
-        // Build map of existing unique channels by id
         if (existing.uniqueChannels && Array.isArray(existing.uniqueChannels)) {
             existing.uniqueChannels.forEach(channel => {
                 existingChannelMap.set(channel.id, channel);
             });
         }
         
-        // Add new channels to map (will not overwrite existing ones)
         strippedChannels.forEach(channel => {
             if (!existingChannelMap.has(channel.id)) {
                 existingChannelMap.set(channel.id, channel);
             }
         });
         
-        // Preserve user metadata or get it if missing
         const userMeta = existing.user || getUserMetadata(idHistoryPath);
         
         const data = {

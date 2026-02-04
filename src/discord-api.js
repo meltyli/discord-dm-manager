@@ -4,6 +4,7 @@ const path = require('path');
 const { getConfigManager } = require('./config');
 const { RateLimiter, delay } = require('./lib/rate-limiter');
 const { isDryRun } = require('./lib/dry-run-helper');
+const { clearProgressLine } = require('./lib/cli-helpers');
 
 const configManager = getConfigManager();
 
@@ -117,33 +118,15 @@ async function reopenDM(authToken, userId, progressBar = null) {
             if (error.response) {
                 const status = error.response.status;
                 // Handle expected error cases that shouldn't be retried
-                if (status === 404) {
-                    if (progressBar) {
-                        process.stdout.write('\r\x1b[K');
-                        console.log(`User ${userId} not found, skipping`);
-                    } else {
-                        console.log(`User ${userId} not found, skipping`);
-                    }
+                const handleSkip = (message) => {
+                    if (progressBar) clearProgressLine();
+                    console.log(message);
                     return null;
-                }
-                if (status === 400) {
-                    if (progressBar) {
-                        process.stdout.write('\r\x1b[K');
-                        console.log(`Invalid user ID ${userId}, skipping`);
-                    } else {
-                        console.log(`Invalid user ID ${userId}, skipping`);
-                    }
-                    return null;
-                }
-                if (status === 403) {
-                    if (progressBar) {
-                        process.stdout.write('\r\x1b[K');
-                        console.log(`User ${userId} access forbidden (likely deleted), skipping`);
-                    } else {
-                        console.log(`User ${userId} access forbidden (likely deleted), skipping`);
-                    }
-                    return null;
-                }
+                };
+                
+                if (status === 404) return handleSkip(`User ${userId} not found, skipping`);
+                if (status === 400) return handleSkip(`Invalid user ID ${userId}, skipping`);
+                if (status === 403) return handleSkip(`User ${userId} access forbidden (likely deleted), skipping`);
             }
             // Throw other errors (401, 429, 5xx) to trigger retry
             throw error;

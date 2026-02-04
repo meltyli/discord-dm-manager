@@ -4,7 +4,7 @@ const { processAndExportAllDMs, closeAllOpenDMs } = require('../batch/batch-proc
 const { loadBatchState, hasIncompleteBatchSession, validateBatchStateForResume } = require('../batch/batch-state');
 const { readJsonFile } = require('../lib/file-utils');
 const { validateRequired, validateDCEPath, validatePathExists } = require('../lib/validators');
-const { promptUser, waitForKeyPress, cleanInput, promptConfirmation, exportDMs, createDMProgressBar } = require('../lib/cli-helpers');
+const { promptUser, waitForKeyPress, cleanInput, promptConfirmation, exportDMs, createDMProgressBar, clearProgressLine } = require('../lib/cli-helpers');
 const { displaySettings, getDryRunTitle } = require('./menu-helpers');
 const { isDryRun } = require('../lib/dry-run-helper');
 const { getApiDelayTracker } = require('../lib/api-delay-tracker');
@@ -166,7 +166,7 @@ class ApiMenu extends MenuBase {
         }
         reopenProgress.update(closedIds.length);
         reopenProgress.stop();
-        process.stdout.write('\r\x1b[K');
+        clearProgressLine();
         
         console.log(`\nReopened: ${yellow}${reopened}${reset}, Skipped: ${yellow}${skipped}${reset}`);
     }

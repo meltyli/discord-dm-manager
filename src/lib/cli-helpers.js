@@ -13,6 +13,13 @@ const EXPORT_TIMEOUT_MS = 5000;
 const RETRY_DELAY_BASE_MS = 2000;
 
 /**
+ * Clears the current progress line
+ */
+function clearProgressLine() {
+    process.stdout.write('\r\x1b[K');
+}
+
+/**
  * Sanitizes a string to be safe for use in file paths
  * Removes or replaces characters that are invalid in filenames across different OS
  * @param {string} str - The string to sanitize
@@ -418,6 +425,7 @@ module.exports = {
     getMenuChoice,
     clearScreen,
     cleanInput,
+    clearProgressLine,
     runDCEExportChannel,
     runDCEExportChannelWithRetry,
     exportChannelsInParallel,
