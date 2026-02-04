@@ -24,6 +24,45 @@ class ApiMenu extends MenuBase {
     }
 
     async show() {
+        const menuOptions = {
+            '1': { 
+                label: 'List Current Open Direct Messages', 
+                action: () => this.viewOpenDMs() 
+            },
+            '2': { 
+                label: 'Export All Direct Messages', 
+                action: () => this.processAndExportAllDMs(),
+                options: { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS }
+            },
+            '3': {
+                label: 'Resume Previous Export',
+                action: () => this.resumeExport(),
+                condition: () => hasIncompleteBatchSession(),
+                conditionFailed: async () => {
+                    console.log(`\n${yellow}No incomplete export session found.${reset}`);
+                    console.log('To use this option, you must first:');
+                    console.log('  1. Start an export using option 2 (Export All Direct Messages)');
+                    console.log('  2. Allow the export to be interrupted or stopped');
+                    console.log('  3. Then use this option to resume from where it left off');
+                    await waitForKeyPress(this.rl);
+                },
+                options: { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS }
+            },
+            '4': { 
+                label: 'Close All Open Direct Messages', 
+                action: () => this.closeAllDMs() 
+            },
+            '5': { 
+                label: 'Reopen Direct Message (Specific User ID)', 
+                action: () => this.reopenSpecificDM() 
+            },
+            '6': { 
+                label: 'Reset DM State (Reopen Closed Direct Messages)', 
+                action: () => this.resetDMState() 
+            },
+            'q': { exit: true }
+        };
+
         await this.runMenuLoop('Discord API Menu', () => {
             const dryTitle = getDryRunTitle(this.options);
             const hasIncompleteSession = hasIncompleteBatchSession();
@@ -38,44 +77,7 @@ class ApiMenu extends MenuBase {
             console.log('6. Reset DM State (Reopen Closed Direct Messages)');
             console.log('q. Back to Main Menu');
         }, async (choice) => {
-            const hasIncompleteSession = hasIncompleteBatchSession();
-            
-            switch (choice) {
-                case '1':
-                    return await this.executeMenuAction('List Current Open Direct Messages', 
-                        () => this.viewOpenDMs());
-                case '2':
-                    return await this.executeMenuAction('Export All Direct Messages', 
-                        () => this.processAndExportAllDMs(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
-                case '3':
-                    if (hasIncompleteSession) {
-                        return await this.executeMenuAction('Resume Previous Export', 
-                            () => this.resumeExport(), true, { suppressErrorOutput: this.options.SUPPRESS_MENU_ERRORS });
-                    } else {
-                        console.log(`\n${yellow}No incomplete export session found.${reset}`);
-                        console.log('To use this option, you must first:');
-                        console.log('  1. Start an export using option 2 (Export All Direct Messages)');
-                        console.log('  2. Allow the export to be interrupted or stopped');
-                        console.log('  3. Then use this option to resume from where it left off');
-                        await waitForKeyPress(this.rl);
-                        return true;
-                    }
-                case '4':
-                    return await this.executeMenuAction('Close All Open Direct Messages', 
-                        () => this.closeAllDMs());
-                case '5':
-                    return await this.executeMenuAction('Reopen Direct Message (Specific User ID)', 
-                        () => this.reopenSpecificDM());
-                case '6':
-                    return await this.executeMenuAction('Reset DM State (Reopen Closed Direct Messages)', 
-                        () => this.resetDMState());
-                case 'q':
-                    return false;
-                default:
-                    console.log('\nInvalid option. Please try again.');
-                    await waitForKeyPress(this.rl);
-                    return true;
-            }
+            return await this.handleMenuOptions(choice, menuOptions);
         });
     }
 

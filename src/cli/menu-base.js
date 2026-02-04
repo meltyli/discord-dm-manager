@@ -1,5 +1,5 @@
 const { getLogger } = require('../logger');
-const { clearScreen, getMenuChoice, safeWaitForKeyPress } = require('../lib/cli-helpers');
+const { clearScreen, getMenuChoice, safeWaitForKeyPress, waitForKeyPress } = require('../lib/cli-helpers');
 
 /**
  * Base class for CLI menus with common display and interaction patterns
@@ -12,6 +12,49 @@ class MenuBase {
 
     get options() {
         return this.configManager.config;
+    }
+
+    /**
+     * Handles menu options using a configuration object
+     * @param {string} choice - User's menu choice
+     * @param {Object} optionsMap - Map of choice to {label, action, wait, options, condition}
+     * @returns {Promise<boolean>} True if should continue menu loop, false to exit
+     */
+    async handleMenuOptions(choice, optionsMap) {
+        const option = optionsMap[choice];
+        
+        if (!option) {
+            console.log('\nInvalid option. Please try again.');
+            await waitForKeyPress(this.rl);
+            return true;
+        }
+        
+        // Handle 'q' or explicit exit
+        if (option.exit) {
+            return false;
+        }
+        
+        // Check condition if provided (e.g., for conditional menu items)
+        if (option.condition !== undefined && !option.condition()) {
+            if (option.conditionFailed) {
+                await option.conditionFailed();
+            }
+            return true;
+        }
+        
+        // Execute action with optional label
+        if (option.label) {
+            return await this.executeMenuAction(
+                option.label,
+                option.action,
+                option.wait !== false, // default to true
+                option.options || {}
+            );
+        } else {
+            // Direct action without executeMenuAction wrapper
+            await option.action();
+            return true;
+        }
     }
 
     /**

@@ -19,6 +19,17 @@ class ConfigurationMenu extends MenuBase {
             return;
         }
 
+        const menuOptions = {
+            '1': { label: 'Check Data Package', action: () => this.checkDataPackage(), wait: false },
+            '2': { label: 'Toggle Dry Run Mode', action: () => this.toggleDryRun(), wait: false },
+            '3': { label: 'Set Batch Size', action: () => this.setBatchSize(), wait: false },
+            '4': { label: 'Set API Delay', action: () => this.setApiDelay(), wait: false },
+            '5': { label: 'Set Rate Limit', action: () => this.setRateLimit(), wait: false },
+            '6': { label: 'Toggle Suppress Menu Errors', action: () => this.toggleSuppressMenuErrors(), wait: false },
+            '7': { label: 'Reset to Default', action: () => this.resetToDefault(), wait: false },
+            'q': { exit: true }
+        };
+
         await this.runMenuLoop('Configuration Menu', () => {
             console.log('\nConfiguration');
             console.log('=============');
@@ -32,35 +43,7 @@ class ConfigurationMenu extends MenuBase {
             console.log('7. Reset to Default');
             console.log('q. Back to Main Menu');
         }, async (choice) => {
-            switch (choice) {
-                case '1':
-                    return await this.executeMenuAction('Check Data Package', 
-                        () => this.checkDataPackage(), false);
-                case '2':
-                    return await this.executeMenuAction('Toggle Dry Run Mode', 
-                        () => this.toggleDryRun(), false);
-                case '3':
-                    return await this.executeMenuAction('Set Batch Size', 
-                        () => this.setBatchSize(), false);
-                case '4':
-                    return await this.executeMenuAction('Set API Delay', 
-                        () => this.setApiDelay(), false);
-                case '5':
-                    return await this.executeMenuAction('Set Rate Limit', 
-                        () => this.setRateLimit(), false);
-                case '6':
-                    return await this.executeMenuAction('Toggle Suppress Menu Errors', 
-                        () => this.toggleSuppressMenuErrors(), false);
-                case '7':
-                    return await this.executeMenuAction('Reset to Default', 
-                        () => this.resetToDefault(), false);
-                case 'q':
-                    return false;
-                default:
-                    console.log('\nInvalid option. Please try again.');
-                    await waitForKeyPress(this.rl);
-                    return true;
-            }
+            return await this.handleMenuOptions(choice, menuOptions);
         });
     }
 
